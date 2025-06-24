@@ -56,18 +56,32 @@ class LinkedInEnrichmentService(ProfileEnrichmentService):
         if not company.name:
             return []
         
+        try:
+            # Add overall timeout to prevent hanging
+            profiles = await asyncio.wait_for(
+                self._find_profiles_with_timeout(company),
+                timeout=60.0  # 1 minute max per company
+            )
+            logger.info(f"✅ Found {len(profiles)} LinkedIn profiles for {company.name}")
+            return profiles
+        except asyncio.TimeoutError:
+            logger.warning(f"⏰ Profile search timeout for {company.name}")
+            return []
+        except Exception as e:
+            logger.error(f"❌ Profile search failed for {company.name}: {e}")
+            return []
+    
+    async def _find_profiles_with_timeout(self, company: Company) -> List[LinkedInProfile]:
+        """Internal method with timeout protection."""
         # Use different strategies based on available founder data
         founder_names = [name.strip() for name in company.founders if name.strip()]
         
         if len(founder_names) >= 4:
             # Use known names approach
-            profiles = await self._find_profiles_by_names(company, founder_names)
+            return await self._find_profiles_by_names(company, founder_names)
         else:
             # Use mixed approach
-            profiles = await self._find_profiles_mixed_approach(company, founder_names)
-        
-        logger.info(f"✅ Found {len(profiles)} LinkedIn profiles for {company.name}")
-        return profiles
+            return await self._find_profiles_mixed_approach(company, founder_names)
     
     async def enrich_profile(self, profile: LinkedInProfile) -> LinkedInProfile:
         """Enrich profile with additional data from LinkedIn."""
@@ -106,11 +120,11 @@ class LinkedInEnrichmentService(ProfileEnrichmentService):
         """Find profiles using known founder names."""
         profiles = []
         
-        for name in founder_names[:6]:  # Limit to 6 names
+        for name in founder_names[:3]:  # Limit to 3 names instead of 6
             query = f'{name} {company.name} LinkedIn'
             
             try:
-                results = await self._search_google(query, limit=3)
+                results = await self._search_google(query, limit=2)  # Reduced from 3
                 extracted = await self._extract_profiles_with_names(
                     results, company, [name]
                 )
@@ -132,10 +146,10 @@ class LinkedInEnrichmentService(ProfileEnrichmentService):
         
         # Step 1: Search for known names if any
         if known_names:
-            for name in known_names[:3]:
+            for name in known_names[:2]:  # Reduced from 3
                 query = f'{name} {company.name} site:linkedin.com/in'
                 try:
-                    results = await self._search_google(query, limit=3)
+                    results = await self._search_google(query, limit=2)  # Reduced from 3
                     extracted = await self._extract_profiles_with_names(
                         results, company, [name]
                     )
@@ -144,12 +158,12 @@ class LinkedInEnrichmentService(ProfileEnrichmentService):
                     logger.error(f"Error searching for {name}: {e}")
         
         # Step 2: General search for company executives
-        titles = ["CEO", "CTO", "Co-founder", "Founder", "President"]
-        for title in titles[:3]:
+        titles = ["CEO", "Founder"]  # Reduced from 5 titles to 2
+        for title in titles:
             query = f'{company.name} {title} LinkedIn'
             
             try:
-                results = await self._search_google(query, limit=5)
+                results = await self._search_google(query, limit=3)  # Reduced from 5
                 extracted = await self._extract_profiles_general(
                     results, company, titles
                 )
@@ -177,7 +191,7 @@ class LinkedInEnrichmentService(ProfileEnrichmentService):
         }
         
         try:
-            # Use requests with timeout
+            # Use requests with shorter timeout
             import asyncio
             import functools
             loop = asyncio.get_event_loop()
@@ -189,10 +203,10 @@ class LinkedInEnrichmentService(ProfileEnrichmentService):
                         url, 
                         json=payload, 
                         headers=headers, 
-                        timeout=30
+                        timeout=10
                     )
                 ),
-                timeout=35.0
+                timeout=15.0
             )
             
             if response.status_code == 200:
@@ -268,10 +282,14 @@ Return a JSON object with this structure:
         try:
             await self.rate_limiter.acquire()
             
-            response = await self.openai.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.1
+            # Add timeout to OpenAI call
+            response = await asyncio.wait_for(
+                self.openai.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.1
+                ),
+                timeout=30.0
             )
             
             content = response.choices[0].message.content
@@ -371,10 +389,14 @@ Return a JSON object with this structure:
         try:
             await self.rate_limiter.acquire()
             
-            response = await self.openai.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.1
+            # Add timeout to OpenAI call
+            response = await asyncio.wait_for(
+                self.openai.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.1
+                ),
+                timeout=30.0
             )
             
             content = response.choices[0].message.content
