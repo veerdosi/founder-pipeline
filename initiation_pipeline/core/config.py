@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     apify_api_key: str = Field(..., env="APIFY_API_KEY")
     perplexity_api_key: str = Field(..., env="PERPLEXITY_API_KEY")
     
+    # Data Source APIs
+    crunchbase_api_key: str = Field(..., env="CRUNCHBASE_API_KEY")
+    
     # Logging
     log_level: str = Field("INFO", env="LOG_LEVEL")
     log_file: Optional[str] = Field(None, env="LOG_FILE")

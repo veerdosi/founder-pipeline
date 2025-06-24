@@ -105,13 +105,20 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
         regions: Optional[List[str]] = None
     ) -> List[str]:
         """Generate targeted search queries for early-stage AI companies globally."""
-        # Early-stage focused queries
+        
+        # Generate dynamic year range for recent companies (last 5-6 years)
+        from datetime import datetime
+        current_year = datetime.now().year
+        recent_years = [str(year) for year in range(current_year - 5, current_year + 1)]
+        year_range = " ".join(recent_years)
+        
+        # Early-stage focused queries with dynamic years
         queries = [
-            "early stage AI startups seed funding 2023 2024 artificial intelligence",
+            f"early stage AI startups seed funding {current_year - 1} {current_year} artificial intelligence",
             "pre-seed series A machine learning companies venture capital",
             "emerging AI startups computer vision robotics funding rounds",
             "new AI companies generative artificial intelligence seed investment",
-            "startup AI companies founded 2020 2021 2022 2023 funding",
+            f"startup AI companies founded {year_range} funding",
             "Y Combinator Techstars AI startups batch graduates funding",
             "European AI startups seed series A funding artificial intelligence",
             "Asian AI startups Singapore Israel India machine learning funding"

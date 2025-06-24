@@ -155,6 +155,8 @@ def validate_api_keys() -> bool:
         missing_keys.append("APIFY_API_KEY")
     if not settings.perplexity_api_key or settings.perplexity_api_key == "your_perplexity_api_key_here":
         missing_keys.append("PERPLEXITY_API_KEY")
+    if not settings.crunchbase_api_key or settings.crunchbase_api_key == "your_crunchbase_api_key_here":
+        missing_keys.append("CRUNCHBASE_API_KEY")
     
     if missing_keys:
         console.print("❌ Missing required API keys:")

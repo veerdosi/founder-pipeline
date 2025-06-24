@@ -134,25 +134,18 @@ def run(
     async def run_pipeline():
         pipeline = InitiationPipeline()
         
-        result = await pipeline.run_complete_pipeline(
+        fused_companies = await pipeline.run_complete_pipeline(
             company_limit=companies,
             include_profiles=not no_profiles,
             include_market_analysis=not no_analysis,
             checkpoint_prefix=checkpoint_prefix
         )
         
-        # Export results
-        if format.lower() == "json":
-            await save_to_json(result.dict(), output)
-        else:
-            # Default to CSV
-            records = result.to_csv_records()
-            save_to_csv(records, output)
+        # Export results using the new pipeline export method
+        pipeline.export_results(fused_companies, output, format)
         
-        # Show summary
-        _show_pipeline_summary(result)
-        
-        return result
+        # Show summary (stats are printed by the pipeline now)
+        return fused_companies
     
     # Run the pipeline
     result = asyncio.run(run_pipeline())
@@ -448,36 +441,6 @@ def analyze(
     analyzed_count = sum(1 for ec in result if ec.market_metrics)
     console.print(f"\n✅ Analyzed {analyzed_count} company markets")
     console.print(f"📁 Saved to: {output}")
-
-
-def _show_pipeline_summary(result):
-    """Show a summary of pipeline results."""
-    stats = result.stats
-    
-    # Summary table
-    table = Table(title="Pipeline Summary")
-    table.add_column("Metric", style="cyan")
-    table.add_column("Value", style="magenta")
-    
-    table.add_row("Total Companies", str(stats["total_companies"]))
-    table.add_row("Companies with Profiles", str(stats["companies_with_profiles"]))
-    table.add_row("Companies with Analysis", str(stats["companies_with_analysis"]))
-    table.add_row("Total Profiles Found", str(stats["total_profiles"]))
-    table.add_row("Execution Time", f"{stats['execution_time']:.1f}s")
-    table.add_row("Profile Success Rate", f"{stats['profile_success_rate']:.1%}")
-    table.add_row("Analysis Success Rate", f"{stats['analysis_success_rate']:.1%}")
-    
-    console.print(table)
-    
-    # Top sectors
-    if stats["sector_distribution"]:
-        console.print("\n📊 Top AI Sectors:")
-        for sector, count in sorted(
-            stats["sector_distribution"].items(), 
-            key=lambda x: x[1], 
-            reverse=True
-        )[:5]:
-            console.print(f"   • {sector}: {count} companies")
 
 
 if __name__ == "__main__":

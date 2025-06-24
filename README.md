@@ -1,15 +1,26 @@
-# Initiation Pipeline
+# AI Company Discovery Pipeline
 
-A comprehensive CLI tool for discovering early-stage AI companies with market analysis and LinkedIn profile enrichment.
+A comprehensive CLI tool for discovering early-stage AI companies with advanced analytics, multi-source data fusion, and intelligent market analysis.
 
-## Features
+## 🚀 Features
 
-- **Company Discovery**: Find AI companies using multiple data sources (Exa,etc.)
-- **Profile Enrichment**: Extract LinkedIn profiles of founders and executives
-- **Market Analysis**: Get market metrics, sentiment analysis, and timing scores
-- **Data Export**: Export to CSV, JSON formats
-- **Async Processing**: Fast parallel processing with rate limiting
-- **Checkpointing**: Resume interrupted operations
+### Core Capabilities
+- **Multi-Source Company Discovery**: Find AI companies using Exa, Crunchbase, and other premium data sources
+- **Advanced Metrics Extraction**: AI-powered extraction of funding, valuation, and operational metrics
+- **Intelligent Sector Classification**: Precise AI-powered categorization into detailed technology sectors
+- **Multi-Source Data Fusion**: Combine and validate data from multiple sources for maximum accuracy
+- **LinkedIn Profile Enrichment**: Extract comprehensive founder and executive profiles
+- **Market Analysis**: Get market metrics, sentiment analysis, and timing scores using current year data
+- **Data Export**: Export to CSV, JSON formats with comprehensive data fields
+- **Async Processing**: Fast parallel processing with intelligent rate limiting
+- **Smart Checkpointing**: Resume interrupted operations seamlessly
+
+### Enhanced Analytics
+- **Financial Intelligence**: Funding amounts, stages, valuations, revenue data
+- **Operational Metrics**: Employee counts, customer metrics, growth indicators  
+- **Technology Stack Analysis**: Identify and categorize technology frameworks
+- **Competitive Intelligence**: Market positioning and competitive advantages
+- **Data Quality Scoring**: Confidence and completeness metrics for each company
 
 ## Installation
 
@@ -23,10 +34,10 @@ pip install -r requirements.txt
 
 ```bash
 cp .env.example .env
-# Edit .env with your API keys
+# Edit .env with your API keys (see API Keys section below)
 ```
 
-2. Run the complete pipeline:
+2. Run the enhanced pipeline:
 
 ```bash
 python -m initiation_pipeline.cli run --companies 50 --output ./output/results.csv
@@ -43,6 +54,19 @@ python -m initiation_pipeline.cli profiles --input companies.csv --output profil
 
 # Analyze markets for companies
 python -m initiation_pipeline.cli analyze --input companies.csv --output analysis.csv
+```
+
+## API Keys Required
+
+### Core APIs (Required)
+- **EXA_API_KEY**: Company discovery and web search
+- **OPENAI_API_KEY**: AI-powered analysis and classification
+- **SERPER_API_KEY**: Search and validation
+- **APIFY_API_KEY**: LinkedIn profile scraping
+- **PERPLEXITY_API_KEY**: Market analysis and research
+
+### Data Source APIs (Recommended)
+- **CRUNCHBASE_API_KEY**: Enhanced company data and validation
 ```
 
 ## CLI Commands & Options
