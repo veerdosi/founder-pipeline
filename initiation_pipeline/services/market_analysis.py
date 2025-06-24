@@ -49,6 +49,99 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
         if self.session:
             await self.session.close()
     
+    def _safe_json_parse(self, content: str, fallback_type: str = "generic") -> dict:
+        """Safely parse JSON with fallback handling."""
+        if not content or not content.strip():
+            logger.warning("Empty content for JSON parsing")
+            return self._get_fallback_data(fallback_type)
+            
+        try:
+            # Clean up common JSON formatting issues
+            content = content.strip()
+            
+            # Remove markdown code blocks if present
+            if content.startswith("```json"):
+                content = content[7:]
+            if content.startswith("```"):
+                content = content[3:]
+            if content.endswith("```"):
+                content = content[:-3]
+            content = content.strip()
+            
+            # Try to parse JSON
+            import json
+            return json.loads(content)
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parsing failed: {e}. Content: '{content[:200]}...'")
+            
+            # Try to extract numbers with regex as fallback
+            import re
+            numbers = re.findall(r'\d+\.?\d*', content)
+            if numbers:
+                logger.info(f"Extracted numbers as fallback: {numbers}")
+                return self._create_fallback_from_numbers(numbers, fallback_type)
+            
+            return self._get_fallback_data(fallback_type)
+        except Exception as e:
+            logger.error(f"Unexpected error in JSON parsing: {e}")
+            return self._get_fallback_data(fallback_type)
+    
+    def _get_fallback_data(self, fallback_type: str) -> dict:
+        """Get fallback data based on type."""
+        fallbacks = {
+            "market_size": {"market_size": 0, "cagr": 0},
+            "timing": {"timing_score": 3},
+            "sentiment": {"us_sentiment": 3, "sea_sentiment": 3},
+            "competitor": {"competitor_count": 10, "total_funding": 1.0, "momentum_score": 3.0},
+            "generic": {}
+        }
+        return fallbacks.get(fallback_type, {})
+    
+    def _create_fallback_from_numbers(self, numbers: list, fallback_type: str) -> dict:
+        """Create fallback data from extracted numbers."""
+        if fallback_type == "market_size":
+            return {
+                "market_size": float(numbers[0]) if numbers else 0,
+                "cagr": float(numbers[1]) if len(numbers) > 1 else 0
+            }
+        elif fallback_type == "timing":
+            return {"timing_score": min(5, max(1, float(numbers[0]))) if numbers else 3}
+        elif fallback_type == "sentiment":
+            return {
+                "us_sentiment": min(5, max(1, float(numbers[0]))) if numbers else 3,
+                "sea_sentiment": min(5, max(1, float(numbers[1]))) if len(numbers) > 1 else 3
+            }
+        elif fallback_type == "competitor":
+            return {
+                "competitor_count": int(float(numbers[0])) if numbers else 10,
+                "total_funding": float(numbers[1]) if len(numbers) > 1 else 1.0,
+                "momentum_score": min(5, max(1, float(numbers[2]))) if len(numbers) > 2 else 3.0
+            }
+        return {}
+    
+    def _safe_float(self, value) -> float:
+        """Safely convert value to float."""
+        try:
+            if value is None:
+                return 0.0
+            if isinstance(value, (int, float)):
+                return float(value)
+            if isinstance(value, str):
+                # Extract first number from string
+                import re
+                numbers = re.findall(r'\d+\.?\d*', value)
+                return float(numbers[0]) if numbers else 0.0
+            if isinstance(value, dict):
+                # If it's a dict, try to get a numeric value from it
+                for key in ['value', 'number', 'amount', 'size', 'cagr', 'score']:
+                    if key in value:
+                        return self._safe_float(value[key])
+                return 0.0
+            return 0.0
+        except (ValueError, TypeError, AttributeError):
+            return 0.0
+    
     async def analyze_market(
         self, 
         sector: str, 
@@ -172,12 +265,11 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
                 temperature=0.1
             )
             
-            import json
-            result = json.loads(extraction_response.choices[0].message.content)
+            result = self._safe_json_parse(extraction_response.choices[0].message.content, "market_size")
             
             return {
-                "market_size": float(result.get("market_size", 0) or 0),
-                "cagr": float(result.get("cagr", 0) or 0)
+                "market_size": self._safe_float(result.get("market_size", 0)),
+                "cagr": self._safe_float(result.get("cagr", 0))
             }
             
         except Exception as e:
@@ -227,11 +319,10 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
                 temperature=0.1
             )
             
-            import json
-            result = json.loads(extraction_response.choices[0].message.content)
+            result = self._safe_json_parse(extraction_response.choices[0].message.content, "timing")
             
             return {
-                "timing_score": float(result.get("timing_score", 3.0) or 3.0)
+                "timing_score": self._safe_float(result.get("timing_score", 3.0))
             }
             
         except Exception as e:
@@ -282,10 +373,9 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
                 temperature=0.1
             )
             
-            import json
-            result = json.loads(extraction_response.choices[0].message.content)
+            result = self._safe_json_parse(extraction_response.choices[0].message.content, "sentiment")
             
-            return float(result.get("sentiment_score", 3.0) or 3.0)
+            return self._safe_float(result.get("sentiment_score", 3.0))
             
         except Exception as e:
             logger.error(f"Error getting regional sentiment from Perplexity: {e}")
@@ -337,13 +427,12 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
                 temperature=0.1
             )
             
-            import json
-            result = json.loads(extraction_response.choices[0].message.content)
+            result = self._safe_json_parse(extraction_response.choices[0].message.content, "competitor")
             
             return {
-                "competitor_count": int(result.get("competitor_count", 10) or 10),
-                "total_funding": float(result.get("total_funding", 1.0) or 1.0),
-                "momentum_score": float(result.get("momentum_score", 3.0) or 3.0)
+                "competitor_count": int(self._safe_float(result.get("competitor_count", 10))),
+                "total_funding": self._safe_float(result.get("total_funding", 1.0)),
+                "momentum_score": self._safe_float(result.get("momentum_score", 3.0))
             }
             
         except Exception as e:

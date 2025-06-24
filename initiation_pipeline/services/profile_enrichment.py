@@ -71,9 +71,18 @@ class LinkedInEnrichmentService(ProfileEnrichmentService):
     
     async def enrich_profile(self, profile: LinkedInProfile) -> LinkedInProfile:
         """Enrich profile with additional data from LinkedIn."""
-        if not validate_linkedin_url(profile.linkedin_url):
-            logger.warning(f"Invalid LinkedIn URL: {profile.linkedin_url}")
+        url = str(profile.linkedin_url).strip()
+        
+        # Clean the URL first (removes whitespace that causes display issues)
+        cleaned_url = self._fix_linkedin_url(url)
+        
+        if not validate_linkedin_url(cleaned_url):
+            logger.warning(f"Invalid LinkedIn URL for {profile.person_name}: '{cleaned_url}'")
             return profile
+        
+        # Update the profile with the cleaned URL if it was fixed
+        if cleaned_url != url:
+            profile.linkedin_url = cleaned_url
         
         try:
             enriched_data = await self._scrape_linkedin_profile(str(profile.linkedin_url))
@@ -285,11 +294,22 @@ Return a JSON object with this structure:
             
             profiles = []
             for profile_data in result.get("linkedin", []):
+                url = profile_data.get("url", "").strip()
+                name = clean_text(profile_data.get("name", ""))
+                
+                # Clean up common URL issues
+                if url and not url.startswith(('http://', 'https://')):
+                    url = 'https://' + url
+                
+                # Try to fix common URL issues
+                url = self._fix_linkedin_url(url)
+                
+                # Always create the profile - validation happens later in enrich_profile
                 profile = LinkedInProfile(
-                    person_name=clean_text(profile_data.get("name", "")),
-                    linkedin_url=profile_data.get("url", ""),
+                    person_name=name,
+                    linkedin_url=url,
                     company_name=company.name,
-                    role=self._extract_role_from_title(profile_data.get("name", ""))
+                    role=self._extract_role_from_title(name)
                 )
                 profiles.append(profile)
             
@@ -377,11 +397,22 @@ Return a JSON object with this structure:
             
             profiles = []
             for profile_data in result.get("linkedin", []):
+                url = profile_data.get("url", "").strip()
+                name = clean_text(profile_data.get("name", ""))
+                
+                # Clean up common URL issues
+                if url and not url.startswith(('http://', 'https://')):
+                    url = 'https://' + url
+                
+                # Try to fix common URL issues
+                url = self._fix_linkedin_url(url)
+                
+                # Always create the profile - validation happens later in enrich_profile
                 profile = LinkedInProfile(
-                    person_name=clean_text(profile_data.get("name", "")),
-                    linkedin_url=profile_data.get("url", ""),
+                    person_name=name,
+                    linkedin_url=url,
                     company_name=company.name,
-                    role=self._extract_role_from_title(profile_data.get("name", ""))
+                    role=self._extract_role_from_title(name)
                 )
                 profiles.append(profile)
             
@@ -456,6 +487,23 @@ Return a JSON object with this structure:
             return "President"
         else:
             return "Executive"
+    
+    def _fix_linkedin_url(self, url: str) -> str:
+        """Clean and normalize LinkedIn URLs."""
+        if not url:
+            return ""
+        
+        # Remove extra whitespace and newlines (this is the real issue)
+        url = "".join(url.split())  # Remove ALL whitespace, not just normalize
+        
+        # Ensure proper protocol
+        if url and not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+        
+        # Fix double slashes
+        url = url.replace(':///', '://')
+        
+        return url
     
     def _deduplicate_profiles(self, profiles: List[LinkedInProfile]) -> List[LinkedInProfile]:
         """Remove duplicate profiles based on URL."""

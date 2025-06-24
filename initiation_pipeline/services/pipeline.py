@@ -277,21 +277,26 @@ class InitiationPipeline:
                 total=len(companies)
             )
             
-            # Track completed count
-            completed_count = 0
+            # Process companies in smaller batches to avoid overwhelming APIs
+            batch_size = min(5, settings.concurrent_requests)
             
-            def update_progress():
-                nonlocal completed_count
-                completed_count += 1
-                progress.update(task, completed=completed_count)
-            
-            # Create tasks
-            tasks = [process_company(company, update_progress) for company in companies]
-            
-            # Wait for all tasks to complete
-            for coro in asyncio.as_completed(tasks):
-                enriched_company = await coro
-                enriched_companies.append(enriched_company)
+            for i in range(0, len(companies), batch_size):
+                batch = companies[i:i+batch_size]
+                
+                # Process current batch
+                tasks = [process_company(company, lambda: None) for company in batch]
+                batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                # Handle results and update progress
+                for j, result in enumerate(batch_results):
+                    if isinstance(result, Exception):
+                        logger.error(f"Error processing {batch[j].name}: {result}")
+                        enriched_companies.append(EnrichedCompany(company=batch[j], profiles=[]))
+                    else:
+                        enriched_companies.append(result)
+                    
+                    # Update progress for each completed company
+                    progress.update(task, advance=1)
         
         # Save checkpoint
         await save_checkpoint(enriched_companies, checkpoint_name)
