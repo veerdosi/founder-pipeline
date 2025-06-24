@@ -57,12 +57,12 @@ class CrunchbaseService:
         }
         
         # Standard field sets for different queries
-        self.company_fields = [
+        self.field_ids = [
             "identifier", "name", "short_description", "description", 
             "website", "founded_on", "categories", "location_identifiers",
             "funding_total", "last_equity_funding_type", "last_equity_funding_total",
             "num_employees_enum", "linkedin", "founder_identifiers",
-            "investor_identifiers", "last_funding_on"
+            "investor_identifiers", "last_funding_at"
         ]
     
     async def __aenter__(self):
@@ -124,7 +124,7 @@ class CrunchbaseService:
         try:
             # Search for the company by name
             search_query = {
-                "field_ids": self.company_fields,
+                "field_ids": self.field_ids,
                 "query": [
                     {
                         "type": "predicate",
@@ -142,14 +142,28 @@ class CrunchbaseService:
                 "limit": 10
             }
             
-            # Add name filter
+            # Use autocomplete API for name-based search instead of contains operator
             if company_name:
-                search_query["query"].append({
-                    "type": "predicate",
-                    "field_id": "name",
-                    "operator_id": "contains",
-                    "values": [company_name]
-                })
+                autocomplete_results = await self._autocomplete_search(company_name)
+                if autocomplete_results:
+                    # Get the best match UUID and fetch detailed data
+                    best_match_uuid = autocomplete_results[0].get('uuid')
+                    if best_match_uuid:
+                        return await self._get_company_by_uuid(best_match_uuid)
+            
+            # Fallback to category/website search without name filter
+            search_query = {
+                "field_ids": self.field_ids,
+                "query": [
+                    {
+                        "type": "predicate",
+                        "field_id": "facet_ids",
+                        "operator_id": "includes",
+                        "values": ["company"]
+                    }
+                ],
+                "limit": 10
+            }
             
             results = await self._execute_search(search_query)
             
@@ -181,7 +195,7 @@ class CrunchbaseService:
         founded_after = founded_after or (current_year - 6)  # Last 6 years by default
         
         query = {
-            "field_ids": self.company_fields,
+            "field_ids": self.field_ids,
             "query": [
                 {
                     "type": "predicate",
@@ -204,7 +218,7 @@ class CrunchbaseService:
             ],
             "order": [
                 {
-                    "field_id": "last_funding_on",
+                    "field_id": "last_funding_at",
                     "sort": "desc"
                 }
             ],
@@ -240,6 +254,49 @@ class CrunchbaseService:
         
         return query
     
+    async def _autocomplete_search(self, query: str) -> List[Dict]:
+        """Search companies using Crunchbase Autocomplete API."""
+        try:
+            url = f"{self.base_url}/data/autocompletes"
+            params = {
+                'user_key': self.api_key,
+                'query': query,
+                'collection_ids': 'organization.companies',
+                'limit': 5
+            }
+            
+            async with self.session.get(url, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return data.get('entities', [])
+                else:
+                    logger.warning(f"Autocomplete search failed {response.status}: {await response.text()}")
+                    return []
+        except Exception as e:
+            logger.error(f"Error in autocomplete search: {e}")
+            return []
+    
+    async def _get_company_by_uuid(self, uuid: str) -> Optional[CrunchbaseCompany]:
+        """Get detailed company data by UUID."""
+        try:
+            url = f"{self.base_url}/data/entities/organizations/{uuid}"
+            params = {
+                'user_key': self.api_key,
+                'field_ids': ','.join(self.field_ids)
+            }
+            
+            async with self.session.get(url, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    properties = data.get('properties', {})
+                    return await self._process_company_data({'properties': properties})
+                else:
+                    logger.warning(f"Company lookup failed {response.status}: {await response.text()}")
+                    return None
+        except Exception as e:
+            logger.error(f"Error getting company by UUID: {e}")
+            return None
+
     async def _execute_search(self, query_payload: Dict[str, Any]) -> Dict[str, Any]:
         """Execute Crunchbase search API call."""
         await self.rate_limiter.acquire()
@@ -260,6 +317,11 @@ class CrunchbaseService:
         try:
             props = entity_data.get('properties', {})
             
+            # Ensure props is a dict
+            if not isinstance(props, dict):
+                logger.warning(f"Properties is not a dict: {type(props)}")
+                return None
+            
             # Extract basic information
             name = props.get('name', '')
             if not name:
@@ -269,17 +331,20 @@ class CrunchbaseService:
             funding_total = self._safe_extract_funding(props.get('funding_total'))
             last_funding = self._safe_extract_funding(props.get('last_equity_funding_total'))
             
-            # Extract categories
+            # Extract categories with safe dict access
             categories = []
-            if props.get('categories'):
-                categories = [cat.get('value', '') for cat in props['categories'] if cat.get('value')]
+            categories_data = props.get('categories')
+            if categories_data and isinstance(categories_data, list):
+                categories = [cat.get('value', '') for cat in categories_data if isinstance(cat, dict) and cat.get('value')]
             
-            # Extract location
+            # Extract location with safe dict access
             location = None
-            if props.get('location_identifiers'):
-                locations = props['location_identifiers']
-                if locations:
-                    location = locations[0].get('value', '')
+            location_data = props.get('location_identifiers')
+            if location_data and isinstance(location_data, list):
+                for loc in location_data:
+                    if isinstance(loc, dict) and loc.get('value'):
+                        location = loc.get('value', '')
+                        break
             
             # Extract founders and investors
             founders = self._extract_person_names(props.get('founder_identifiers', []))
@@ -288,20 +353,42 @@ class CrunchbaseService:
             # Calculate data quality score
             quality_score = self._calculate_data_quality(props)
             
+            # Safe extraction of nested dict values
+            website = None
+            website_data = props.get('website')
+            if isinstance(website_data, dict):
+                website = website_data.get('value')
+            elif isinstance(website_data, str):
+                website = website_data
+            
+            funding_stage = None
+            funding_stage_data = props.get('last_equity_funding_type')
+            if isinstance(funding_stage_data, dict):
+                funding_stage = funding_stage_data.get('value')
+            elif isinstance(funding_stage_data, str):
+                funding_stage = funding_stage_data
+            
+            linkedin_url = None
+            linkedin_data = props.get('linkedin')
+            if isinstance(linkedin_data, dict):
+                linkedin_url = linkedin_data.get('value')
+            elif isinstance(linkedin_data, str):
+                linkedin_url = linkedin_data
+            
             return CrunchbaseCompany(
                 name=name,
                 description=props.get('short_description', '') or props.get('description', ''),
-                website=props.get('website', {}).get('value') if props.get('website') else None,
+                website=website,
                 founded_date=self._extract_date(props.get('founded_on')),
                 employee_count=self._extract_employee_count(props.get('num_employees_enum')),
                 funding_total=funding_total,
-                funding_stage=props.get('last_equity_funding_type', {}).get('value') if props.get('last_equity_funding_type') else None,
-                last_funding_date=self._extract_date(props.get('last_funding_on')),
+                funding_stage=funding_stage,
+                last_funding_date=self._extract_date(props.get('last_funding_at')),
                 last_funding_amount=last_funding,
                 investor_count=len(investors),
                 categories=categories,
                 headquarters_location=location,
-                linkedin_url=props.get('linkedin', {}).get('value') if props.get('linkedin') else None,
+                linkedin_url=linkedin_url,
                 founder_names=founders,
                 key_investors=investors[:10],  # Top 10 investors
                 crunchbase_url=f"https://www.crunchbase.com/organization/{entity_data.get('uuid', '')}",
@@ -328,8 +415,18 @@ class CrunchbaseService:
         
         for entity in entities:
             props = entity.get('properties', {})
+            if not isinstance(props, dict):
+                continue
+            
             name = props.get('name', '').lower()
-            website = props.get('website', {}).get('value', '') if props.get('website') else ''
+            
+            # Safe website extraction
+            website = ''
+            website_data = props.get('website')
+            if isinstance(website_data, dict):
+                website = website_data.get('value', '')
+            elif isinstance(website_data, str):
+                website = website_data
             
             score = 0
             

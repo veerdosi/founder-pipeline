@@ -47,7 +47,8 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
         queries = self._generate_search_queries(categories, regions)
         
         all_companies = []
-        results_per_query = max(1, limit // len(queries))
+        # Increase results per query to account for deduplication
+        results_per_query = max(8, (limit * 2) // len(queries))  # 2x multiplier for dedup buffer
         
         # Execute searches
         for i, query in enumerate(queries):
@@ -75,7 +76,18 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
                         "tech.eu",
                         "techinasia.com",
                         "startupindia.gov.in",
-                        "dealstreetasia.com"
+                        "dealstreetasia.com",
+                        "theinformation.com",
+                        "sifted.eu",
+                        "axios.com",
+                        "technode.com",
+                        "e27.co",
+                        "inc.com",
+                        "fastcompany.com",
+                        "businessinsider.com",
+                        "theblock.co",
+                        "venturebeat.com",
+                        "producthunt.com"
                     ]
                 )
                 
@@ -107,27 +119,30 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
         """Generate targeted search queries for early-stage AI companies globally."""
         
         # Generate dynamic year range for recent companies (last 5-6 years)
-        from datetime import datetime
         current_year = datetime.now().year
         recent_years = [str(year) for year in range(current_year - 5, current_year + 1)]
         year_range = " ".join(recent_years)
         
-        # Early-stage focused queries with dynamic years
+        # Early-stage focused queries
         queries = [
-            f"early stage AI startups seed funding {current_year - 1} {current_year} artificial intelligence",
-            "pre-seed series A machine learning companies venture capital",
-            "emerging AI startups computer vision robotics funding rounds",
-            "new AI companies generative artificial intelligence seed investment",
-            f"startup AI companies founded {year_range} funding",
-            "Y Combinator Techstars AI startups batch graduates funding",
-            "European AI startups seed series A funding artificial intelligence",
-            "Asian AI startups Singapore Israel India machine learning funding"
+            f"AI startup announced funding seed series A {current_year}",
+            f"new AI company launched artificial intelligence {current_year}",
+            f"AI startup raised funding machine learning {current_year}",
+            f"recently founded AI startups {current_year} {current_year - 1} seed or pre-seed investment",
+            f"emerging AI companies venture capital {current_year}",
+            "latest AI startups from Y Combinator or Techstars announcing seed funding",
+            f"new artificial intelligence companies {current_year} raising a seed round",
+            "AI startup news for pre-seed funding announcements",
+            "pre-seed AI companies machine learning computer vision",
+            f"startup AI companies founded in {year_range} announcing seed funding",
+            f"European AI startups seed series A funding {current_year} {current_year - 1}",
+            f"Asian AI startups Singapore Israel India machine learning {current_year} {current_year - 1}"
         ]
         
         # Add category-specific early-stage queries
         for category in categories[:4]:  # Increase to 4 categories
             queries.extend([
-                f"early stage {category} startups seed funding 2024",
+                f"early stage {category} startups seed funding {current_year}",
                 f"{category} startup companies pre-seed series A investment"
             ])
         
@@ -195,6 +210,11 @@ Title: {title}
                 except ValueError:
                     funding_stage = FundingStage.UNKNOWN
             
+            # Preprocess website URL
+            website = result.get("website")
+            if website and not website.startswith(('http://', 'https://')):
+                website = f'https://{website}'
+            
             # Create Company object
             company = Company(
                 name=clean_text(result.get("name", "")),
@@ -205,7 +225,7 @@ Title: {title}
                 founders=result.get("founders", []),
                 city=clean_text(result.get("location", "")),
                 ai_focus=clean_text(result.get("ai_focus", "")),
-                website=result.get("website"),
+                website=website,
                 source_url=url,
                 extraction_date=datetime.utcnow()
             )

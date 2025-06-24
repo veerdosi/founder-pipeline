@@ -82,6 +82,19 @@ class DataFusionService:
             'regex_extraction': 0.5
         }
     
+    async def __aenter__(self):
+        """Async context manager entry."""
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit - ensure all sessions are closed."""
+        try:
+            # Force cleanup any remaining sessions
+            if hasattr(self.crunchbase, 'session') and self.crunchbase.session:
+                await self.crunchbase.session.close()
+        except Exception as e:
+            logger.warning(f"Error closing sessions: {e}")
+    
     async def fuse_company_data(
         self, 
         base_company: Company,
@@ -89,33 +102,56 @@ class DataFusionService:
         additional_sources: Optional[Dict[str, Any]] = None
     ) -> FusedCompanyData:
         """Fuse data from multiple sources to create comprehensive company profile."""
+        crunchbase_data = None
+        enhanced_metrics = {}
+        sector_classification = None
+        
         try:
             logger.info(f"🔄 Fusing data for {base_company.name}")
             
-            # Initialize data collection tasks
-            async with self.crunchbase:
-                tasks = [
-                    self._get_crunchbase_data(base_company.name, str(base_company.website) if base_company.website else None),
-                    self._get_enhanced_metrics(website_content, base_company.name),
-                    self._get_sector_classification(base_company, website_content),
-                ]
-                
-                # Execute all data collection in parallel
-                crunchbase_data, enhanced_metrics, sector_classification = await asyncio.gather(
-                    *tasks, return_exceptions=True
-                )
-            
-            # Handle exceptions in results
-            if isinstance(crunchbase_data, Exception):
-                logger.warning(f"Crunchbase data failed: {crunchbase_data}")
+            # Get crunchbase data with proper session management
+            try:
+                async with self.crunchbase as cb_service:
+                    crunchbase_data = await asyncio.wait_for(
+                        cb_service.enrich_existing_company(
+                            base_company.name, 
+                            str(base_company.website) if base_company.website else None
+                        ),
+                        timeout=30  # 30 second timeout for crunchbase
+                    )
+            except asyncio.TimeoutError:
+                logger.warning(f"Crunchbase lookup timeout for {base_company.name}")
+                crunchbase_data = None
+            except Exception as e:
+                logger.warning(f"Crunchbase lookup failed for {base_company.name}: {e}")
                 crunchbase_data = None
             
-            if isinstance(enhanced_metrics, Exception):
-                logger.warning(f"Enhanced metrics failed: {enhanced_metrics}")
+            # Get enhanced metrics
+            try:
+                if website_content:
+                    enhanced_metrics = await asyncio.wait_for(
+                        self.metrics_extractor.extract_comprehensive_metrics(
+                            website_content, base_company.name
+                        ),
+                        timeout=30
+                    )
+            except Exception as e:
+                logger.warning(f"Enhanced metrics failed for {base_company.name}: {e}")
                 enhanced_metrics = {}
             
-            if isinstance(sector_classification, Exception):
-                logger.warning(f"Sector classification failed: {sector_classification}")
+            # Get sector classification
+            try:
+                sector_classification = await asyncio.wait_for(
+                    self.sector_classifier.classify_company(
+                        company_name=base_company.name,
+                        description=base_company.description or "",
+                        website_content=website_content,
+                        additional_context=f"AI Focus: {base_company.ai_focus or 'N/A'}"
+                    ),
+                    timeout=30
+                )
+            except Exception as e:
+                logger.warning(f"Sector classification failed for {base_company.name}: {e}")
                 sector_classification = None
             
             # Fuse all data sources
@@ -138,69 +174,41 @@ class DataFusionService:
     async def batch_fuse_companies(
         self, 
         companies: List[Company],
-        batch_size: int = 5
+        batch_size: int = 3  # Reduced batch size for better reliability
     ) -> List[FusedCompanyData]:
-        """Fuse data for multiple companies in batches."""
+        """Fuse data for multiple companies in smaller, more reliable batches."""
         fused_companies = []
         
         for i in range(0, len(companies), batch_size):
             batch = companies[i:i + batch_size]
+            logger.info(f"Processing batch {i//batch_size + 1}/{(len(companies) + batch_size - 1)//batch_size}")
             
-            # Process batch
-            batch_tasks = [
-                self.fuse_company_data(company) 
-                for company in batch
-            ]
-            
-            batch_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
-            
-            # Handle results
-            for j, result in enumerate(batch_results):
-                if isinstance(result, Exception):
-                    logger.error(f"Batch fusion failed for {batch[j].name}: {result}")
-                    fused_companies.append(self._create_fallback_data(batch[j]))
-                else:
-                    fused_companies.append(result)
+            # Process companies sequentially within batch to avoid overwhelming APIs
+            for company in batch:
+                try:
+                    result = await asyncio.wait_for(
+                        self.fuse_company_data(company),
+                        timeout=90  # 90 second timeout per company
+                    )
+                    
+                    if result is not None:
+                        fused_companies.append(result)
+                        
+                    # Small delay to be nice to APIs
+                    await asyncio.sleep(0.5)
+                        
+                except asyncio.TimeoutError:
+                    logger.error(f"Timeout processing {company.name}")
+                    # Add fallback data instead of skipping
+                    fallback = self._create_fallback_data(company)
+                    fused_companies.append(fallback)
+                except Exception as e:
+                    logger.error(f"Error processing {company.name}: {e}")
+                    # Add fallback data instead of skipping
+                    fallback = self._create_fallback_data(company)
+                    fused_companies.append(fallback)
         
         return fused_companies
-    
-    async def _get_crunchbase_data(self, company_name: str, website: Optional[str]) -> Optional[CrunchbaseCompany]:
-        """Get Crunchbase data for company."""
-        try:
-            return await self.crunchbase.enrich_existing_company(company_name, website)
-        except Exception as e:
-            logger.debug(f"Crunchbase lookup failed for {company_name}: {e}")
-            return None
-    
-    async def _get_enhanced_metrics(self, content: str, company_name: str) -> Dict[str, Any]:
-        """Get enhanced metrics from content analysis."""
-        if not content:
-            return {}
-        
-        try:
-            return await self.metrics_extractor.extract_comprehensive_metrics(
-                content, company_name
-            )
-        except Exception as e:
-            logger.debug(f"Enhanced metrics extraction failed for {company_name}: {e}")
-            return {}
-    
-    async def _get_sector_classification(
-        self, 
-        company: Company, 
-        website_content: str
-    ) -> Optional[SectorClassification]:
-        """Get AI-powered sector classification."""
-        try:
-            return await self.sector_classifier.classify_company(
-                company_name=company.name,
-                description=company.description or "",
-                website_content=website_content,
-                additional_context=f"AI Focus: {company.ai_focus or 'N/A'}"
-            )
-        except Exception as e:
-            logger.debug(f"Sector classification failed for {company.name}: {e}")
-            return None
     
     def _fuse_data_sources(
         self,
@@ -374,7 +382,7 @@ class DataFusionService:
         # Return highest weighted value
         return max(valid_pairs, key=lambda x: x[1])[0]
     
-    def _resolve_numeric_field(self, values: List[Optional[float]]) -> Optional[float]:
+    def _resolve_numeric_field(self, values: List[Optional[float]], sources: List[str] = None) -> Optional[float]:
         """Resolve numeric field conflicts with statistical methods."""
         valid_values = [v for v in values if v is not None and isinstance(v, (int, float))]
         

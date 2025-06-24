@@ -40,7 +40,7 @@ class InitiationPipeline:
         include_market_analysis: bool = True,
         enable_data_fusion: bool = True,
         checkpoint_prefix: str = "pipeline"
-    ) -> List[FusedCompanyData]:
+    ) -> List[EnrichedCompany]:
         """Run the complete pipeline with data fusion and advanced analytics."""
         logger.info("🚀 Starting AI Company Pipeline with Data Fusion")
         console.print("=" * 70)
@@ -57,25 +57,42 @@ class InitiationPipeline:
                 console.print("❌ No companies found, aborting pipeline")
                 return []
             
-            # Step 2: Data Fusion (includes all analytics)
+            # Step 2: Data Fusion
             if enable_data_fusion:
                 fused_companies = await self._run_data_fusion(
                     companies, checkpoint_prefix
                 )
+                
+                # Step 3: Convert fused data back to Company objects for enrichment
+                enriched_companies = self._convert_fused_to_enriched(fused_companies)
+                
+                # Step 4: Profile Enrichment
+                if include_profiles:
+                    enriched_companies = await self._run_profiles_from_fused(
+                        enriched_companies, checkpoint_prefix
+                    )
+                
+                # Step 5: Market Analysis  
+                if include_market_analysis:
+                    enriched_companies = await self._run_market_analysis_from_fused(
+                        enriched_companies, checkpoint_prefix
+                    )
+                
+                final_result = enriched_companies
             else:
                 # Fallback to basic processing
-                fused_companies = await self._run_basic_processing(
+                final_result = await self._run_basic_processing(
                     companies, include_profiles, include_market_analysis
                 )
             
             execution_time = time.time() - start_time
             
             # Generate stats and summary
-            stats = self._generate_stats(fused_companies, execution_time)
+            stats = self._generate_stats_from_enriched(final_result, execution_time)
             self._print_summary(stats)
             
-            logger.info(f"🎉 Pipeline complete! Processed {len(fused_companies)} companies in {execution_time:.1f}s")
-            return fused_companies
+            logger.info(f"🎉 Pipeline complete! Processed {len(final_result)} companies in {execution_time:.1f}s")
+            return final_result
             
         except Exception as e:
             logger.error(f"❌ Pipeline error: {e}")
@@ -259,19 +276,53 @@ class InitiationPipeline:
         companies: List[Company],
         include_profiles: bool,
         include_market_analysis: bool
-    ) -> List[FusedCompanyData]:
+    ) -> List[EnrichedCompany]:
         """Fallback to basic processing without data fusion."""
         console.print("⚠️  Running basic processing (data fusion disabled)")
         
-        # Convert to FusedCompanyData format for consistency
-        fused_companies = []
+        # Convert to EnrichedCompany objects
+        enriched_companies = []
         
         for company in companies:
-            # Create basic fused data structure
-            fused_data = self.data_fusion._create_fallback_data(company)
-            fused_companies.append(fused_data)
+            enriched = EnrichedCompany(
+                company=company,
+                profiles=[],
+                market_metrics=None
+            )
+            enriched_companies.append(enriched)
         
-        return fused_companies
+        # Run profile enrichment if requested
+        if include_profiles:
+            enriched_companies = await self._run_profiles_from_fused(
+                enriched_companies, "basic"
+            )
+        
+        # Run market analysis if requested
+        if include_market_analysis:
+            enriched_companies = await self._run_market_analysis_from_fused(
+                enriched_companies, "basic"
+            )
+        
+        return enriched_companies
+    
+    def _generate_stats_from_enriched(
+        self, 
+        enriched_companies: List[EnrichedCompany], 
+        execution_time: float
+    ) -> dict:
+        """Generate pipeline statistics from EnrichedCompany objects."""
+        total_companies = len(enriched_companies)
+        profiles_found = sum(len(ec.profiles) for ec in enriched_companies)
+        companies_with_profiles = sum(1 for ec in enriched_companies if ec.profiles)
+        companies_with_market_analysis = sum(1 for ec in enriched_companies if ec.market_metrics)
+        
+        return {
+            'total_companies': total_companies,
+            'profiles_found': profiles_found,
+            'companies_with_profiles': companies_with_profiles,
+            'companies_with_market_analysis': companies_with_market_analysis,
+            'execution_time': execution_time,
+        }
     
     def _generate_stats(
         self, 
@@ -326,38 +377,115 @@ class InitiationPipeline:
         # Basic stats
         console.print(f"📊 Total Companies Processed: [bold cyan]{stats['total_companies']}[/bold cyan]")
         console.print(f"⏱️  Execution Time: [bold yellow]{stats['execution_time']:.1f}s[/bold yellow]")
-        console.print(f"🏆 Average Data Quality: [bold green]{stats['avg_data_quality']:.2f}[/bold green]")
-        console.print(f"🎯 Average Confidence: [bold blue]{stats['avg_confidence']:.2f}[/bold blue]")
         
-        # Data sources
-        console.print(f"\n📡 [bold]Data Sources Used:[/bold]")
-        for source, count in stats['data_source_usage'].items():
-            percentage = (count / stats['total_companies']) * 100
-            console.print(f"   • {source.title()}: {count} companies ({percentage:.1f}%)")
+        # Profile stats
+        if 'profiles_found' in stats:
+            console.print(f"👤 LinkedIn Profiles Found: [bold green]{stats['profiles_found']}[/bold green]")
+            console.print(f"🏢 Companies with Profiles: [bold blue]{stats['companies_with_profiles']}[/bold blue]")
         
-        # Top sectors
-        console.print(f"\n🔬 [bold]Top AI Sectors:[/bold]")
-        top_sectors = sorted(stats['sector_distribution'].items(), key=lambda x: x[1], reverse=True)[:5]
-        for sector, count in top_sectors:
-            console.print(f"   • {sector.replace('_', ' ').title()}: {count} companies")
+        # Market analysis stats  
+        if 'companies_with_market_analysis' in stats:
+            console.print(f"📊 Companies with Market Analysis: [bold purple]{stats['companies_with_market_analysis']}[/bold purple]")
         
-        # Funding insights
-        if stats['companies_with_funding'] > 0:
-            console.print(f"\n💰 [bold]Funding Insights:[/bold]")
-            console.print(f"   • Companies with funding data: {stats['companies_with_funding']}")
-            console.print(f"   • Success rate: {stats['funding_success_rate']:.1%}")
-            if stats['total_funding_usd']:
-                console.print(f"   • Total funding tracked: ${stats['total_funding_usd']:,.0f}")
+        # Legacy stats (for fused companies)
+        if 'avg_data_quality' in stats:
+            console.print(f"🏆 Average Data Quality: [bold green]{stats['avg_data_quality']:.2f}[/bold green]")
+            console.print(f"🎯 Average Confidence: [bold blue]{stats['avg_confidence']:.2f}[/bold blue]")
+            
+            # Data sources
+            if 'data_source_usage' in stats:
+                console.print(f"\n📡 [bold]Data Sources Used:[/bold]")
+                for source, count in stats['data_source_usage'].items():
+                    percentage = (count / stats['total_companies']) * 100
+                    console.print(f"   • {source.title()}: {count} companies ({percentage:.1f}%)")
+            
+            # Top sectors
+            if 'sector_distribution' in stats:
+                console.print(f"\n🔬 [bold]Top AI Sectors:[/bold]")
+                top_sectors = sorted(stats['sector_distribution'].items(), key=lambda x: x[1], reverse=True)[:5]
+                for sector, count in top_sectors:
+                    console.print(f"   • {sector.replace('_', ' ').title()}: {count} companies")
+            
+            # Funding insights
+            if stats.get('companies_with_funding', 0) > 0:
+                console.print(f"\n💰 [bold]Funding Insights:[/bold]")
+                console.print(f"   • Companies with funding data: {stats['companies_with_funding']}")
+                console.print(f"   • Success rate: {stats['funding_success_rate']:.1%}")
+                if stats.get('total_funding_usd'):
+                    console.print(f"   • Total funding tracked: ${stats['total_funding_usd']:,.0f}")
         
         console.print("=" * 70)
     
     def export_results(
         self, 
-        fused_companies: List[FusedCompanyData], 
+        enriched_companies: List[EnrichedCompany], 
         output_path: Path,
         format: str = "csv"
     ):
         """Export results to various formats."""
+        if format.lower() == "csv":
+            self._export_enriched_to_csv(enriched_companies, output_path)
+        elif format.lower() == "json":
+            self._export_enriched_to_json(enriched_companies, output_path)
+        else:
+            raise ValueError(f"Unsupported format: {format}")
+    
+    def _export_enriched_to_csv(self, enriched_companies: List[EnrichedCompany], output_path: Path):
+        """Export EnrichedCompany objects to CSV."""
+        import csv
+        
+        if not enriched_companies:
+            return
+        
+        # Use the built-in to_csv_records method from PipelineResult
+        pipeline_result = PipelineResult(
+            companies=enriched_companies,
+            stats={},
+            execution_time=0.0
+        )
+        records = pipeline_result.to_csv_records()
+        
+        if not records:
+            return
+        
+        with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=records[0].keys())
+            writer.writeheader()
+            writer.writerows(records)
+    
+    def _export_enriched_to_json(self, enriched_companies: List[EnrichedCompany], output_path: Path):
+        """Export EnrichedCompany objects to JSON."""
+        import json
+        
+        # Convert to dict format
+        data = {
+            'companies': [
+                {
+                    'company': ec.company.dict(),
+                    'profiles': [p.dict() for p in ec.profiles],
+                    'market_metrics': ec.market_metrics.dict() if ec.market_metrics else None,
+                    'created_at': ec.created_at.isoformat(),
+                    'updated_at': ec.updated_at.isoformat() if ec.updated_at else None
+                }
+                for ec in enriched_companies
+            ],
+            'metadata': {
+                'total_companies': len(enriched_companies),
+                'export_timestamp': time.time(),
+                'pipeline_version': 'enhanced_v2.0'
+            }
+        }
+        
+        with open(output_path, 'w', encoding='utf-8') as jsonfile:
+            json.dump(data, jsonfile, indent=2, ensure_ascii=False)
+    
+    def export_fused_results(
+        self, 
+        fused_companies: List[FusedCompanyData], 
+        output_path: Path,
+        format: str = "csv"
+    ):
+        """Export fused results to various formats (legacy method)."""
         if format.lower() == "csv":
             self._export_to_csv(fused_companies, output_path)
         elif format.lower() == "json":
@@ -435,3 +563,103 @@ class InitiationPipeline:
         
         with open(output_path, 'w', encoding='utf-8') as jsonfile:
             json.dump(data, jsonfile, indent=2, ensure_ascii=False)
+    
+    def _convert_fused_to_enriched(self, fused_companies: List[FusedCompanyData]) -> List[EnrichedCompany]:
+        """Convert fused company data back to EnrichedCompany objects for further processing."""
+        enriched_companies = []
+        
+        for fused in fused_companies:
+            # Create Company object from fused data
+            company = Company(
+                name=fused.name,
+                description=fused.description,
+                website=fused.website,
+                founded_year=fused.founded_year,
+                ai_focus=fused.ai_focus,
+                founders=fused.founders,
+            )
+            
+            # Create EnrichedCompany with empty profiles initially
+            enriched = EnrichedCompany(
+                company=company,
+                profiles=[],  # Will be filled by profile enrichment
+                market_metrics=None  # Will be filled by market analysis
+            )
+            enriched_companies.append(enriched)
+        
+        return enriched_companies
+    
+    async def _run_profiles_from_fused(
+        self, 
+        enriched_companies: List[EnrichedCompany], 
+        checkpoint_prefix: str
+    ) -> List[EnrichedCompany]:
+        """Run profile enrichment on EnrichedCompany objects."""
+        checkpoint_name = f"{checkpoint_prefix}_profiles"
+        
+        # Try to load from checkpoint
+        cached_companies = await load_checkpoint(checkpoint_name)
+        if cached_companies:
+            console.print(f"📂 Loaded {len(cached_companies)} companies with profiles from checkpoint")
+            return cached_companies
+        
+        console.print("👤 Enriching LinkedIn profiles...")
+        
+        with create_progress_bar() as progress:
+            task = progress.add_task("Finding profiles...", total=len(enriched_companies))
+            
+            for enriched in enriched_companies:
+                try:
+                    # Run profile enrichment for this company
+                    profiles = await self.profile_enrichment.find_profiles(enriched.company)
+                    if profiles:
+                        enriched.profiles = profiles
+                    
+                    progress.update(task, advance=1)
+                    await asyncio.sleep(0.5)  # Rate limiting
+                    
+                except Exception as e:
+                    logger.error(f"Profile enrichment failed for {enriched.company.name}: {e}")
+                    # Continue with empty profiles
+                    enriched.profiles = []
+        
+        # Save checkpoint
+        await save_checkpoint(enriched_companies, checkpoint_name)
+        return enriched_companies
+    
+    async def _run_market_analysis_from_fused(
+        self, 
+        enriched_companies: List[EnrichedCompany], 
+        checkpoint_prefix: str
+    ) -> List[EnrichedCompany]:
+        """Run market analysis on EnrichedCompany objects."""
+        checkpoint_name = f"{checkpoint_prefix}_market"
+        
+        # Try to load from checkpoint
+        cached_companies = await load_checkpoint(checkpoint_name)
+        if cached_companies:
+            console.print(f"📂 Loaded {len(cached_companies)} companies with market analysis from checkpoint")
+            return cached_companies
+        
+        console.print("📊 Analyzing market metrics...")
+        
+        with create_progress_bar() as progress:
+            task = progress.add_task("Market analysis...", total=len(enriched_companies))
+            
+            for enriched in enriched_companies:
+                try:
+                    # Run market analysis for this company
+                    metrics = await self.market_analysis.analyze_market_metrics(enriched.company)
+                    enriched.market_metrics = metrics
+                    
+                    progress.update(task, advance=1)
+                    await asyncio.sleep(0.5)  # Rate limiting
+                    
+                except Exception as e:
+                    logger.error(f"Market analysis failed for {enriched.company.name}: {e}")
+                    # Continue with no market metrics
+                    enriched.market_metrics = None
+        
+        # Save checkpoint
+        await save_checkpoint(enriched_companies, checkpoint_name)
+        return enriched_companies

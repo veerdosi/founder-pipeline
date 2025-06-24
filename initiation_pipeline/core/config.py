@@ -66,12 +66,12 @@ class Settings(BaseSettings):
     
     # Early Stage Funding Filters
     funding_stages: List[str] = Field(
-        default=["seed", "pre-seed", "series-a", "series-b"],
+        default=["pre-seed", "seed", "series-a"],
         env="FUNDING_STAGES"
     )
     min_funding_usd: int = Field(100000, env="MIN_FUNDING_USD")
-    max_funding_usd: int = Field(100000000, env="MAX_FUNDING_USD")
-    founded_after_year: int = Field(2018, env="FOUNDED_AFTER_YEAR")
+    max_funding_usd: int = Field(20000000, env="MAX_FUNDING_USD") # Max $20M for Series A focus
+    founded_after_year: int = Field(2020, env="FOUNDED_AFTER_YEAR")
     
     # LinkedIn Scraping
     linkedin_actor_id: str = Field(env="LINKEDIN_ACTOR_ID")

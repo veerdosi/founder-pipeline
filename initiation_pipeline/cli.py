@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 from typing import List, Optional
 
+import pandas as pd
 import typer
 from rich.table import Table
 from rich.panel import Panel
@@ -17,6 +18,7 @@ from .core import (
     save_to_json,
     settings
 )
+from .models import Company, EnrichedCompany
 from .services import InitiationPipeline
 
 
@@ -98,9 +100,9 @@ def run(
         help="Skip LinkedIn profile enrichment"
     ),
     no_analysis: bool = typer.Option(
-        False, 
+        True,  # Default to skipping market analysis 
         "--no-analysis", 
-        help="Skip market analysis"
+        help="Skip market analysis (default: True - focus on founder data)"
     ),
     checkpoint_prefix: str = typer.Option(
         "pipeline", 
@@ -257,6 +259,99 @@ def companies(
 
 
 @app.command()
+def market_analysis(
+    input_file: Path = typer.Option(
+        ..., 
+        "--input", 
+        "-i", 
+        help="Input CSV file with companies (from previous pipeline run)"
+    ),
+    output: Path = typer.Option(
+        None, 
+        "--output", 
+        "-o", 
+        help="Output CSV file path"
+    )
+):
+    """
+    Add market analysis to existing company data.
+    
+    Use this after running the main pipeline to add market metrics
+    to your founder dataset without re-running profile enrichment.
+    """
+    if not input_file.exists():
+        console.print(f"❌ Input file not found: {input_file}")
+        raise typer.Exit(1)
+    
+    # Set default output path
+    if not output:
+        output = input_file.parent / f"market_analysis_{input_file.stem}.csv"
+    
+    console.print(Panel.fit(
+        "[bold green]📊 Market Analysis Enhancement[/bold green]\n"
+        f"Adding market metrics to companies from {input_file.name}",
+        border_style="green"
+    ))
+    
+    async def run_market_analysis():
+        # Load companies from CSV
+        df = pd.read_csv(input_file)
+        companies = []
+        
+        for _, row in df.iterrows():
+            # Handle NaN values properly for all numeric/optional fields
+            founded_year = row.get('founded_year')
+            if pd.isna(founded_year):
+                founded_year = None
+            else:
+                founded_year = int(founded_year)
+            
+            # Handle founders field
+            founders_raw = row.get('founders', '')
+            if pd.isna(founders_raw) or not founders_raw:
+                founders = []
+            else:
+                founders = [f.strip() for f in str(founders_raw).split('|') if f.strip()]
+                
+            company = Company(
+                name=row.get('name', ''),
+                description=row.get('description', ''),
+                founded_year=founded_year,
+                ai_focus=row.get('ai_focus', ''),
+                founders=founders
+            )
+            companies.append(company)
+        
+        pipeline = InitiationPipeline()
+        
+        # Convert to EnrichedCompany objects (preserve existing profiles if any)
+        enriched_companies = []
+        for company in companies:
+            enriched = EnrichedCompany(
+                company=company,
+                profiles=[],  # Could restore from CSV if needed
+                market_metrics=None
+            )
+            enriched_companies.append(enriched)
+        
+        # Run only market analysis
+        enriched_companies = await pipeline._run_market_analysis_from_fused(
+            enriched_companies, "market_only"
+        )
+        
+        # Export results
+        pipeline.export_results(enriched_companies, output, "csv")
+        
+        return enriched_companies
+    
+    result = asyncio.run(run_market_analysis())
+    
+    market_found = sum(1 for ec in result if ec.market_metrics)
+    console.print(f"\n✅ Added market analysis to {market_found} companies")
+    console.print(f"📁 Results saved to: {output}")
+
+
+@app.command()
 def profiles(
     input_file: Path = typer.Option(
         ..., 
@@ -299,12 +394,26 @@ def profiles(
         companies = []
         
         for _, row in df.iterrows():
+            # Handle NaN values properly for all numeric/optional fields
+            founded_year = row.get('founded_year')
+            if pd.isna(founded_year):
+                founded_year = None
+            else:
+                founded_year = int(founded_year)
+            
+            # Handle founders field - could be string with pipes or NaN
+            founders_raw = row.get('founders', '')
+            if pd.isna(founders_raw) or not founders_raw:
+                founders = []
+            else:
+                founders = [f.strip() for f in str(founders_raw).split('|') if f.strip()]
+                
             company = Company(
                 name=row.get('name', ''),
                 description=row.get('description', ''),
-                founded_year=row.get('founded_year'),
+                founded_year=founded_year,
                 ai_focus=row.get('ai_focus', ''),
-                founders=row.get('founders', '').split('|') if row.get('founders') else []
+                founders=founders
             )
             companies.append(company)
         
