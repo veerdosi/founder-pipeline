@@ -169,13 +169,20 @@ Title: {title}
 {{
     "name": "exact company name",
     "description": "what the company does in 1-2 sentences",
+    "short_description": "brief 1-sentence description",
     "founded_year": "YYYY as integer or null",
     "funding_amount_millions": "funding amount in millions USD as number or null",
     "funding_stage": "seed/series-a/series-b/series-c/ipo or null",
     "founders": ["founder names if mentioned"],
-    "location": "city, country if mentioned",
+    "investors": ["investor names if mentioned"],
+    "categories": ["industry categories/tags"],
+    "city": "city name only",
+    "region": "state/province/region",
+    "country": "country name",
     "ai_focus": "specific AI area like NLP, computer vision, robotics, etc",
-    "website": "company website if mentioned"
+    "sector": "business sector like fintech, healthcare, retail, etc",
+    "website": "company website if mentioned",
+    "linkedin_url": "company LinkedIn URL if mentioned (format: https://linkedin.com/company/...)"
 }}
 """
         
@@ -215,17 +222,36 @@ Title: {title}
             if website and not website.startswith(('http://', 'https://')):
                 website = f'https://{website}'
             
+            # Process LinkedIn URL
+            linkedin_url = result.get("linkedin_url")
+            if linkedin_url and not linkedin_url.startswith(('http://', 'https://')):
+                linkedin_url = f'https://{linkedin_url}'
+            
+            # Convert funding from millions to USD
+            funding_millions = result.get("funding_amount_millions")
+            funding_total_usd = None
+            if funding_millions and isinstance(funding_millions, (int, float)):
+                funding_total_usd = funding_millions * 1_000_000
+            
             # Create Company object
             company = Company(
+                uuid=f"comp_{hash(result.get('name', ''))}", # Generate simple UUID
                 name=clean_text(result.get("name", "")),
                 description=clean_text(result.get("description", "")),
+                short_description=clean_text(result.get("short_description", "")),
                 founded_year=result.get("founded_year"),
-                funding_total_usd=result.get("funding_amount_millions"),
+                funding_total_usd=funding_total_usd,
                 funding_stage=funding_stage,
                 founders=result.get("founders", []),
-                city=clean_text(result.get("location", "")),
+                investors=result.get("investors", []),
+                categories=result.get("categories", []),
+                city=clean_text(result.get("city", "")),
+                region=clean_text(result.get("region", "")),
+                country=clean_text(result.get("country", "")),
                 ai_focus=clean_text(result.get("ai_focus", "")),
+                sector=clean_text(result.get("sector", "")),
                 website=website,
+                linkedin_url=linkedin_url,
                 source_url=url,
                 extraction_date=datetime.utcnow()
             )

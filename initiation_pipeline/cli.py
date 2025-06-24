@@ -144,7 +144,7 @@ def run(
         )
         
         # Export results using the new pipeline export method
-        pipeline.export_results(fused_companies, output, format)
+        pipeline.export_results(fused_companies, output, format, separate_tables=True)
         
         # Show summary (stats are printed by the pipeline now)
         return fused_companies

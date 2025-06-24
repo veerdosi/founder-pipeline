@@ -420,38 +420,50 @@ class InitiationPipeline:
         self, 
         enriched_companies: List[EnrichedCompany], 
         output_path: Path,
-        format: str = "csv"
+        format: str = "csv",
+        separate_tables: bool = True
     ):
-        """Export results to various formats."""
+        """Export results to separate CSV files."""
         if format.lower() == "csv":
-            self._export_enriched_to_csv(enriched_companies, output_path)
+            self._export_enriched_to_separate_csvs(enriched_companies, output_path)
         elif format.lower() == "json":
             self._export_enriched_to_json(enriched_companies, output_path)
         else:
             raise ValueError(f"Unsupported format: {format}")
     
-    def _export_enriched_to_csv(self, enriched_companies: List[EnrichedCompany], output_path: Path):
-        """Export EnrichedCompany objects to CSV."""
+    def _export_enriched_to_separate_csvs(self, enriched_companies: List[EnrichedCompany], base_output_path: Path):
+        """Export EnrichedCompany objects to separate CSV files."""
         import csv
         
         if not enriched_companies:
             return
         
-        # Use the built-in to_csv_records method from PipelineResult
+        # Use the built-in to_separate_csv_records method
         pipeline_result = PipelineResult(
             companies=enriched_companies,
             stats={},
             execution_time=0.0
         )
-        records = pipeline_result.to_csv_records()
+        company_records, founder_records = pipeline_result.to_separate_csv_records()
         
-        if not records:
-            return
+        # Export companies CSV
+        company_path = base_output_path.parent / f"{base_output_path.stem}_companies.csv"
+        if company_records:
+            with open(company_path, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=company_records[0].keys())
+                writer.writeheader()
+                writer.writerows(company_records)
         
-        with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=records[0].keys())
-            writer.writeheader()
-            writer.writerows(records)
+        # Export founders CSV
+        founder_path = base_output_path.parent / f"{base_output_path.stem}_founders.csv"
+        if founder_records:
+            with open(founder_path, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=founder_records[0].keys())
+                writer.writeheader()
+                writer.writerows(founder_records)
+        
+        logger.info(f"Exported {len(company_records)} companies to {company_path}")
+        logger.info(f"Exported {len(founder_records)} founders to {founder_path}")
     
     def _export_enriched_to_json(self, enriched_companies: List[EnrichedCompany], output_path: Path):
         """Export EnrichedCompany objects to JSON."""
@@ -610,10 +622,21 @@ class InitiationPipeline:
             
             for enriched in enriched_companies:
                 try:
-                    # Run profile enrichment for this company
+                    # Run profile discovery for this company
                     profiles = await self.profile_enrichment.find_profiles(enriched.company)
-                    if profiles:
-                        enriched.profiles = profiles
+                    
+                    # Enrich each profile with full LinkedIn data
+                    enriched_profiles = []
+                    for profile in profiles[:3]:  # Limit to 3 profiles per company
+                        try:
+                            enriched_profile = await self.profile_enrichment.enrich_profile(profile)
+                            enriched_profiles.append(enriched_profile)
+                        except Exception as e:
+                            logger.warning(f"Failed to enrich profile for {profile.person_name}: {e}")
+                            # Keep the basic profile without enriched data
+                            enriched_profiles.append(profile)
+                    
+                    enriched.profiles = enriched_profiles
                     
                     progress.update(task, advance=1)
                     await asyncio.sleep(0.5)  # Rate limiting

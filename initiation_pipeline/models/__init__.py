@@ -142,38 +142,54 @@ class PipelineResult(BaseModel):
     execution_time: float
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     
-    def to_csv_records(self) -> List[Dict[str, Any]]:
-        """Convert to flat records for CSV export."""
-        records = []
+    def to_separate_csv_records(self) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """Convert to separate company and founder records for CSV export."""
+        company_records = []
+        founder_records = []
         
         for enriched in self.companies:
             company = enriched.company
             metrics = enriched.market_metrics
             
+            # Company record (one per company)
+            company_record = {
+                "company_uuid": company.uuid,
+                "company_name": company.name,
+                "description": company.description,
+                "short_description": company.short_description,
+                "website": str(company.website) if company.website else None,
+                "company_linkedin": str(company.linkedin_url) if company.linkedin_url else None,
+                "founded_year": company.founded_year,
+                "funding_total_usd": company.funding_total_usd,
+                "funding_stage": company.funding_stage,
+                "founders": "|".join(company.founders) if company.founders else None,
+                "investors": "|".join(company.investors) if company.investors else None,
+                "categories": "|".join(company.categories) if company.categories else None,
+                "city": company.city,
+                "region": company.region,
+                "country": company.country,
+                "ai_focus": company.ai_focus,
+                "sector": company.sector,
+                
+                # Market metrics
+                "market_size_billion": metrics.market_size_billion if metrics else None,
+                "cagr_percent": metrics.cagr_percent if metrics else None,
+                "timing_score": metrics.timing_score if metrics else None,
+                "us_sentiment": metrics.us_sentiment if metrics else None,
+                "sea_sentiment": metrics.sea_sentiment if metrics else None,
+                "competitor_count": metrics.competitor_count if metrics else None,
+                "total_funding_billion": metrics.total_funding_billion if metrics else None,
+                "momentum_score": metrics.momentum_score if metrics else None,
+                "market_stage": metrics.market_stage if metrics else None,
+                "confidence_score": metrics.confidence_score if metrics else None,
+            }
+            company_records.append(company_record)
+            
+            # Founder records (one per profile)
             if enriched.profiles:
-                # One record per profile
                 for profile in enriched.profiles:
-                    record = {
-                        # Company data
-                        "company_uuid": company.uuid,
+                    founder_record = {
                         "company_name": company.name,
-                        "description": company.description,
-                        "short_description": company.short_description,
-                        "website": str(company.website) if company.website else None,
-                        "company_linkedin": str(company.linkedin_url) if company.linkedin_url else None,
-                        "founded_year": company.founded_year,
-                        "funding_total_usd": company.funding_total_usd,
-                        "funding_stage": company.funding_stage,
-                        "founders": "|".join(company.founders) if company.founders else None,
-                        "investors": "|".join(company.investors) if company.investors else None,
-                        "categories": "|".join(company.categories) if company.categories else None,
-                        "city": company.city,
-                        "region": company.region,
-                        "country": company.country,
-                        "ai_focus": company.ai_focus,
-                        "sector": company.sector,
-                        
-                        # Profile data
                         "person_name": profile.person_name,
                         "linkedin_url": str(profile.linkedin_url),
                         "title": profile.title,
@@ -201,60 +217,7 @@ class PipelineResult(BaseModel):
                         "skill_1": profile.skill_1,
                         "skill_2": profile.skill_2,
                         "skill_3": profile.skill_3,
-                        
-                        # Market metrics
-                        "market_size_billion": metrics.market_size_billion if metrics else None,
-                        "cagr_percent": metrics.cagr_percent if metrics else None,
-                        "timing_score": metrics.timing_score if metrics else None,
-                        "us_sentiment": metrics.us_sentiment if metrics else None,
-                        "sea_sentiment": metrics.sea_sentiment if metrics else None,
-                        "competitor_count": metrics.competitor_count if metrics else None,
-                        "total_funding_billion": metrics.total_funding_billion if metrics else None,
-                        "momentum_score": metrics.momentum_score if metrics else None,
-                        "market_stage": metrics.market_stage if metrics else None,
-                        "confidence_score": metrics.confidence_score if metrics else None,
                     }
-                    records.append(record)
-            else:
-                # Company without profiles
-                record = {
-                    # Company data only
-                    "company_uuid": company.uuid,
-                    "company_name": company.name,
-                    "description": company.description,
-                    "short_description": company.short_description,
-                    "website": str(company.website) if company.website else None,
-                    "company_linkedin": str(company.linkedin_url) if company.linkedin_url else None,
-                    "founded_year": company.founded_year,
-                    "funding_total_usd": company.funding_total_usd,
-                    "funding_stage": company.funding_stage,
-                    "founders": "|".join(company.founders) if company.founders else None,
-                    "investors": "|".join(company.investors) if company.investors else None,
-                    "categories": "|".join(company.categories) if company.categories else None,
-                    "city": company.city,
-                    "region": company.region,
-                    "country": company.country,
-                    "ai_focus": company.ai_focus,
-                    "sector": company.sector,
-                    
-                    # Empty profile data
-                    "person_name": None,
-                    "linkedin_url": None,
-                    "title": None,
-                    "role": None,
-                    
-                    # Market metrics
-                    "market_size_billion": metrics.market_size_billion if metrics else None,
-                    "cagr_percent": metrics.cagr_percent if metrics else None,
-                    "timing_score": metrics.timing_score if metrics else None,
-                    "us_sentiment": metrics.us_sentiment if metrics else None,
-                    "sea_sentiment": metrics.sea_sentiment if metrics else None,
-                    "competitor_count": metrics.competitor_count if metrics else None,
-                    "total_funding_billion": metrics.total_funding_billion if metrics else None,
-                    "momentum_score": metrics.momentum_score if metrics else None,
-                    "market_stage": metrics.market_stage if metrics else None,
-                    "confidence_score": metrics.confidence_score if metrics else None,
-                }
-                records.append(record)
+                    founder_records.append(founder_record)
         
-        return records
+        return company_records, founder_records

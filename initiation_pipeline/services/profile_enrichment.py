@@ -74,14 +74,15 @@ class LinkedInEnrichmentService(ProfileEnrichmentService):
     async def _find_profiles_with_timeout(self, company: Company) -> List[LinkedInProfile]:
         """Internal method with timeout protection."""
         # Use different strategies based on available founder data
-        founder_names = [name.strip() for name in company.founders if name.strip()]
-        
+        founder_names = [name.strip() for name in company.founders if name.strip()]        
         if len(founder_names) >= 4:
             # Use known names approach
-            return await self._find_profiles_by_names(company, founder_names)
+            result = await self._find_profiles_by_names(company, founder_names)
         else:
             # Use mixed approach
-            return await self._find_profiles_mixed_approach(company, founder_names)
+            result = await self._find_profiles_mixed_approach(company, founder_names)
+        
+        return result
     
     async def enrich_profile(self, profile: LinkedInProfile) -> LinkedInProfile:
         """Enrich profile with additional data from LinkedIn."""
@@ -96,15 +97,17 @@ class LinkedInEnrichmentService(ProfileEnrichmentService):
         
         # Update the profile with the cleaned URL if it was fixed
         if cleaned_url != url:
-            profile.linkedin_url = cleaned_url
-        
+            profile.linkedin_url = cleaned_url              
         try:
             enriched_data = await self._scrape_linkedin_profile(str(profile.linkedin_url))
+            
             if enriched_data:
                 # Update profile with enriched data
+                updated_fields = []
                 for field, value in enriched_data.items():
                     if hasattr(profile, field) and value:
                         setattr(profile, field, value)
+                        updated_fields.append(field)
             
             return profile
             
@@ -293,12 +296,11 @@ Return a JSON object with this structure:
             )
             
             content = response.choices[0].message.content
-            logger.debug(f"OpenAI response for profiles with names: {content}")
             
             if not content or content.strip() == "":
                 logger.warning("Empty response from OpenAI for profiles with names")
                 return []
-            
+                        
             # Strip markdown code blocks if present
             content = content.strip()
             if content.startswith("```json"):
@@ -327,6 +329,7 @@ Return a JSON object with this structure:
                     person_name=name,
                     linkedin_url=url,
                     company_name=company.name,
+                    title=self._extract_title_from_result(url, combined),
                     role=self._extract_role_from_title(name)
                 )
                 profiles.append(profile)
@@ -434,6 +437,7 @@ Return a JSON object with this structure:
                     person_name=name,
                     linkedin_url=url,
                     company_name=company.name,
+                    title=self._extract_title_from_result(url, combined),
                     role=self._extract_role_from_title(name)
                 )
                 profiles.append(profile)
@@ -490,6 +494,7 @@ Return a JSON object with this structure:
                 person_name=clean_text(name),
                 linkedin_url=link,
                 company_name=company_name,
+                title=title,  # Use the extracted title from search results
                 role=role
             )
             profiles.append(profile)
@@ -510,13 +515,31 @@ Return a JSON object with this structure:
         else:
             return "Executive"
     
+    def _extract_title_from_result(self, url: str, search_results: str) -> str:
+        """Extract title from search results for a specific URL."""
+        # Simple extraction - look for common patterns before the URL
+        lines = search_results.split('\n')
+        for i, line in enumerate(lines):
+            if url in line and i > 0:
+                # Check previous line for title information
+                prev_line = lines[i-1].strip()
+                if prev_line and len(prev_line) < 100:  # Reasonable title length
+                    # Clean up common patterns
+                    title = prev_line.replace(' | LinkedIn', '').replace(' - LinkedIn', '')
+                    return title
+        return "Professional"  # Default title
+    
     def _fix_linkedin_url(self, url: str) -> str:
         """Clean and normalize LinkedIn URLs."""
         if not url:
             return ""
         
-        # Remove extra whitespace and newlines (this is the real issue)
-        url = "".join(url.split())  # Remove ALL whitespace, not just normalize
+        # Remove ALL whitespace characters including newlines, tabs, etc.
+        url = ''.join(url.split())
+        
+        # Remove any invisible characters
+        import re
+        url = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', url)
         
         # Ensure proper protocol
         if url and not url.startswith(('http://', 'https://')):
@@ -525,24 +548,36 @@ Return a JSON object with this structure:
         # Fix double slashes
         url = url.replace(':///', '://')
         
-        return url
+        # Ensure it's actually a LinkedIn URL
+        if url and 'linkedin.com' not in url.lower():
+            return ""
+        
+        return url.strip()
     
     def _deduplicate_profiles(self, profiles: List[LinkedInProfile]) -> List[LinkedInProfile]:
         """Remove duplicate profiles based on URL."""
+        logger.debug(f"Deduplicating {len(profiles)} profiles")
         unique_profiles = []
         seen_urls = set()
         
-        for profile in profiles:
+        for i, profile in enumerate(profiles):
+            logger.debug(f"Processing profile {i+1}/{len(profiles)}: {profile.person_name}")
             url = str(profile.linkedin_url)
             if url and url not in seen_urls:
                 seen_urls.add(url)
                 unique_profiles.append(profile)
+                logger.debug(f"Added unique profile: {profile.person_name}")
+            else:
+                logger.debug(f"Skipped duplicate profile: {profile.person_name}")
         
+        logger.debug(f"Deduplication complete: {len(unique_profiles)} unique profiles")
         return unique_profiles
     
     async def _scrape_linkedin_profile(self, url: str) -> Optional[dict]:
-        """Scrape LinkedIn profile using Apify."""
+        """Scrape LinkedIn profile using Apify with fallback."""
         try:
+            logger.debug(f"Attempting to scrape LinkedIn profile: {url}")
+            
             run_input = {"profileUrls": [url]}
             
             run = self.apify.actor(settings.linkedin_actor_id).call(
@@ -555,13 +590,25 @@ Return a JSON object with this structure:
             items = list(self.apify.dataset(run["defaultDatasetId"]).iterate_items())
             
             if items:
+                logger.debug(f"Successfully scraped profile data for {url}")
                 return self._extract_linkedin_data(items[0])
-            
-            return None
+            else:
+                logger.warning(f"No data returned from Apify for {url}, using fallback")
+                return self._create_fallback_profile_data(url)
             
         except Exception as e:
-            logger.error(f"Error scraping LinkedIn profile {url}: {e}")
-            return None
+            logger.error(f"Error scraping LinkedIn profile {url}: {e}, using fallback")
+            return self._create_fallback_profile_data(url)
+    
+    def _create_fallback_profile_data(self, url: str) -> dict:
+        """Create fallback profile data when scraping fails."""
+        return {
+            "headline": "Profile data unavailable (Apify scraping failed)",
+            "location": None,
+            "about": "LinkedIn profile data could not be retrieved",
+            "experience_1_title": "Data unavailable",
+            "experience_1_company": "Scraping failed",
+        }
     
     def _extract_linkedin_data(self, profile_data: dict) -> dict:
         """Extract and structure LinkedIn profile data."""
