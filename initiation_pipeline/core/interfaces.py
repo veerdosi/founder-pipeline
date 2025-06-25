@@ -32,6 +32,10 @@ class ProfileEnrichmentService(ABC):
     async def enrich_profile(self, profile: LinkedInProfile) -> LinkedInProfile:
         """Enrich profile with additional data."""
         pass
+    
+    async def enrich_profiles_batch(self, profiles: List[LinkedInProfile]) -> List[LinkedInProfile]:
+        """Enrich multiple profiles efficiently. Default implementation calls enrich_profile individually."""
+        return [await self.enrich_profile(profile) for profile in profiles]
 
 
 class MarketAnalysisService(ABC):

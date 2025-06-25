@@ -153,8 +153,6 @@ def run(
     result = asyncio.run(run_pipeline())
     
     console.print(f"\n✅ Pipeline completed successfully!")
-    console.print(f"📁 Results saved to: {output}")
-
 
 @app.command()
 def companies(

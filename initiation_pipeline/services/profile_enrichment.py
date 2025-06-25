@@ -85,35 +85,52 @@ class LinkedInEnrichmentService(ProfileEnrichmentService):
         return result
     
     async def enrich_profile(self, profile: LinkedInProfile) -> LinkedInProfile:
-        """Enrich profile with additional data from LinkedIn."""
-        url = str(profile.linkedin_url).strip()
+        """Enrich single profile - use enrich_profiles_batch for efficiency."""
+        return (await self.enrich_profiles_batch([profile]))[0]
+    
+    async def enrich_profiles_batch(self, profiles: List[LinkedInProfile]) -> List[LinkedInProfile]:
+        """Enrich multiple profiles in one Apify call to avoid Docker container overhead."""
+        if not profiles:
+            return profiles
+            
+        # Clean URLs and filter valid ones
+        valid_profiles = []
+        for profile in profiles:
+            url = str(profile.linkedin_url).strip()
+            cleaned_url = self._fix_linkedin_url(url)
+            
+            if not validate_linkedin_url(cleaned_url):
+                logger.warning(f"Invalid LinkedIn URL for {profile.person_name}: '{cleaned_url}'")
+                continue
+                
+            # Update the profile with the cleaned URL if it was fixed
+            if cleaned_url != url:
+                profile.linkedin_url = cleaned_url
+            valid_profiles.append(profile)
         
-        # Clean the URL first (removes whitespace that causes display issues)
-        cleaned_url = self._fix_linkedin_url(url)
+        if not valid_profiles:
+            return profiles
+            
+        urls = [str(p.linkedin_url) for p in valid_profiles]
+        logger.info(f"Batch enriching {len(urls)} LinkedIn profiles")
         
-        if not validate_linkedin_url(cleaned_url):
-            logger.warning(f"Invalid LinkedIn URL for {profile.person_name}: '{cleaned_url}'")
-            return profile
-        
-        # Update the profile with the cleaned URL if it was fixed
-        if cleaned_url != url:
-            profile.linkedin_url = cleaned_url              
         try:
-            enriched_data = await self._scrape_linkedin_profile(str(profile.linkedin_url))
+            enriched_data_list = await self._scrape_linkedin_profiles_batch(urls)
             
-            if enriched_data:
-                # Update profile with enriched data
-                updated_fields = []
-                for field, value in enriched_data.items():
-                    if hasattr(profile, field) and value:
-                        setattr(profile, field, value)
-                        updated_fields.append(field)
+            # Map results back to profiles
+            for i, profile in enumerate(valid_profiles):
+                if i < len(enriched_data_list) and enriched_data_list[i]:
+                    enriched_data = enriched_data_list[i]
+                    # Update profile with enriched data
+                    for field, value in enriched_data.items():
+                        if hasattr(profile, field) and value:
+                            setattr(profile, field, value)
             
-            return profile
+            return profiles
             
         except Exception as e:
-            logger.error(f"Error enriching profile {profile.linkedin_url}: {e}")
-            return profile
+            logger.error(f"Error batch enriching profiles: {e}")
+            return profiles
     
     async def _find_profiles_by_names(
         self, 
@@ -573,12 +590,12 @@ Return a JSON object with this structure:
         logger.debug(f"Deduplication complete: {len(unique_profiles)} unique profiles")
         return unique_profiles
     
-    async def _scrape_linkedin_profile(self, url: str) -> Optional[dict]:
-        """Scrape LinkedIn profile using Apify with fallback."""
+    async def _scrape_linkedin_profiles_batch(self, urls: List[str]) -> List[Optional[dict]]:
+        """Scrape multiple LinkedIn profiles in one Apify call."""
         try:
-            logger.debug(f"Attempting to scrape LinkedIn profile: {url}")
+            logger.debug(f"Batch scraping {len(urls)} LinkedIn profiles")
             
-            run_input = {"profileUrls": [url]}
+            run_input = {"profileUrls": urls}
             
             run = self.apify.actor(settings.linkedin_actor_id).call(
                 run_input=run_input
@@ -589,16 +606,25 @@ Return a JSON object with this structure:
             
             items = list(self.apify.dataset(run["defaultDatasetId"]).iterate_items())
             
-            if items:
-                logger.debug(f"Successfully scraped profile data for {url}")
-                return self._extract_linkedin_data(items[0])
-            else:
-                logger.warning(f"No data returned from Apify for {url}, using fallback")
-                return self._create_fallback_profile_data(url)
+            results = []
+            for i, url in enumerate(urls):
+                if i < len(items) and items[i]:
+                    logger.debug(f"Successfully scraped profile data for {url}")
+                    results.append(self._extract_linkedin_data(items[i]))
+                else:
+                    logger.warning(f"No data returned from Apify for {url}, using fallback")
+                    results.append(self._create_fallback_profile_data(url))
+            
+            return results
             
         except Exception as e:
-            logger.error(f"Error scraping LinkedIn profile {url}: {e}, using fallback")
-            return self._create_fallback_profile_data(url)
+            logger.error(f"Error batch scraping LinkedIn profiles: {e}")
+            # Return fallback data for all URLs
+            return [self._create_fallback_profile_data(url) for url in urls]
+    async def _scrape_linkedin_profile(self, url: str) -> Optional[dict]:
+        """Legacy single profile scraper - use _scrape_linkedin_profiles_batch instead."""
+        results = await self._scrape_linkedin_profiles_batch([url])
+        return results[0] if results else None
     
     def _create_fallback_profile_data(self, url: str) -> dict:
         """Create fallback profile data when scraping fails."""

@@ -135,11 +135,9 @@ class InitiationPipeline:
                 try:
                     profiles = await self.profile_enrichment.find_profiles(company)
                     
-                    # Enrich profiles with full data
-                    enriched_profiles = []
-                    for profile in profiles[:3]:  # Limit to 3 profiles per company
-                        enriched_profile = await self.profile_enrichment.enrich_profile(profile)
-                        enriched_profiles.append(enriched_profile)
+                    # Enrich profiles with full data (batched for efficiency)
+                    profiles_to_enrich = profiles[:3]  # Limit to 3 profiles per company
+                    enriched_profiles = await self.profile_enrichment.enrich_profiles_batch(profiles_to_enrich)
                     
                     enriched_company = EnrichedCompany(
                         company=company,
@@ -586,7 +584,7 @@ class InitiationPipeline:
                 name=fused.name,
                 description=fused.description,
                 website=fused.website,
-                founded_year=fused.founded_year,
+                founded_year=int(fused.founded_year) if fused.founded_year is not None else None,
                 ai_focus=fused.ai_focus,
                 founders=fused.founders,
             )
@@ -625,16 +623,14 @@ class InitiationPipeline:
                     # Run profile discovery for this company
                     profiles = await self.profile_enrichment.find_profiles(enriched.company)
                     
-                    # Enrich each profile with full LinkedIn data
-                    enriched_profiles = []
-                    for profile in profiles[:3]:  # Limit to 3 profiles per company
-                        try:
-                            enriched_profile = await self.profile_enrichment.enrich_profile(profile)
-                            enriched_profiles.append(enriched_profile)
-                        except Exception as e:
-                            logger.warning(f"Failed to enrich profile for {profile.person_name}: {e}")
-                            # Keep the basic profile without enriched data
-                            enriched_profiles.append(profile)
+                    # Enrich profiles with full LinkedIn data (batched)
+                    profiles_to_enrich = profiles[:3]  # Limit to 3 profiles per company
+                    try:
+                        enriched_profiles = await self.profile_enrichment.enrich_profiles_batch(profiles_to_enrich)
+                    except Exception as e:
+                        logger.warning(f"Failed to batch enrich profiles for {enriched.company.name}: {e}")
+                        # Keep the basic profiles without enriched data
+                        enriched_profiles = profiles_to_enrich
                     
                     enriched.profiles = enriched_profiles
                     
