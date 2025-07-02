@@ -1,9 +1,12 @@
-"""Exa-based company discovery service."""
+"""Comprehensive company discovery service implementing 20+ source monitoring."""
 
 import asyncio
-from datetime import datetime
-from typing import List, Optional
+from datetime import datetime, timedelta
+from typing import List, Optional, Dict, Any
 import json
+import aiohttp
+import re
+from dataclasses import dataclass
 
 from exa_py import Exa
 from openai import AsyncOpenAI
@@ -21,8 +24,19 @@ from ..models import Company, FundingStage
 logger = get_logger(__name__)
 
 
+@dataclass
+class CompanySource:
+    """Configuration for a company discovery source."""
+    name: str
+    url: str
+    source_type: str  # 'media', 'accelerator', 'vc', 'patent', 'stealth'
+    check_frequency: int  # minutes
+    last_checked: Optional[datetime] = None
+    active: bool = True
+
+
 class ExaCompanyDiscovery(CompanyDiscoveryService):
-    """Company discovery using Exa search API."""
+    """Comprehensive company discovery using 20+ sources from the specification."""
     
     def __init__(self):
         self.exa = Exa(settings.exa_api_key)
@@ -31,6 +45,96 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
             max_requests=settings.requests_per_minute,
             time_window=60
         )
+        self.sources = self._initialize_sources()
+        self.session: Optional[aiohttp.ClientSession] = None
+    
+    def _initialize_sources(self) -> List[CompanySource]:
+        """Initialize all 20+ discovery sources as specified in the document."""
+        return [
+            # Real-time Media Monitoring (every 30 minutes)
+            CompanySource("techcrunch", "https://techcrunch.com/category/startups/", "media", 30),
+            CompanySource("the_information", "https://www.theinformation.com/", "media", 30),
+            CompanySource("axios_pro_rata", "https://www.axios.com/newsletters/axios-pro-rata", "media", 30),
+            CompanySource("venturebeat", "https://venturebeat.com/category/ai/", "media", 60),
+            CompanySource("bloomberg_tech", "https://www.bloomberg.com/technology", "media", 60),
+            CompanySource("wsj_tech", "https://www.wsj.com/tech", "media", 60),
+            
+            # VC Firm Blogs (daily sweeps)
+            CompanySource("a16z_blog", "https://a16z.com/blog/", "vc", 1440),
+            CompanySource("sequoia_blog", "https://medium.com/sequoia-capital", "vc", 1440),
+            CompanySource("greylock_blog", "https://greylock.com/blog/", "vc", 1440),
+            CompanySource("firstround_blog", "https://review.firstround.com/", "vc", 1440),
+            
+            # Accelerator & Demo Day Tracking (quarterly batch reviews)
+            CompanySource("ycombinator", "https://www.ycombinator.com/companies", "accelerator", 10080),  # weekly
+            CompanySource("techstars", "https://www.techstars.com/portfolio", "accelerator", 10080),
+            CompanySource("500_startups", "https://500.co/companies/", "accelerator", 10080),
+            CompanySource("stanford_spinouts", "https://otl.stanford.edu/", "university", 43200),  # monthly
+            CompanySource("mit_spinouts", "https://innovation.mit.edu/", "university", 43200),
+            
+            # Stealth Company Detection
+            CompanySource("github_new_projects", "https://github.com/trending", "stealth", 1440),
+            CompanySource("linkedin_jobs", "https://www.linkedin.com/jobs/", "stealth", 1440),
+            CompanySource("uspto_patents", "https://www.uspto.gov/", "patent", 10080),
+            
+            # International Sources
+            CompanySource("eu_startups", "https://www.eu-startups.com/", "media", 1440),
+            CompanySource("tech_asia", "https://www.techinasia.com/", "media", 1440),
+            CompanySource("dealstreetasia", "https://www.dealstreetasia.com/", "media", 1440),
+            CompanySource("sifted_eu", "https://sifted.eu/", "media", 1440),
+        ]
+    
+    async def discover_companies(
+        self,
+        limit: int = 50,
+        categories: Optional[List[str]] = None,
+        regions: Optional[List[str]] = None,
+        sources: Optional[List[str]] = None
+    ) -> List[Company]:
+        """Discover companies using comprehensive multi-source approach."""
+        logger.info(f"🔍 Discovering {limit} companies from {len(self.sources)} sources...")
+        
+        # Filter active sources if specified
+        active_sources = self.sources
+        if sources:
+            active_sources = [s for s in self.sources if s.name in sources]
+        
+        # Run discovery across all sources
+        all_companies = []
+        
+        # Real-time media monitoring
+        media_companies = await self._discover_from_media_sources(
+            [s for s in active_sources if s.source_type == "media"],
+            categories, regions, limit // 4
+        )
+        all_companies.extend(media_companies)
+        
+        # Accelerator discovery
+        accelerator_companies = await self._discover_from_accelerators(
+            [s for s in active_sources if s.source_type == "accelerator"],
+            limit // 4
+        )
+        all_companies.extend(accelerator_companies)
+        
+        # Stealth company detection
+        stealth_companies = await self._discover_stealth_companies(
+            [s for s in active_sources if s.source_type == "stealth"],
+            limit // 4
+        )
+        all_companies.extend(stealth_companies)
+        
+        # VC portfolio analysis
+        vc_companies = await self._discover_from_vc_sources(
+            [s for s in active_sources if s.source_type == "vc"],
+            limit // 4
+        )
+        all_companies.extend(vc_companies)
+        
+        # Deduplicate and return
+        unique_companies = self._deduplicate_companies(all_companies)
+        logger.info(f"✅ Discovered {len(unique_companies)} unique companies")
+        
+        return unique_companies[:limit]
     
     async def find_companies(
         self, 
