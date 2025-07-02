@@ -4,6 +4,7 @@ import asyncio
 import time
 from pathlib import Path
 from typing import List, Optional
+from datetime import date
 
 from ..core import (
     get_logger,
@@ -33,7 +34,112 @@ class InitiationPipeline:
         self.market_analysis = MarketAnalysisProvider()
         self.data_fusion = DataFusionService()
     
-    async def run_complete_pipeline(
+    async def run_complete_pipeline_with_date_range(
+        self,
+        company_limit: int = 50,
+        categories: Optional[List[str]] = None,
+        regions: Optional[List[str]] = None,
+        sources: Optional[List[str]] = None,
+        founded_after: Optional[date] = None,
+        founded_before: Optional[date] = None
+    ) -> List[EnrichedCompany]:
+        """Run complete pipeline with date range filtering for company founding dates."""
+        from datetime import date
+        
+        logger.info("🚀 Starting date-range filtered AI Company Pipeline")
+        console.print("=" * 70)
+        
+        start_time = time.time()
+        
+        try:
+            # Step 1: Discover companies
+            console.print("🔍 Discovering companies...")
+            companies = await self.company_discovery.find_companies(
+                limit=company_limit,
+                categories=categories,
+                regions=regions
+            )
+            
+            # Step 2: Filter by date range
+            if founded_after or founded_before:
+                filtered_companies = []
+                for company in companies:
+                    if company.founded_year:
+                        company_year = company.founded_year
+                        
+                        # Check if company year is within range
+                        include_company = True
+                        
+                        if founded_after:
+                            if company_year < founded_after.year:
+                                include_company = False
+                        
+                        if founded_before:
+                            if company_year > founded_before.year:
+                                include_company = False
+                        
+                        if include_company:
+                            filtered_companies.append(company)
+                    else:
+                        # Include companies without founding year data
+                        filtered_companies.append(company)
+                
+                companies = filtered_companies
+                console.print(f"📅 Filtered to {len(companies)} companies in date range")
+            
+            if not companies:
+                console.print("❌ No companies found in date range")
+                return []
+            
+            # Step 3: Profile enrichment
+            console.print("👤 Finding LinkedIn profiles...")
+            enriched_companies = []
+            
+            with create_progress_bar() as progress:
+                task = progress.add_task("Finding profiles...", total=len(companies))
+                
+                for company in companies:
+                    try:
+                        profiles = await self.profile_enrichment.find_profiles(company)
+                        
+                        # Limit to top 3 profiles per company
+                        profiles_to_enrich = profiles[:3]
+                        try:
+                            enriched_profiles = await self.profile_enrichment.enrich_profiles_batch(profiles_to_enrich)
+                        except Exception as e:
+                            logger.warning(f"Failed to enrich profiles for {company.name}: {e}")
+                            enriched_profiles = profiles_to_enrich
+                        
+                        enriched_company = EnrichedCompany(
+                            company=company,
+                            profiles=enriched_profiles
+                        )
+                        enriched_companies.append(enriched_company)
+                        
+                    except Exception as e:
+                        logger.error(f"Error processing {company.name}: {e}")
+                        # Add company without profiles
+                        enriched_companies.append(
+                            EnrichedCompany(company=company, profiles=[])
+                        )
+                    
+                    progress.update(task, advance=1)
+                    await asyncio.sleep(0.5)  # Rate limiting
+            
+            execution_time = time.time() - start_time
+            total_founders = sum(len(ec.profiles) for ec in enriched_companies)
+            
+            console.print(f"\n🎉 Pipeline complete!")
+            console.print(f"📊 Companies: {len(enriched_companies)}")
+            console.print(f"👤 Founders: {total_founders}")
+            console.print(f"⏱️  Time: {execution_time:.1f}s")
+            
+            logger.info(f"🎉 Date-range pipeline complete! {len(enriched_companies)} companies, {total_founders} founders in {execution_time:.1f}s")
+            return enriched_companies
+            
+        except Exception as e:
+            logger.error(f"❌ Pipeline error: {e}")
+            raise
         self,
         company_limit: int = 50,
         include_profiles: bool = True,

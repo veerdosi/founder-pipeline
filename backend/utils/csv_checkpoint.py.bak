@@ -1,0 +1,220 @@
+"""CSV-based persistence and checkpointing system as requested."""
+
+import csv
+import json
+import os
+from pathlib import Path
+from typing import List, Dict, Any, Optional
+from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class CSVCheckpointManager:
+    """Manage CSV-based checkpointing for companies and founder data."""
+    
+    def __init__(self, output_dir: str = "./output"):
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        
+        self.companies_file = self.output_dir / "companies.csv"
+        self.founders_file = self.output_dir / "founders.csv"
+        self.metadata_file = self.output_dir / "metadata.json"
+    
+    def save_companies(self, companies: List[Dict[str, Any]]) -> None:
+        """Save companies to CSV with automatic checkpointing."""
+        if not companies:
+            return
+        
+        try:
+            with open(self.companies_file, 'w', newline='', encoding='utf-8') as csvfile:
+                fieldnames = [
+                    "id", "name", "description", "website", "founded_year", 
+                    "funding_total", "funding_stage", "founders", "location", 
+                    "ai_category", "source", "extraction_date"
+                ]
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                
+                for company in companies:
+                    # Ensure all required fields exist
+                    row = {
+                        "id": company.get("id", ""),
+                        "name": company.get("name", ""),
+                        "description": company.get("description", ""),
+                        "website": company.get("website", ""),
+                        "founded_year": company.get("foundedYear", ""),
+                        "funding_total": company.get("fundingTotal", ""),
+                        "funding_stage": company.get("fundingStage", ""),
+                        "founders": "|".join(company.get("founders", [])) if company.get("founders") else "",
+                        "location": company.get("location", ""),
+                        "ai_category": company.get("aiCategory", ""),
+                        "source": company.get("source", ""),
+                        "extraction_date": datetime.now().isoformat()
+                    }
+                    writer.writerow(row)
+            
+            self._update_metadata("companies", len(companies))
+            logger.info(f"Saved {len(companies)} companies to {self.companies_file}")
+            
+        except Exception as e:
+            logger.error(f"Failed to save companies to CSV: {e}")
+            raise
+    
+    def load_companies(self) -> List[Dict[str, Any]]:
+        """Load companies from CSV checkpoint."""
+        if not self.companies_file.exists():
+            return []
+        
+        try:
+            companies = []
+            with open(self.companies_file, 'r', encoding='utf-8') as csvfile:
+                reader = csv.DictReader(csvfile)
+                for row in reader:
+                    # Convert back from CSV format
+                    company = {
+                        "id": row["id"],
+                        "name": row["name"],
+                        "description": row["description"],
+                        "website": row["website"] if row["website"] else None,
+                        "foundedYear": int(row["founded_year"]) if row["founded_year"] else None,
+                        "fundingTotal": float(row["funding_total"]) if row["funding_total"] else None,
+                        "fundingStage": row["funding_stage"] if row["funding_stage"] else None,
+                        "founders": row["founders"].split("|") if row["founders"] else [],
+                        "location": row["location"],
+                        "aiCategory": row["ai_category"],
+                        "source": row["source"]
+                    }
+                    companies.append(company)
+            
+            logger.info(f"Loaded {len(companies)} companies from {self.companies_file}")
+            return companies
+            
+        except Exception as e:
+            logger.error(f"Failed to load companies from CSV: {e}")
+            return []
+    
+    def save_founder_rankings(self, rankings: List[Dict[str, Any]]) -> None:
+        """Save founder rankings to CSV with automatic checkpointing."""
+        if not rankings:
+            return
+        
+        try:
+            with open(self.founders_file, 'w', newline='', encoding='utf-8') as csvfile:
+                fieldnames = [
+                    "id", "name", "company", "level", "confidence_score", 
+                    "reasoning", "evidence", "verification_sources", "timestamp"
+                ]
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                
+                for ranking in rankings:
+                    row = {
+                        "id": ranking.get("id", ""),
+                        "name": ranking.get("name", ""),
+                        "company": ranking.get("company", ""),
+                        "level": ranking.get("level", ""),
+                        "confidence_score": ranking.get("confidenceScore", 0.0),
+                        "reasoning": ranking.get("reasoning", ""),
+                        "evidence": "|".join(ranking.get("evidence", [])) if ranking.get("evidence") else "",
+                        "verification_sources": "|".join(ranking.get("verificationSources", [])) if ranking.get("verificationSources") else "",
+                        "timestamp": ranking.get("timestamp", datetime.now().isoformat())
+                    }
+                    writer.writerow(row)
+            
+            self._update_metadata("founders", len(rankings))
+            logger.info(f"Saved {len(rankings)} founder rankings to {self.founders_file}")
+            
+        except Exception as e:
+            logger.error(f"Failed to save founder rankings to CSV: {e}")
+            raise
+    
+    def load_founder_rankings(self) -> List[Dict[str, Any]]:
+        """Load founder rankings from CSV checkpoint."""
+        if not self.founders_file.exists():
+            return []
+        
+        try:
+            rankings = []
+            with open(self.founders_file, 'r', encoding='utf-8') as csvfile:
+                reader = csv.DictReader(csvfile)
+                for row in reader:
+                    ranking = {
+                        "id": row["id"],
+                        "name": row["name"],
+                        "company": row["company"],
+                        "level": row["level"],
+                        "confidenceScore": float(row["confidence_score"]) if row["confidence_score"] else 0.0,
+                        "reasoning": row["reasoning"],
+                        "evidence": row["evidence"].split("|") if row["evidence"] else [],
+                        "verificationSources": row["verification_sources"].split("|") if row["verification_sources"] else [],
+                        "timestamp": row["timestamp"]
+                    }
+                    rankings.append(ranking)
+            
+            logger.info(f"Loaded {len(rankings)} founder rankings from {self.founders_file}")
+            return rankings
+            
+        except Exception as e:
+            logger.error(f"Failed to load founder rankings from CSV: {e}")
+            return []
+    
+    def _update_metadata(self, data_type: str, count: int) -> None:
+        """Update metadata file with checkpoint information."""
+        metadata = {}
+        
+        # Load existing metadata
+        if self.metadata_file.exists():
+            try:
+                with open(self.metadata_file, 'r', encoding='utf-8') as f:
+                    metadata = json.load(f)
+            except Exception:
+                metadata = {}
+        
+        # Update metadata
+        metadata[data_type] = {
+            "count": count,
+            "last_updated": datetime.now().isoformat(),
+            "file_path": str(getattr(self, f"{data_type}_file"))
+        }
+        
+        # Save updated metadata
+        try:
+            with open(self.metadata_file, 'w', encoding='utf-8') as f:
+                json.dump(metadata, f, indent=2)
+        except Exception as e:
+            logger.error(f"Failed to update metadata: {e}")
+    
+    def get_checkpoint_info(self) -> Dict[str, Any]:
+        """Get information about current checkpoints."""
+        info = {
+            "companies_file_exists": self.companies_file.exists(),
+            "founders_file_exists": self.founders_file.exists(),
+            "metadata_file_exists": self.metadata_file.exists(),
+            "output_directory": str(self.output_dir)
+        }
+        
+        if self.metadata_file.exists():
+            try:
+                with open(self.metadata_file, 'r', encoding='utf-8') as f:
+                    metadata = json.load(f)
+                info["metadata"] = metadata
+            except Exception:
+                info["metadata"] = {}
+        
+        return info
+    
+    def clear_checkpoints(self) -> None:
+        """Clear all checkpoint files."""
+        for file_path in [self.companies_file, self.founders_file, self.metadata_file]:
+            if file_path.exists():
+                try:
+                    file_path.unlink()
+                    logger.info(f"Removed checkpoint file: {file_path}")
+                except Exception as e:
+                    logger.error(f"Failed to remove {file_path}: {e}")
+
+
+# Global checkpoint manager instance
+checkpoint_manager = CSVCheckpointManager()

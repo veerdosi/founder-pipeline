@@ -25,7 +25,7 @@ class ClaudeSonnet4Provider:
             raise ValueError("ANTHROPIC_API_KEY environment variable is required")
         
         self.base_url = "https://api.anthropic.com/v1/messages"
-        self.model = "claude-3-sonnet-20240229"  # Claude Sonnet 4 model
+        self.model = "claude-3-5-sonnet-20241022"  # Claude Sonnet 4 model
         self.headers = {
             "Content-Type": "application/json",
             "x-api-key": self.api_key,

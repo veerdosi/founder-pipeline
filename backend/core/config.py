@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     serper_api_key: str = Field(..., env="SERPER_API_KEY")
     apify_api_key: str = Field(..., env="APIFY_API_KEY")
     perplexity_api_key: str = Field(..., env="PERPLEXITY_API_KEY")
+    anthropic_api_key: str = Field(..., env="ANTHROPIC_API_KEY")  # For Claude Sonnet 4
     
     # Data Source APIs
     crunchbase_api_key: str = Field(..., env="CRUNCHBASE_API_KEY")
