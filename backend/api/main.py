@@ -1,30 +1,36 @@
-"""Simplified FastAPI main application for date-range based discovery with CSV output."""
+"""
+FastAPI application to power the Initiation Pipeline web UI.
+This version is updated to match the API endpoints expected by the frontend.
+"""
 
-from fastapi import FastAPI, HTTPException, Depends
+import io
+import csv
+import logging
+from typing import List, Dict, Any
+from datetime import datetime
+from urllib.parse import urlparse
+
+import pandas as pd
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-import uvicorn
-import asyncio
-import csv
-import io
-from typing import List, Optional
-from datetime import datetime, date
 
-from ..services.ranking import FounderRankingService, FounderProfile
-from ..services.company_discovery import ExaCompanyDiscovery
-from ..services.profile_enrichment import LinkedInEnrichmentService
+from .models import CompanyDiscoveryRequest, DashboardStats, PipelineJobResponse
+from .dependencies import get_pipeline_service, get_ranking_service
 from ..services.pipeline import InitiationPipeline
-from .models import *
-from .dependencies import get_ranking_service, get_discovery_service, get_enrichment_service, get_pipeline_service
-from ..utils.checkpoint_manager import checkpoint_manager, checkpointed_runner
+from ..services.ranking import FounderRankingService
+from ..services.ranking.models import FounderProfile
+from ..models import EnrichedCompany
 
+# --- Application Setup ---
 app = FastAPI(
     title="Initiation Pipeline API",
-    description="AI-powered founder discovery and ranking system with date range filtering",
-    version="1.0.0"
+    description="AI-powered founder discovery and ranking system.",
+    version="1.1.0"
 )
 
-# CORS middleware for frontend
+# --- CORS Middleware ---
+# Allows the frontend (running on localhost:3000) to communicate with the backend.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
@@ -33,278 +39,235 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- In-Memory Data Store ---
+# A simple dictionary to store results. In a production app, use a database (e.g., PostgreSQL, Redis).
+results_store: Dict[str, Any] = {
+    "companies": [],
+    "rankings": []
+}
+
+logger = logging.getLogger(__name__)
+
+# --- API Endpoints ---
+
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
+# --- Dashboard Endpoints ---
+
 @app.get("/api/dashboard/stats", response_model=DashboardStats)
 async def get_dashboard_stats():
-    """Get basic dashboard statistics."""
+    """
+    Get basic dashboard statistics from the current state.
+    This is now connected to the in-memory store.
+    """
+    companies = results_store.get("companies", [])
+    rankings = results_store.get("rankings", [])
+
+    # Calculate level distribution
+    level_dist = {}
+    if rankings:
+        for r in rankings:
+            level = r.classification.level.value
+            level_dist[level] = level_dist.get(level, 0) + 1
+
     return DashboardStats(
-        totalCompanies=0,
-        totalFounders=0,
-        avgConfidenceScore=0.0,
-        levelDistribution={},
-        recentActivity=[]
+        totalCompanies=len(companies),
+        totalFounders=sum(len(ec.profiles) for ec in companies),
+        avgConfidenceScore=sum(r.classification.confidence_score for r in rankings) / len(rankings) if rankings else 0.0,
+        levelDistribution=level_dist,
+        recentActivity=[] # Placeholder for recent activity log
     )
 
-@app.post("/api/discover-and-process", response_model=PipelineJobResponse)
-async def discover_and_process_companies(
+# --- Company Discovery Endpoints ---
+
+@app.post("/api/companies/discover", response_model=PipelineJobResponse)
+async def discover_companies(
     params: CompanyDiscoveryRequest,
     pipeline_service: InitiationPipeline = Depends(get_pipeline_service),
-    ranking_service: FounderRankingService = Depends(get_ranking_service)
 ):
     """
-    Main endpoint: Discover companies in date range, find founders, and prepare CSV data.
-    Uses checkpointing for reliability and resume capability.
+    Endpoint for the frontend to discover companies.
+    This is a long-running task. Results are stored in memory.
     """
     try:
-        # Convert request params to dict for job ID creation
-        params_dict = {
-            'limit': params.limit,
-            'categories': params.categories,
-            'regions': params.regions,
-            'sources': params.sources,
-            'founded_after': params.founded_after,
-            'founded_before': params.founded_before
-        }
-        
-        # Run checkpointed pipeline
-        result = await checkpointed_runner.run_checkpointed_pipeline(
-            pipeline_service=pipeline_service,
-            ranking_service=ranking_service,
-            params=params_dict,
-            force_restart=False
+        enriched_companies: List[EnrichedCompany] = await pipeline_service.run_complete_pipeline_with_date_range(
+            company_limit=params.limit,
+            categories=params.categories,
+            regions=params.regions,
+            sources=params.sources,
+            founded_after=params.founded_after,
+            founded_before=params.founded_before
         )
+        # Store results in our simple in-memory store
+        results_store["companies"] = enriched_companies
         
         return PipelineJobResponse(
-            jobId=result['job_id'],
-            status="completed",
-            companiesFound=result['stats']['total_companies'],
-            foundersFound=result['stats']['total_founders'],
-            message=f"Processed {result['stats']['total_companies']} companies and {result['stats']['total_founders']} founders (checkpointed)"
-        )
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/export-companies-csv")
-async def export_companies_csv(
-    params: CompanyDiscoveryRequest,
-    pipeline_service: InitiationPipeline = Depends(get_pipeline_service)
-):
-    """Export companies dataset to CSV based on date range."""
-    try:
-        # Run discovery and enrichment
-        enriched_companies = await pipeline_service.run_complete_pipeline_with_date_range(
-            company_limit=params.limit,
-            categories=params.categories,
-            regions=params.regions,
-            sources=params.sources,
-            founded_after=params.founded_after,
-            founded_before=params.founded_before
-        )
-        
-        # Generate company CSV
-        output = io.StringIO()
-        writer = csv.writer(output)
-        
-        # Write header
-        writer.writerow([
-            "company_name", "description", "website", "founded_year", 
-            "funding_total_usd", "funding_stage", "city", "country", 
-            "ai_focus", "sector", "founders_count", "source_url"
-        ])
-        
-        # Write data
-        for ec in enriched_companies:
-            company = ec.company
-            writer.writerow([
-                company.name,
-                company.description or "",
-                str(company.website) if company.website else "",
-                company.founded_year,
-                company.funding_total_usd,
-                company.funding_stage,
-                company.city or "",
-                company.country or "",
-                company.ai_focus or "",
-                company.sector or "",
-                len(ec.profiles),
-                company.source_url or ""
-            ])
-        
-        output.seek(0)
-        filename = f"companies_{params.founded_after}_{params.founded_before}.csv"
-        
-        return StreamingResponse(
-            io.BytesIO(output.getvalue().encode()),
-            media_type="text/csv",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
-        )
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/export-founders-csv")
-async def export_founders_csv(
-    params: CompanyDiscoveryRequest,
-    pipeline_service: InitiationPipeline = Depends(get_pipeline_service)
-):
-    """Export founders dataset to CSV based on date range."""
-    try:
-        # Run discovery and enrichment
-        enriched_companies = await pipeline_service.run_complete_pipeline_with_date_range(
-            company_limit=params.limit,
-            categories=params.categories,
-            regions=params.regions,
-            sources=params.sources,
-            founded_after=params.founded_after,
-            founded_before=params.founded_before
-        )
-        
-        # Generate founders CSV
-        output = io.StringIO()
-        writer = csv.writer(output)
-        
-        # Write header
-        writer.writerow([
-            "company_name", "person_name", "title", "linkedin_url", 
-            "location", "about", "estimated_age",
-            "experience_1_title", "experience_1_company",
-            "experience_2_title", "experience_2_company", 
-            "experience_3_title", "experience_3_company",
-            "education_1_school", "education_1_degree",
-            "education_2_school", "education_2_degree",
-            "skill_1", "skill_2", "skill_3",
-            "l_level", "confidence_score", "reasoning"
-        ])
-        
-        # Write data
-        for ec in enriched_companies:
-            company_name = ec.company.name
-            
-            for profile in ec.profiles:
-                # Get L-level classification if available
-                l_level = getattr(profile, 'l_level', '')
-                confidence_score = getattr(profile, 'confidence_score', '')
-                reasoning = getattr(profile, 'reasoning', '')
-                
-                writer.writerow([
-                    company_name,
-                    profile.person_name,
-                    profile.title or "",
-                    str(profile.linkedin_url),
-                    profile.location or "",
-                    profile.about or "",
-                    profile.estimated_age,
-                    profile.experience_1_title or "",
-                    profile.experience_1_company or "",
-                    profile.experience_2_title or "",
-                    profile.experience_2_company or "",
-                    profile.experience_3_title or "",
-                    profile.experience_3_company or "",
-                    profile.education_1_school or "",
-                    profile.education_1_degree or "",
-                    profile.education_2_school or "",
-                    profile.education_2_degree or "",
-                    profile.skill_1 or "",
-                    profile.skill_2 or "",
-                    profile.skill_3 or "",
-                    l_level,
-                    confidence_score,
-                    reasoning
-                ])
-        
-        output.seek(0)
-        filename = f"founders_{params.founded_after}_{params.founded_before}.csv"
-        
-        return StreamingResponse(
-            io.BytesIO(output.getvalue().encode()),
-            media_type="text/csv",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
-        )
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/discover-rank-export")
-async def discover_rank_and_export(
-    params: CompanyDiscoveryRequest,
-    pipeline_service: InitiationPipeline = Depends(get_pipeline_service),
-    ranking_service: FounderRankingService = Depends(get_ranking_service)
-):
-    """Complete pipeline: discover companies, find founders, rank them, export both CSVs."""
-    try:
-        task_id = f"complete_{datetime.now().timestamp()}"
-        
-        # Step 1: Run complete pipeline
-        enriched_companies = await pipeline_service.run_complete_pipeline_with_date_range(
-            company_limit=params.limit,
-            categories=params.categories,
-            regions=params.regions,
-            sources=params.sources,
-            founded_after=params.founded_after,
-            founded_before=params.founded_before
-        )
-        
-        # Step 2: Rank founders using L1-L10 framework
-        all_profiles = []
-        for ec in enriched_companies:
-            for profile in ec.profiles:
-                founder_profile = FounderProfile(
-                    name=profile.person_name,
-                    company_name=ec.company.name,
-                    title=profile.title or "",
-                    linkedin_url=str(profile.linkedin_url),
-                    location=profile.location,
-                    about=profile.about,
-                    estimated_age=profile.estimated_age,
-                    experience_1_title=profile.experience_1_title,
-                    experience_1_company=profile.experience_1_company,
-                    experience_2_title=profile.experience_2_title,
-                    experience_2_company=profile.experience_2_company,
-                    experience_3_title=profile.experience_3_title,
-                    experience_3_company=profile.experience_3_company,
-                    education_1_school=profile.education_1_school,
-                    education_1_degree=profile.education_1_degree,
-                    education_2_school=profile.education_2_school,
-                    education_2_degree=profile.education_2_degree,
-                    skill_1=profile.skill_1,
-                    skill_2=profile.skill_2,
-                    skill_3=profile.skill_3
-                )
-                all_profiles.append((founder_profile, profile))
-        
-        # Rank founders
-        rankings = await ranking_service.rank_founders_batch(
-            [fp for fp, _ in all_profiles], 
-            batch_size=5
-        )
-        
-        # Apply rankings back to profiles
-        for i, ranking in enumerate(rankings):
-            if i < len(all_profiles):
-                _, original_profile = all_profiles[i]
-                # Add ranking data to profile
-                original_profile.l_level = ranking.classification.level.value
-                original_profile.confidence_score = ranking.classification.confidence_score
-                original_profile.reasoning = ranking.classification.reasoning
-        
-        total_founders = len(all_profiles)
-        high_confidence = len([r for r in rankings if r.classification.confidence_score >= 0.75])
-        
-        return PipelineJobResponse(
-            jobId=task_id,
+            jobId=f"job_{datetime.now().timestamp()}",
             status="completed",
             companiesFound=len(enriched_companies),
-            foundersFound=total_founders,
-            message=f"Complete pipeline: {len(enriched_companies)} companies, {total_founders} founders ranked ({high_confidence} high confidence)"
+            foundersFound=sum(len(ec.profiles) for ec in enriched_companies),
+            message="Discovery and enrichment complete."
         )
-        
     except Exception as e:
+        logger.error(f"Discovery failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+@app.get("/api/companies")
+async def get_companies():
+    """
+    Endpoint to fetch the list of discovered companies for the UI table.
+    Formats the data to match the frontend's expected structure.
+    """
+    enriched_companies = results_store.get("companies", [])
+    formatted_companies = []
+    for ec in enriched_companies:
+        company = ec.company
+        formatted_companies.append({
+            "id": company.uuid,
+            "name": company.name,
+            "description": company.description or "No description available.",
+            "website": str(company.website) if company.website else "",
+            "aiCategory": company.ai_focus or "N/A",
+            "fundingTotal": company.funding_total_usd,
+            "location": f"{company.city}, {company.country}" if company.city else "N/A",
+            "founders": [p.person_name for p in ec.profiles] if ec.profiles else [],
+            "source": urlparse(company.source_url).hostname if company.source_url else "N/A"
+        })
+    return formatted_companies
+
+@app.get("/api/companies/export")
+async def export_companies():
+    """
+    Endpoint to export discovered companies to a CSV file.
+    Uses the data stored in memory from the last discovery run.
+    """
+    enriched_companies = results_store.get("companies", [])
+    if not enriched_companies:
+        raise HTTPException(status_code=404, detail="No companies discovered yet. Run a discovery first.")
+
+    output = io.StringIO()
+    # Using pandas for robust CSV generation
+    company_records = []
+    for ec in enriched_companies:
+        c = ec.company
+        company_records.append({
+            "company_name": c.name,
+            "description": c.description,
+            "website": str(c.website) if c.website else "",
+            "founded_year": c.founded_year,
+            "ai_focus": c.ai_focus,
+            "sector": c.sector,
+            "funding_total_usd": c.funding_total_usd,
+            "funding_stage": c.funding_stage,
+            "city": c.city,
+            "country": c.country,
+            "founders_count": len(ec.profiles)
+        })
+    df = pd.DataFrame(company_records)
+    df.to_csv(output, index=False)
+    
+    output.seek(0)
+    filename = f"companies_export_{datetime.now().strftime('%Y%m%d')}.csv"
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode()),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+# --- Founder Ranking Endpoints ---
+
+@app.post("/api/founders/rank", response_model=PipelineJobResponse)
+async def rank_founders_from_file(
+    ranking_service: FounderRankingService = Depends(get_ranking_service),
+    file: UploadFile = File(...)
+):
+    """
+    Ranks founders from an uploaded CSV file.
+    """
+    try:
+        # Read and parse the uploaded CSV file
+        contents = await file.read()
+        decoded_content = contents.decode('utf-8')
+        csv_reader = csv.DictReader(io.StringIO(decoded_content))
+        
+        founder_profiles = [FounderProfile.from_csv_row(row) for row in csv_reader]
+        
+        if not founder_profiles:
+            raise HTTPException(status_code=400, detail="CSV file is empty or in the wrong format.")
+
+        # Rank the founders
+        rankings = await ranking_service.rank_founders_batch(
+            founder_profiles,
+            batch_size=5,
+            use_enhanced=True  # Use enhanced ranking with L-level validation
+        )
+        
+        # Store results in memory
+        results_store["rankings"] = rankings
+        
+        return PipelineJobResponse(
+            jobId=f"rank_job_{datetime.now().timestamp()}",
+            status="completed",
+            companiesFound=0,
+            foundersFound=len(rankings),
+            message=f"Ranking complete for {len(rankings)} founders."
+        )
+    except Exception as e:
+        logger.error(f"Ranking from file failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to process file: {e}")
+
+@app.get("/api/founders/rankings")
+async def get_rankings():
+    """
+    Endpoint to fetch the list of ranked founders for the UI table.
+    """
+    rankings = results_store.get("rankings", [])
+    formatted_rankings = []
+    for r in rankings:
+        formatted_rankings.append({
+            "id": r.profile.linkedin_url or r.profile.name,
+            "name": r.profile.name,
+            "company": r.profile.company_name,
+            "level": r.classification.level.value,
+            "confidenceScore": r.classification.confidence_score,
+            "reasoning": r.classification.reasoning,
+            "evidence": r.classification.evidence,
+            "verificationSources": r.classification.verification_sources,
+            "timestamp": r.timestamp
+        })
+    return formatted_rankings
+
+@app.get("/api/founders/rankings/export")
+async def export_rankings():
+    """
+    Endpoint to export founder rankings to a CSV file.
+    """
+    rankings = results_store.get("rankings", [])
+    if not rankings:
+        raise HTTPException(status_code=404, detail="No rankings available to export. Run a ranking job first.")
+
+    output = io.StringIO()
+    ranking_records = []
+    for r in rankings:
+        ranking_records.append({
+            "founder_name": r.profile.name,
+            "company_name": r.profile.company_name,
+            "linkedin_url": r.profile.linkedin_url,
+            "l_level": r.classification.level.value,
+            "confidence_score": r.classification.confidence_score,
+            "reasoning": r.classification.reasoning,
+            "evidence": " | ".join(r.classification.evidence),
+        })
+    df = pd.DataFrame(ranking_records)
+    df.to_csv(output, index=False)
+    
+    output.seek(0)
+    filename = f"founder_rankings_{datetime.now().strftime('%Y%m%d')}.csv"
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode()),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )

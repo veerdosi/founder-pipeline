@@ -68,38 +68,6 @@ def write_excel_safe(df: pd.DataFrame, file_path: Union[str, Path], **kwargs) ->
         return False
 
 
-async def save_checkpoint_async(data: Any, file_path: Union[str, Path]) -> bool:
-    """Save checkpoint data asynchronously."""
-    try:
-        # Ensure directory exists
-        Path(file_path).parent.mkdir(parents=True, exist_ok=True)
-        
-        async with aiofiles.open(file_path, 'wb') as f:
-            await f.write(pickle.dumps(data))
-        
-        console.print(f"✅ Checkpoint saved: {file_path}")
-        return True
-    except Exception as e:
-        console.print(f"❌ Error saving checkpoint {file_path}: {e}")
-        return False
-
-
-async def load_checkpoint_async(file_path: Union[str, Path]) -> Any:
-    """Load checkpoint data asynchronously."""
-    try:
-        if not Path(file_path).exists():
-            return None
-            
-        async with aiofiles.open(file_path, 'rb') as f:
-            data = await f.read()
-        
-        console.print(f"✅ Checkpoint loaded: {file_path}")
-        return pickle.loads(data)
-    except Exception as e:
-        console.print(f"❌ Error loading checkpoint {file_path}: {e}")
-        return None
-
-
 def get_file_size(file_path: Union[str, Path]) -> int:
     """Get file size in bytes."""
     try:

@@ -332,10 +332,14 @@ class CheckpointedPipelineRunner:
                     )
                     founder_profiles.append((founder_profile, profile))
                 
-                # Rank founders
+                # Rank founders with enhanced system
+                from ..services.ranking.ranking_service import FounderRankingService
+                ranking_service = FounderRankingService()
+                
                 rankings = await ranking_service.rank_founders_batch(
                     [fp for fp, _ in founder_profiles], 
-                    batch_size=5
+                    batch_size=5,
+                    use_enhanced=True  # Use enhanced ranking with L-level validation
                 )
                 
                 # Apply rankings back to original profiles
