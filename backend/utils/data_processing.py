@@ -8,6 +8,9 @@ from urllib.parse import urlparse
 
 import pandas as pd
 
+# Import centralized validators
+from ..validators import validate_linkedin_url, validate_email, validate_url
+
 T = TypeVar('T')
 
 
@@ -58,29 +61,6 @@ def extract_name_from_linkedin_url(url: str) -> str:
     except:
         pass
     return "Unknown"
-
-
-from ..validators import validate_linkedin_url as _validate_linkedin_url
-
-# Re-export for backward compatibility
-def validate_linkedin_url(url: str) -> bool:
-    """Validate if the URL is a proper LinkedIn profile URL."""
-    return _validate_linkedin_url(url)
-
-
-def validate_email(email: str) -> bool:
-    """Validate email format."""
-    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    return re.match(pattern, email) is not None
-
-
-def validate_url(url: str) -> bool:
-    """Validate URL format."""
-    try:
-        result = urlparse(url)
-        return all([result.scheme, result.netloc])
-    except:
-        return False
 
 
 def deduplicate_by_key(items: List[Dict[str, Any]], key: str) -> List[Dict[str, Any]]:
