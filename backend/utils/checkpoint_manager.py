@@ -307,7 +307,7 @@ class CheckpointedPipelineRunner:
                 founder_profiles = []
                 for pd in profiles_data:
                     profile = pd['profile']
-                    from ..services.ranking.models import FounderProfile
+                    from ..core.ranking.models import FounderProfile
                     founder_profile = FounderProfile(
                         name=profile.person_name,
                         company_name=pd['company_name'],
@@ -333,7 +333,7 @@ class CheckpointedPipelineRunner:
                     founder_profiles.append((founder_profile, profile))
                 
                 # Rank founders with enhanced system
-                from ..services.ranking.ranking_service import FounderRankingService
+                from ..core.ranking.ranking_service import FounderRankingService
                 ranking_service = FounderRankingService()
                 
                 rankings = await ranking_service.rank_founders_batch(
