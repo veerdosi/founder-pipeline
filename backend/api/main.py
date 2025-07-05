@@ -17,9 +17,9 @@ from fastapi.responses import StreamingResponse
 
 from .models import CompanyDiscoveryRequest, DashboardStats, PipelineJobResponse
 from .dependencies import get_pipeline_service, get_ranking_service
-from ..services.pipeline import InitiationPipeline
-from ..services.ranking import FounderRankingService
-from ..services.ranking.models import FounderProfile
+from ..core.discovery import InitiationPipeline
+from ..core.ranking import FounderRankingService
+from ..core.ranking.models import FounderProfile
 from ..models import EnrichedCompany
 
 # --- Application Setup ---

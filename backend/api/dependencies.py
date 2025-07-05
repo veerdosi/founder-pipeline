@@ -1,10 +1,9 @@
 """FastAPI dependencies for service injection."""
 
-from ..services.ranking import FounderRankingService
-from ..services.company_discovery import ExaCompanyDiscovery  
-from ..services.profile_enrichment import LinkedInEnrichmentService
-from ..services.perplexity_verification import PerplexityVerificationService
-from ..services.pipeline import InitiationPipeline
+from ..core.ranking import FounderRankingService
+from ..core.discovery import ExaCompanyDiscovery, InitiationPipeline  
+from ..core.data import LinkedInEnrichmentService
+from ..core.analysis import PerplexityVerificationService
 
 
 def get_ranking_service() -> FounderRankingService:
