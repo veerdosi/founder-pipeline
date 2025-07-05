@@ -8,8 +8,8 @@ from datetime import datetime
 
 from openai import AsyncOpenAI
 
-from ..core import get_logger, RateLimiter, settings
-from ..validators import validate_text_length
+from ... import get_logger, RateLimiter, settings
+from ...validators import validate_text_length
 
 
 logger = get_logger(__name__)

@@ -13,13 +13,11 @@ from openai import AsyncOpenAI
 
 from ..core import (
     CompanyDiscoveryService, 
-    get_logger, 
-    RateLimiter,
-    clean_text,
     settings
 )
 from ..models import Company, FundingStage
-from .comprehensive_monitoring import ComprehensiveSourceMonitor
+from ...utils.data_processing import clean_text
+from ...utils.checkpoint_manager import get_logger, RateLimiter
 
 
 logger = get_logger(__name__)
@@ -35,9 +33,6 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
             max_requests=settings.requests_per_minute,
             time_window=60
         )
-        
-        # Use comprehensive monitoring system
-        self.comprehensive_monitor = ComprehensiveSourceMonitor()
         self.session: Optional[aiohttp.ClientSession] = None
     
     async def discover_companies(
@@ -50,33 +45,14 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
         """Discover companies using comprehensive 20+ source monitoring."""
         logger.info(f"🔍 Starting comprehensive discovery from 20+ sources...")
         
-        # Use the comprehensive monitoring system
-        companies = await self.comprehensive_monitor.discover_companies_comprehensive(
-            limit=limit,
-            categories=categories,
-            regions=regions,
-            sources=sources
-        )
-        
-        logger.info(f"✅ Comprehensive discovery complete: {len(companies)} companies")
-        return companies
-    
-    async def find_companies(
-        self, 
-        limit: int = 50,
-        categories: Optional[List[str]] = None,
-        regions: Optional[List[str]] = None
-    ) -> List[Company]:
-        """Legacy method - redirects to comprehensive discovery."""
-        return await self.discover_companies(
+        companies = await self.find_companies(
             limit=limit,
             categories=categories,
             regions=regions
         )
-    
-    async def get_monitoring_status(self) -> List[Dict[str, Any]]:
-        """Get status of all 20+ monitoring sources."""
-        return await self.comprehensive_monitor.get_source_status()
+        
+        logger.info(f"✅ Comprehensive discovery complete: {len(companies)} companies")
+        return companies
     
     async def find_companies(
         self, 

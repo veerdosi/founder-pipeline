@@ -6,10 +6,10 @@ from dataclasses import dataclass, asdict
 from datetime import datetime
 import statistics
 
-from ...core import get_logger
+from ... import get_logger
 from ...models import Company, EnrichedCompany
-from .metrics_extraction import MetricsExtractor
-from .sector_classification import SectorClassifier, SectorClassification
+from ..analysis.metrics_extraction import MetricsExtractor
+from ..analysis.sector_classification import SectorClassifier, SectorClassification
 from .crunchbase_integration import CrunchbaseService, CrunchbaseCompany
 
 

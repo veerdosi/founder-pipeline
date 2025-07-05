@@ -11,15 +11,15 @@ from apify_client import ApifyClient
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 
-from ..core import (
+from ... import (
     ProfileEnrichmentService,
     get_logger,
     RateLimiter,
     clean_text,
     settings
 )
-from ..validators import validate_linkedin_url
-from ..models import Company, LinkedInProfile
+from ...validators import validate_linkedin_url
+from ...models import Company, LinkedInProfile
 
 
 logger = get_logger(__name__)

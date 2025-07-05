@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import List, Optional
 from datetime import date
 
-from ..core import (
+from ...core import (
     get_logger,
     console,
     Timer,
@@ -15,11 +15,11 @@ from ..core import (
     create_progress_bar,
     settings
 )
-from ..models import Company, EnrichedCompany, PipelineResult
+from ...models import Company, EnrichedCompany, PipelineResult
 from .company_discovery import ExaCompanyDiscovery
-from .profile_enrichment import LinkedInEnrichmentService
-from .market_analysis import MarketAnalysisProvider
-from .data_fusion import DataFusionService, FusedCompanyData
+from ..data.profile_enrichment import LinkedInEnrichmentService
+from ..analysis.market_analysis import PerplexityMarketAnalysis
+from ..data.data_fusion import DataFusionService, FusedCompanyData
 
 
 logger = get_logger(__name__)
@@ -31,7 +31,7 @@ class InitiationPipeline:
     def __init__(self):
         self.company_discovery = ExaCompanyDiscovery()
         self.profile_enrichment = LinkedInEnrichmentService()
-        self.market_analysis = MarketAnalysisProvider()
+        self.market_analysis = PerplexityMarketAnalysis()
         self.data_fusion = DataFusionService()
     
     async def run_complete_pipeline_with_date_range(
@@ -140,6 +140,8 @@ class InitiationPipeline:
         except Exception as e:
             logger.error(f"❌ Pipeline error: {e}")
             raise
+    
+    async def run_complete_pipeline(
         self,
         company_limit: int = 50,
         include_profiles: bool = True,
@@ -774,7 +776,14 @@ class InitiationPipeline:
             for enriched in enriched_companies:
                 try:
                     # Run market analysis for this company
-                    metrics = await self.market_analysis.analyze_market_metrics(enriched.company)
+                    sector = enriched.company.ai_focus or enriched.company.sector or "Artificial Intelligence"
+                    from datetime import datetime
+                    current_year = datetime.now().year
+                    
+                    metrics = await self.market_analysis.analyze_market(
+                        sector=sector,
+                        year=current_year
+                    )
                     enriched.market_metrics = metrics
                     
                     progress.update(task, advance=1)

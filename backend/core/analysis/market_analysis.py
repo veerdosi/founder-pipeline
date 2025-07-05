@@ -10,14 +10,14 @@ from typing import Dict, List, Optional
 import aiohttp
 from openai import AsyncOpenAI
 
-from ..core import (
+from ... import (
     MarketAnalysisService,
     get_logger,
     RateLimiter,
     clean_text,
     settings
 )
-from ..models import MarketMetrics, MarketStage
+from ...models import MarketMetrics, MarketStage
 
 
 logger = get_logger(__name__)
