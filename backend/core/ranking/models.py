@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import List, Optional, Dict, Any
 from enum import Enum
+from datetime import datetime
 
 
 class ExperienceLevel(Enum):
@@ -60,6 +61,16 @@ class FounderProfile:
     skill_2: Optional[str] = None
     skill_3: Optional[str] = None
     
+    # Enhanced data from new collectors (optional for backward compatibility)
+    financial_profile: Optional[Dict[str, Any]] = None  # FounderFinancialProfile data
+    education_profile: Optional[Dict[str, Any]] = None  # FounderEducationProfile data  
+    accelerator_profile: Optional[Dict[str, Any]] = None  # FounderAcceleratorProfile data
+    sec_profile: Optional[Dict[str, Any]] = None  # FounderSECProfile data
+    
+    # Data collection metadata
+    data_collection_timestamp: Optional[datetime] = None
+    enhanced_data_collected: bool = False
+    
     @classmethod
     def from_csv_row(cls, row: Dict[str, Any]) -> "FounderProfile":
         """Create FounderProfile from CSV row data."""
@@ -83,8 +94,114 @@ class FounderProfile:
             education_2_degree=row.get("education_2_degree"),
             skill_1=row.get("skill_1"),
             skill_2=row.get("skill_2"),
-            skill_3=row.get("skill_3")
+            skill_3=row.get("skill_3"),
+            data_collection_timestamp=datetime.now(),
+            enhanced_data_collected=False
         )
+    
+    def has_enhanced_data(self) -> bool:
+        """Check if enhanced data collection has been performed."""
+        return self.enhanced_data_collected and any([
+            self.financial_profile,
+            self.education_profile, 
+            self.accelerator_profile,
+            self.sec_profile
+        ])
+    
+    def get_company_names(self) -> List[str]:
+        """Extract all company names associated with this founder."""
+        companies = [self.company_name]
+        
+        # Add companies from experience
+        if self.experience_1_company:
+            companies.append(self.experience_1_company)
+        if self.experience_2_company:
+            companies.append(self.experience_2_company)
+        if self.experience_3_company:
+            companies.append(self.experience_3_company)
+        
+        # Add companies from financial profile
+        if self.financial_profile:
+            financial_companies = [
+                comp.get("company_name") 
+                for comp in self.financial_profile.get("companies_founded", [])
+                if comp.get("company_name")
+            ]
+            companies.extend(financial_companies)
+        
+        # Remove duplicates and clean
+        unique_companies = []
+        seen = set()
+        for company in companies:
+            if company and company.strip().lower() not in seen:
+                seen.add(company.strip().lower())
+                unique_companies.append(company.strip())
+        
+        return unique_companies
+    
+    def get_claimed_degrees(self) -> List[Dict[str, str]]:
+        """Extract claimed degree information for verification."""
+        degrees = []
+        
+        if self.education_1_school and self.education_1_degree:
+            degrees.append({
+                "institution": self.education_1_school,
+                "degree": self.education_1_degree,
+                "field": "",  # Not available in basic profile
+                "year": ""    # Not available in basic profile
+            })
+        
+        if self.education_2_school and self.education_2_degree:
+            degrees.append({
+                "institution": self.education_2_school,
+                "degree": self.education_2_degree,
+                "field": "",
+                "year": ""
+            })
+        
+        return degrees
+    
+    def meets_level_criteria_enhanced(self, level: str) -> Dict[str, bool]:
+        """Check if founder meets criteria for specific L-level using enhanced data."""
+        criteria_met = {}
+        
+        # Financial criteria
+        if self.financial_profile:
+            financial_metrics = self.financial_profile.get("metrics", {})
+            
+            if level == "L7":
+                criteria_met["l7_financial"] = (
+                    financial_metrics.get("companies_with_major_exits_count", 0) >= 2 or
+                    financial_metrics.get("unicorn_companies_count", 0) >= 2
+                )
+            elif level == "L8":
+                criteria_met["l8_financial"] = financial_metrics.get("unicorn_companies_count", 0) >= 1
+            elif level == "L9":
+                criteria_met["l9_financial"] = financial_metrics.get("highest_exit_value_usd", 0) >= 1000
+            elif level == "L10":
+                criteria_met["l10_financial"] = financial_metrics.get("total_value_created_usd", 0) >= 5000
+        
+        # Education criteria (L3)
+        if self.education_profile and level == "L3":
+            criteria_met["l3_education"] = (
+                len(self.education_profile.get("phd_degrees", [])) > 0 or
+                self.education_profile.get("technical_field_background", False)
+            )
+        
+        # Accelerator criteria (L2)
+        if self.accelerator_profile and level == "L2":
+            criteria_met["l2_accelerator"] = (
+                self.accelerator_profile.get("total_programs", 0) > 0 and
+                self.accelerator_profile.get("has_top_accelerator", False)
+            )
+        
+        # SEC verification (L7+)
+        if self.sec_profile and level in ["L7", "L8", "L9", "L10"]:
+            criteria_met[f"{level.lower()}_sec_verified"] = (
+                len(self.sec_profile.get("verified_exits", [])) > 0
+            )
+        
+        return criteria_met
 
 
 @dataclass

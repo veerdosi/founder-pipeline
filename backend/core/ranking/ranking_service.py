@@ -1,11 +1,12 @@
-"""Simplified founder ranking service using Claude Sonnet 4 and Perplexity verification."""
+"""Pure ranking service that ONLY adds L-level classifications to founder datasets."""
 
 import asyncio
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from datetime import datetime
+import pandas as pd
 
-from ...core import get_logger, settings
-from .models import FounderProfile, FounderRanking, LevelClassification, ExperienceLevel
+from ...core import get_logger
+from .models import FounderProfile, LevelClassification, ExperienceLevel
 from ..analysis.ai_analysis import ClaudeSonnet4RankingService, FounderAnalysisResult
 
 
@@ -13,98 +14,92 @@ logger = get_logger(__name__)
 
 
 class FounderRankingService:
-    """Simplified service for ranking founders using Claude Sonnet 4 + Perplexity verification."""
+    """Pure ranking service - assumes data is already enhanced elsewhere."""
     
     def __init__(self):
         self.claude_ranking_service = ClaudeSonnet4RankingService()
     
-    async def rank_founder(
+    async def add_rankings_to_dataset(
         self, 
-        profile: FounderProfile,
-        use_enhanced: bool = True
-    ) -> FounderRanking:
-        """Rank a single founder using Claude Sonnet 4."""
-        logger.info(f"🎯 Ranking founder: {profile.name}")
+        enhanced_profiles: List[FounderProfile],
+        batch_size: int = 5
+    ) -> List[Dict[str, Any]]:
+        """Add L-level rankings to enhanced founder dataset."""
+        logger.info(f"🎯 Adding L-level rankings to {len(enhanced_profiles)} founder profiles")
         
-        try:
-            # Convert profile to dict for AI analysis
-            founder_data = self._profile_to_dict(profile)
-            
-            # Analyze with Claude Sonnet 4 + Perplexity verification
-            analysis_result = await self.claude_ranking_service.rank_founder(
-                founder_data=founder_data,
-                use_verification=use_enhanced
-            )
-            
-            # Convert to L-level classification
-            classification = self._convert_to_classification(analysis_result)
-            
-            # Create ranking result
-            ranking = FounderRanking(
-                profile=profile,
-                classification=classification,
-                timestamp=datetime.now().isoformat(),
-                processing_metadata={
-                    "enhanced_verification": use_enhanced,
-                    "ai_model": "claude-sonnet-4",
-                    "verification_sources": len(analysis_result.verification_sources),
-                    "processing_time": datetime.now().isoformat()
-                }
-            )
-            
-            logger.info(f"✅ Ranked {profile.name} as {classification.level.value} (confidence: {classification.confidence_score:.2f})")
-            return ranking
-            
-        except Exception as e:
-            logger.error(f"Error ranking founder {profile.name}: {e}")
-            return self._create_fallback_ranking(profile, str(e))
-    
-    async def rank_founders_batch(
-        self, 
-        profiles: List[FounderProfile],
-        batch_size: int = 3,
-        use_enhanced: bool = True
-    ) -> List[FounderRanking]:
-        """Rank multiple founders in batches."""
-        rankings = []
+        # Convert profiles to founder data for AI analysis
+        founders_data = [
+            self._profile_to_ai_dict(profile) 
+            for profile in enhanced_profiles
+        ]
         
-        # Convert profiles to founder data
-        founders_data = [self._profile_to_dict(profile) for profile in profiles]
-        
-        # Use batch ranking from AI service
+        # Batch AI analysis for L-level classification
         analysis_results = await self.claude_ranking_service.rank_founders_batch(
             founders_data=founders_data,
             batch_size=batch_size,
-            use_verification=use_enhanced
+            use_verification=True
         )
         
-        # Convert results to rankings
-        for profile, analysis_result in zip(profiles, analysis_results):
+        # Create final dataset with rankings added
+        ranked_dataset = []
+        for profile, analysis_result in zip(enhanced_profiles, analysis_results):
             try:
-                classification = self._convert_to_classification(analysis_result)
+                # Convert AI result to L-level classification
+                classification = self._convert_to_classification(analysis_result, profile)
                 
-                ranking = FounderRanking(
-                    profile=profile,
-                    classification=classification,
-                    timestamp=datetime.now().isoformat(),
-                    processing_metadata={
-                        "enhanced_verification": use_enhanced,
-                        "ai_model": "claude-sonnet-4",
-                        "verification_sources": len(analysis_result.verification_sources),
-                        "processing_time": datetime.now().isoformat()
-                    }
-                )
-                rankings.append(ranking)
+                # Create dataset row with ranking added
+                dataset_row = self._create_dataset_row(profile, classification)
+                ranked_dataset.append(dataset_row)
                 
             except Exception as e:
-                logger.error(f"Error converting analysis for {profile.name}: {e}")
-                rankings.append(self._create_fallback_ranking(profile, str(e)))
+                logger.error(f"Error ranking {profile.name}: {e}")
+                # Add fallback ranking
+                fallback_classification = LevelClassification(
+                    level=ExperienceLevel.INSUFFICIENT_DATA,
+                    confidence_score=0.1,
+                    reasoning=f"Ranking failed: {str(e)}",
+                    evidence=[],
+                    verification_sources=[]
+                )
+                dataset_row = self._create_dataset_row(profile, fallback_classification)
+                ranked_dataset.append(dataset_row)
         
-        return rankings
+        logger.info(f"✅ Added L-level rankings to {len(ranked_dataset)} founders")
+        return ranked_dataset
     
-    def _profile_to_dict(self, profile: FounderProfile) -> Dict[str, Any]:
-        """Convert FounderProfile to dict for AI analysis."""
-        return {
+    async def export_ranked_csv(
+        self,
+        enhanced_profiles: List[FounderProfile],
+        output_path: str
+    ) -> str:
+        """Export ranked dataset to CSV."""
+        logger.info(f"📊 Exporting ranked dataset to {output_path}")
+        
+        # Get ranked dataset
+        ranked_dataset = await self.add_rankings_to_dataset(enhanced_profiles)
+        
+        # Convert to DataFrame and export
+        df = pd.DataFrame(ranked_dataset)
+        
+        # Reorder columns: ranking first, then core info, then enhanced data
+        ranking_cols = ['l_level', 'confidence_score', 'reasoning']
+        core_cols = ['name', 'company_name', 'title', 'location']
+        enhanced_cols = [col for col in df.columns if col.startswith(('total_', 'phd_', 'accelerator_', 'sec_', 'unicorn_', 'highest_', 'top_tier'))]
+        other_cols = [col for col in df.columns if col not in ranking_cols + core_cols + enhanced_cols]
+        
+        column_order = ranking_cols + core_cols + enhanced_cols + other_cols
+        df = df[column_order]
+        
+        # Export
+        df.to_csv(output_path, index=False)
+        
+        logger.info(f"✅ Exported {len(df)} ranked founders to {output_path}")
+        return output_path
+    
+    def _profile_to_ai_dict(self, profile: FounderProfile) -> Dict[str, Any]:
+        """Convert profile to dict for AI ranking (includes enhanced data if available)."""
+        # Basic profile data
+        data = {
             "name": profile.name,
             "company_name": profile.company_name,
             "title": profile.title,
@@ -113,82 +108,145 @@ class FounderRankingService:
             "estimated_age": profile.estimated_age,
             "experience_1_title": profile.experience_1_title,
             "experience_1_company": profile.experience_1_company,
-            "experience_2_title": profile.experience_2_title,
-            "experience_2_company": profile.experience_2_company,
-            "experience_3_title": profile.experience_3_title,
-            "experience_3_company": profile.experience_3_company,
             "education_1_school": profile.education_1_school,
             "education_1_degree": profile.education_1_degree,
-            "education_2_school": profile.education_2_school,
-            "education_2_degree": profile.education_2_degree,
-            "skill_1": profile.skill_1,
-            "skill_2": profile.skill_2,
-            "skill_3": profile.skill_3,
             "linkedin_url": profile.linkedin_url
         }
-    
-    def _convert_to_classification(self, analysis_result: FounderAnalysisResult) -> LevelClassification:
-        """Convert FounderAnalysisResult to LevelClassification."""
         
-        # Map experience level string to enum
+        # Add enhanced data if available (for better AI ranking)
+        if profile.has_enhanced_data():
+            if profile.financial_profile:
+                financial_metrics = profile.financial_profile.get("metrics", {})
+                data.update({
+                    "total_exits": financial_metrics.get("total_exits", 0),
+                    "total_exit_value_usd": financial_metrics.get("total_exit_value_usd", 0),
+                    "unicorn_companies_count": financial_metrics.get("unicorn_companies_count", 0),
+                    "years_entrepreneurship": financial_metrics.get("years_entrepreneurship", 0)
+                })
+            
+            if profile.education_profile:
+                data.update({
+                    "phd_degrees_count": len(profile.education_profile.get("phd_degrees", [])),
+                    "technical_background": profile.education_profile.get("technical_field_background", False),
+                    "top_tier_institution": profile.education_profile.get("top_tier_institution", False)
+                })
+            
+            if profile.accelerator_profile:
+                data.update({
+                    "accelerator_programs": profile.accelerator_profile.get("total_programs", 0),
+                    "top_accelerator": profile.accelerator_profile.get("has_top_accelerator", False)
+                })
+            
+            if profile.sec_profile:
+                data.update({
+                    "sec_verified_exits": profile.sec_profile.get("exit_count", 0),
+                    "sec_highest_exit": profile.sec_profile.get("highest_exit_value", 0)
+                })
+        
+        return data
+    
+    def _convert_to_classification(
+        self, 
+        analysis_result: FounderAnalysisResult,
+        profile: FounderProfile
+    ) -> LevelClassification:
+        """Convert AI analysis to L-level classification."""
+        
+        # Map to enum
         try:
             level_enum = ExperienceLevel(analysis_result.experience_level)
         except ValueError:
-            # Fallback to INSUFFICIENT_DATA if level not recognized
             level_enum = ExperienceLevel.INSUFFICIENT_DATA
+        
+        # Boost confidence if enhanced data is available
+        confidence_score = analysis_result.confidence_score
+        if profile.has_enhanced_data():
+            confidence_score = min(confidence_score + 0.1, 1.0)
         
         return LevelClassification(
             level=level_enum,
-            confidence_score=analysis_result.confidence_score,
+            confidence_score=confidence_score,
             reasoning=analysis_result.reasoning,
             evidence=analysis_result.evidence,
             verification_sources=analysis_result.verification_sources
         )
     
-    def _create_fallback_ranking(self, profile: FounderProfile, error_message: str) -> FounderRanking:
-        """Create fallback ranking when analysis fails."""
+    def _create_dataset_row(
+        self, 
+        profile: FounderProfile, 
+        classification: LevelClassification
+    ) -> Dict[str, Any]:
+        """Create final dataset row with ranking + all enhanced data."""
         
-        classification = LevelClassification(
-            level=ExperienceLevel.INSUFFICIENT_DATA,
-            confidence_score=0.1,
-            reasoning=f"Analysis failed: {error_message}",
-            evidence=[],
-            verification_sources=[]
-        )
-        
-        return FounderRanking(
-            profile=profile,
-            classification=classification,
-            timestamp=datetime.now().isoformat(),
-            processing_metadata={
-                "ai_model": "claude-sonnet-4",
-                "error": error_message,
-                "processing_time": datetime.now().isoformat()
-            }
-        )
-    
-    def get_ranking_summary(self, rankings: List[FounderRanking]) -> Dict[str, Any]:
-        """Generate summary statistics for rankings."""
-        
-        if not rankings:
-            return {"total": 0, "distribution": {}, "average_confidence": 0.0}
-        
-        # Count by level
-        level_counts = {}
-        total_confidence = 0.0
-        successful_rankings = 0
-        
-        for ranking in rankings:
-            if ranking.classification.confidence_score > 0.1:  # Successful ranking
-                level = ranking.classification.level.value
-                level_counts[level] = level_counts.get(level, 0) + 1
-                total_confidence += ranking.classification.confidence_score
-                successful_rankings += 1
-        
-        return {
-            "total": len(rankings),
-            "successful": successful_rankings,
-            "failed": len(rankings) - successful_rankings,
-            "distribution": level_counts,
-            "average_confidence": total_confidence / successful_rankings if successful_rankings > 0 else 0.0
+        # Start with ranking results
+        row = {
+            # L-level ranking (primary output)
+            "l_level": classification.level.value,
+            "confidence_score": round(classification.confidence_score, 3),
+            "reasoning": classification.reasoning,
+            
+            # Core founder info
+            "name": profile.name,
+            "company_name": profile.company_name,
+            "title": profile.title,
+            "location": profile.location,
+            "about": profile.about,
+            "linkedin_url": profile.linkedin_url,
+            
+            # Basic profile data
+            "estimated_age": profile.estimated_age,
+            "experience_1_title": profile.experience_1_title,
+            "experience_1_company": profile.experience_1_company,
+            "education_1_school": profile.education_1_school,
+            "education_1_degree": profile.education_1_degree,
+            "skill_1": profile.skill_1,
+            
+            # Enhanced data availability
+            "enhanced_data_available": profile.has_enhanced_data(),
+            "ranking_timestamp": datetime.now().isoformat()
         }
+        
+        # Add all enhanced data if available
+        if profile.has_enhanced_data():
+            # Financial intelligence
+            if profile.financial_profile:
+                financial_metrics = profile.financial_profile.get("metrics", {})
+                row.update({
+                    "total_exits": financial_metrics.get("total_exits", 0),
+                    "total_exit_value_usd": financial_metrics.get("total_exit_value_usd", 0),
+                    "total_value_created_usd": financial_metrics.get("total_value_created_usd", 0),
+                    "unicorn_companies_count": financial_metrics.get("unicorn_companies_count", 0),
+                    "major_exits_count": financial_metrics.get("companies_with_major_exits_count", 0),
+                    "highest_exit_value_usd": financial_metrics.get("highest_exit_value_usd", 0),
+                    "years_entrepreneurship": financial_metrics.get("years_entrepreneurship", 0),
+                    "companies_founded_count": len(profile.financial_profile.get("companies_founded", []))
+                })
+            
+            # Education verification
+            if profile.education_profile:
+                row.update({
+                    "phd_degrees_count": len(profile.education_profile.get("phd_degrees", [])),
+                    "highest_degree_verified": profile.education_profile.get("highest_degree"),
+                    "technical_background_verified": profile.education_profile.get("technical_field_background", False),
+                    "top_tier_institution": profile.education_profile.get("top_tier_institution", False),
+                    "academic_publications_count": len(profile.education_profile.get("academic_publications", []))
+                })
+            
+            # Accelerator verification
+            if profile.accelerator_profile:
+                row.update({
+                    "accelerator_programs_count": profile.accelerator_profile.get("total_programs", 0),
+                    "top_tier_accelerator_verified": profile.accelerator_profile.get("has_top_accelerator", False),
+                    "total_accelerator_funding": profile.accelerator_profile.get("total_accelerator_funding", 0),
+                    "accelerator_network_strength": profile.accelerator_profile.get("accelerator_network_strength", 0)
+                })
+            
+            # SEC verification  
+            if profile.sec_profile:
+                row.update({
+                    "sec_verified_exits_count": profile.sec_profile.get("exit_count", 0),
+                    "sec_highest_exit_value": profile.sec_profile.get("highest_exit_value", 0),
+                    "sec_total_exit_value": profile.sec_profile.get("total_verified_exit_value", 0)
+                })
+        
+        return row
