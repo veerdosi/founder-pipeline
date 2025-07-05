@@ -8,11 +8,11 @@ from datetime import datetime
 
 from openai import AsyncOpenAI
 
-from ... import get_logger, RateLimiter, settings
+from ...core import settings
 from ...validators import validate_text_length
 
-
-logger = get_logger(__name__)
+import logging
+logger = logging.getLogger(__name__)
 
 
 @dataclass

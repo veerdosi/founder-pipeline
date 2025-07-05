@@ -3,7 +3,7 @@
 from ..core.ranking import FounderRankingService
 from ..core.discovery import ExaCompanyDiscovery, InitiationPipeline  
 from ..core.data import LinkedInEnrichmentService
-from ..core.analysis import PerplexityVerificationService
+from ..core.ranking.verification_service import RealTimeFounderVerifier
 
 
 def get_ranking_service() -> FounderRankingService:
@@ -21,9 +21,9 @@ def get_enrichment_service() -> LinkedInEnrichmentService:
     return LinkedInEnrichmentService()
 
 
-def get_verification_service() -> PerplexityVerificationService:
-    """Get Perplexity verification service instance."""
-    return PerplexityVerificationService()
+def get_verification_service() -> RealTimeFounderVerifier:
+    """Get real-time verification service instance."""
+    return RealTimeFounderVerifier()
 
 
 def get_pipeline_service() -> InitiationPipeline:

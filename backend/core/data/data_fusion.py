@@ -6,14 +6,16 @@ from dataclasses import dataclass, asdict
 from datetime import datetime
 import statistics
 
-from ... import get_logger
 from ...models import Company, EnrichedCompany
+
+import logging
+logger = logging.getLogger(__name__)
 from ..analysis.metrics_extraction import MetricsExtractor
 from ..analysis.sector_classification import SectorClassifier, SectorClassification
 from .crunchbase_integration import CrunchbaseService, CrunchbaseCompany
 
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 @dataclass

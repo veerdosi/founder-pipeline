@@ -11,16 +11,43 @@ from dataclasses import dataclass
 from exa_py import Exa
 from openai import AsyncOpenAI
 
-from ..core import (
+from .. import (
     CompanyDiscoveryService, 
     settings
 )
-from ..models import Company, FundingStage
+from ...models import Company, FundingStage
 from ...utils.data_processing import clean_text
-from ...utils.checkpoint_manager import get_logger, RateLimiter
+
+import logging
+import asyncio
+import time
+
+logger = logging.getLogger(__name__)
+
+class RateLimiter:
+    """Simple rate limiter for API requests."""
+    def __init__(self, max_requests: int, time_window: int = 60):
+        self.max_requests = max_requests
+        self.time_window = time_window
+        self.requests = []
+    
+    async def acquire(self):
+        """Acquire permission to make a request."""
+        now = time.time()
+        self.requests = [req_time for req_time in self.requests 
+                        if now - req_time < self.time_window]
+        
+        if len(self.requests) >= self.max_requests:
+            oldest_request = min(self.requests)
+            wait_time = self.time_window - (now - oldest_request)
+            if wait_time > 0:
+                await asyncio.sleep(wait_time)
+                return await self.acquire()
+        
+        self.requests.append(now)
 
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class ExaCompanyDiscovery(CompanyDiscoveryService):

@@ -5,12 +5,11 @@ from typing import List, Dict, Any
 from datetime import datetime
 import pandas as pd
 
-from ...core import get_logger
 from .models import FounderProfile, LevelClassification, ExperienceLevel
 from ..analysis.ai_analysis import ClaudeSonnet4RankingService, FounderAnalysisResult
 
-
-logger = get_logger(__name__)
+import logging
+logger = logging.getLogger(__name__)
 
 
 class FounderRankingService:

@@ -7,11 +7,11 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 
-from ... import get_logger, RateLimiter, settings
+from ...core import settings
 from ...validators import validate_url, validate_funding_amount, validate_year
 
-
-logger = get_logger(__name__)
+import logging
+logger = logging.getLogger(__name__)
 
 
 @dataclass

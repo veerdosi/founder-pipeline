@@ -21,6 +21,7 @@ from ..core.discovery import InitiationPipeline
 from ..core.ranking import FounderRankingService
 from ..core.ranking.models import FounderProfile
 from ..models import EnrichedCompany
+from ..utils.checkpoint_manager import checkpointed_runner, checkpoint_manager
 
 # --- Application Setup ---
 app = FastAPI(
@@ -30,7 +31,6 @@ app = FastAPI(
 )
 
 # --- CORS Middleware ---
-# Allows the frontend (running on localhost:3000) to communicate with the backend.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
@@ -39,11 +39,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- In-Memory Data Store ---
-# A simple dictionary to store results. In a production app, use a database (e.g., PostgreSQL, Redis).
-results_store: Dict[str, Any] = {
+# --- Job-Based Data Store ---
+# Track active jobs and their results with checkpointing
+active_jobs: Dict[str, str] = {}  # {frontend_job_id: checkpoint_job_id}
+latest_results: Dict[str, Any] = {
     "companies": [],
-    "rankings": []
+    "rankings": [],
+    "last_job_id": None
 }
 
 logger = logging.getLogger(__name__)
@@ -59,12 +61,9 @@ async def health_check():
 
 @app.get("/api/dashboard/stats", response_model=DashboardStats)
 async def get_dashboard_stats():
-    """
-    Get basic dashboard statistics from the current state.
-    This is now connected to the in-memory store.
-    """
-    companies = results_store.get("companies", [])
-    rankings = results_store.get("rankings", [])
+    """Get basic dashboard statistics from checkpointed results."""
+    companies = latest_results.get("companies", [])
+    rankings = latest_results.get("rankings", [])
 
     # Calculate level distribution
     level_dist = {}
@@ -78,7 +77,7 @@ async def get_dashboard_stats():
         totalFounders=sum(len(ec.profiles) for ec in companies),
         avgConfidenceScore=sum(r.classification.confidence_score for r in rankings) / len(rankings) if rankings else 0.0,
         levelDistribution=level_dist,
-        recentActivity=[] # Placeholder for recent activity log
+        recentActivity=[]
     )
 
 # --- Company Discovery Endpoints ---
@@ -88,28 +87,39 @@ async def discover_companies(
     params: CompanyDiscoveryRequest,
     pipeline_service: InitiationPipeline = Depends(get_pipeline_service),
 ):
-    """
-    Endpoint for the frontend to discover companies.
-    This is a long-running task. Results are stored in memory.
-    """
+    """Discover companies using checkpointed pipeline for reliability."""
     try:
-        enriched_companies: List[EnrichedCompany] = await pipeline_service.run_complete_pipeline_with_date_range(
-            company_limit=params.limit,
-            categories=params.categories,
-            regions=params.regions,
-            sources=params.sources,
-            founded_after=params.founded_after,
-            founded_before=params.founded_before
+        # Convert request to pipeline parameters
+        pipeline_params = {
+            'limit': params.limit,
+            'categories': params.categories,
+            'regions': params.regions,
+            'sources': params.sources,
+            'founded_after': params.founded_after,
+            'founded_before': params.founded_before
+        }
+        
+        # Run checkpointed pipeline
+        result = await checkpointed_runner.run_checkpointed_pipeline(
+            pipeline_service=pipeline_service,
+            ranking_service=None,  # Not needed for discovery
+            params=pipeline_params,
+            force_restart=False
         )
-        # Store results in our simple in-memory store
-        results_store["companies"] = enriched_companies
+        
+        # Extract companies from result
+        enriched_companies = result.get('companies', [])
+        
+        # Update latest results for API access
+        latest_results["companies"] = enriched_companies
+        latest_results["last_job_id"] = result['job_id']
         
         return PipelineJobResponse(
-            jobId=f"job_{datetime.now().timestamp()}",
+            jobId=result['job_id'],
             status="completed",
             companiesFound=len(enriched_companies),
             foundersFound=sum(len(ec.profiles) for ec in enriched_companies),
-            message="Discovery and enrichment complete."
+            message="Discovery complete with checkpointing."
         )
     except Exception as e:
         logger.error(f"Discovery failed: {e}", exc_info=True)
@@ -117,11 +127,8 @@ async def discover_companies(
 
 @app.get("/api/companies")
 async def get_companies():
-    """
-    Endpoint to fetch the list of discovered companies for the UI table.
-    Formats the data to match the frontend's expected structure.
-    """
-    enriched_companies = results_store.get("companies", [])
+    """Fetch discovered companies from latest checkpointed results."""
+    enriched_companies = latest_results.get("companies", [])
     formatted_companies = []
     for ec in enriched_companies:
         company = ec.company
@@ -140,16 +147,12 @@ async def get_companies():
 
 @app.get("/api/companies/export")
 async def export_companies():
-    """
-    Endpoint to export discovered companies to a CSV file.
-    Uses the data stored in memory from the last discovery run.
-    """
-    enriched_companies = results_store.get("companies", [])
+    """Export companies from latest checkpointed results."""
+    enriched_companies = latest_results.get("companies", [])
     if not enriched_companies:
         raise HTTPException(status_code=404, detail="No companies discovered yet. Run a discovery first.")
 
     output = io.StringIO()
-    # Using pandas for robust CSV generation
     company_records = []
     for ec in enriched_companies:
         c = ec.company
@@ -184,11 +187,8 @@ async def rank_founders_from_file(
     ranking_service: FounderRankingService = Depends(get_ranking_service),
     file: UploadFile = File(...)
 ):
-    """
-    Ranks founders from an uploaded CSV file.
-    """
+    """Ranks founders from uploaded CSV with checkpointing."""
     try:
-        # Read and parse the uploaded CSV file
         contents = await file.read()
         decoded_content = contents.decode('utf-8')
         csv_reader = csv.DictReader(io.StringIO(decoded_content))
@@ -198,15 +198,15 @@ async def rank_founders_from_file(
         if not founder_profiles:
             raise HTTPException(status_code=400, detail="CSV file is empty or in the wrong format.")
 
-        # Rank the founders
+        # Use checkpointed ranking service
         rankings = await ranking_service.rank_founders_batch(
             founder_profiles,
             batch_size=5,
-            use_enhanced=True  # Use enhanced ranking with L-level validation
+            use_enhanced=True
         )
         
-        # Store results in memory
-        results_store["rankings"] = rankings
+        # Store in latest results
+        latest_results["rankings"] = rankings
         
         return PipelineJobResponse(
             jobId=f"rank_job_{datetime.now().timestamp()}",
@@ -221,10 +221,8 @@ async def rank_founders_from_file(
 
 @app.get("/api/founders/rankings")
 async def get_rankings():
-    """
-    Endpoint to fetch the list of ranked founders for the UI table.
-    """
-    rankings = results_store.get("rankings", [])
+    """Fetch ranked founders from latest checkpointed results."""
+    rankings = latest_results.get("rankings", [])
     formatted_rankings = []
     for r in rankings:
         formatted_rankings.append({
@@ -242,10 +240,8 @@ async def get_rankings():
 
 @app.get("/api/founders/rankings/export")
 async def export_rankings():
-    """
-    Endpoint to export founder rankings to a CSV file.
-    """
-    rankings = results_store.get("rankings", [])
+    """Export founder rankings from latest checkpointed results."""
+    rankings = latest_results.get("rankings", [])
     if not rankings:
         raise HTTPException(status_code=404, detail="No rankings available to export. Run a ranking job first.")
 

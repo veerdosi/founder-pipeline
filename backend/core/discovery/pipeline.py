@@ -6,23 +6,18 @@ from pathlib import Path
 from typing import List, Optional
 from datetime import date
 
-from ...core import (
-    get_logger,
-    console,
-    Timer,
-    save_checkpoint,
-    load_checkpoint,
-    create_progress_bar,
-    settings
-)
+from ...core import settings
 from ...models import Company, EnrichedCompany, PipelineResult
 from .company_discovery import ExaCompanyDiscovery
 from ..data.profile_enrichment import LinkedInEnrichmentService
 from ..analysis.market_analysis import PerplexityMarketAnalysis
 from ..data.data_fusion import DataFusionService, FusedCompanyData
 
+import logging
+from rich.console import Console
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
+console = Console()
 
 
 class InitiationPipeline:

@@ -7,10 +7,11 @@ import json
 
 import anthropic
 
-from ...core import settings, get_logger
-from .perplexity_verification import PerplexityVerificationService
+from ...core import settings
+from ..ranking.verification_service import RealTimeFounderVerifier
 
-logger = get_logger(__name__)
+import logging
+logger = logging.getLogger(__name__)
 
 
 @dataclass 

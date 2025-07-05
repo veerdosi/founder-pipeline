@@ -10,17 +10,13 @@ from typing import Dict, List, Optional
 import aiohttp
 from openai import AsyncOpenAI
 
-from ... import (
-    MarketAnalysisService,
-    get_logger,
-    RateLimiter,
-    clean_text,
-    settings
-)
+from .. import MarketAnalysisService
+from ...core import settings
+from ...utils.data_processing import clean_text
 from ...models import MarketMetrics, MarketStage
 
-
-logger = get_logger(__name__)
+import logging
+logger = logging.getLogger(__name__)
 
 
 class PerplexityMarketAnalysis(MarketAnalysisService):
