@@ -1,38 +1,267 @@
-import React from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import Dashboard from './components/Dashboard'
-import CompanyDiscovery from './components/CompanyDiscovery'
-import FounderRanking from './components/FounderRanking'
-import Sidebar from './components/Sidebar'
-import './index.css'
+import React, { useState } from 'react'
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-    },
-  },
-})
-
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <Router>
-        <div className="flex h-screen bg-gray-50">
-          <Sidebar />
-          <main className="flex-1 overflow-hidden">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/discovery" element={<CompanyDiscovery />} />
-              <Route path="/ranking" element={<FounderRanking />} />
-            </Routes>
-          </main>
-        </div>
-      </Router>
-    </QueryClientProvider>
-  )
+interface PipelineStatus {
+  step: string
+  status: 'pending' | 'running' | 'completed' | 'error'
+  message?: string
 }
 
-export default App
+interface PipelineResults {
+  companies: any[]
+  founders: any[]
+  jobId: string
+}
+
+export default function App() {
+  const [year, setYear] = useState('2024')
+  const [isRunning, setIsRunning] = useState(false)
+  const [steps, setSteps] = useState<PipelineStatus[]>([])
+  const [results, setResults] = useState<PipelineResults | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const updateStep = (stepName: string, status: PipelineStatus['status'], message?: string) => {
+    setSteps(prev => {
+      const existing = prev.find(s => s.step === stepName)
+      if (existing) {
+        existing.status = status
+        existing.message = message
+        return [...prev]
+      }
+      return [...prev, { step: stepName, status, message }]
+    })
+  }
+
+  const runPipeline = async () => {
+    if (!year) {
+      setError('Please select a year')
+      return
+    }
+
+    setIsRunning(true)
+    setError(null)
+    setResults(null)
+    setSteps([])
+
+    try {
+      // Step 1: Company Discovery
+      updateStep('Company Discovery', 'running', 'Searching for companies...')
+      
+      const pipelineResponse = await fetch('http://localhost:8000/api/pipeline/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          year: parseInt(year),
+          limit: 100
+        })
+      })
+
+      if (!pipelineResponse.ok) {
+        throw new Error(`Pipeline failed: ${pipelineResponse.statusText}`)
+      }
+
+      const pipelineResult = await pipelineResponse.json()
+      updateStep('Company Discovery', 'completed', `Found ${pipelineResult.companiesFound} companies`)
+
+      // Step 2: Get Companies Data
+      updateStep('Loading Company Data', 'running')
+      const companiesResponse = await fetch('http://localhost:8000/api/companies')
+      const companies = await companiesResponse.json()
+      updateStep('Loading Company Data', 'completed', `Loaded ${companies.length} companies`)
+
+      // Step 3: Founder Ranking - REQUIRED STEP
+      const totalFounders = pipelineResult.foundersFound
+      if (totalFounders > 0) {
+        updateStep('Founder Analysis', 'running', `Analyzing ${totalFounders} founders...`)
+        
+        // Extract founder profiles from companies for ranking
+        const founderProfiles = companies.flatMap(company => 
+          company.founders.map(founderName => ({
+            name: founderName,
+            company_name: company.name,
+            linkedin_url: '',
+            bio: company.description || ''
+          }))
+        )
+
+        if (founderProfiles.length > 0) {
+          // Create CSV content for ranking
+          const csvContent = [
+            'name,company_name,linkedin_url,bio',
+            ...founderProfiles.map(p => 
+              `"${p.name}","${p.company_name}","${p.linkedin_url}","${p.bio.replace(/"/g, '""')}"`
+            )
+          ].join('\n')
+
+          const formData = new FormData()
+          const blob = new Blob([csvContent], { type: 'text/csv' })
+          formData.append('file', blob, 'founders.csv')
+
+          const rankingResponse = await fetch('http://localhost:8000/api/founders/rank', {
+            method: 'POST',
+            body: formData
+          })
+
+          if (rankingResponse.ok) {
+            const rankingResult = await rankingResponse.json()
+            updateStep('Founder Analysis', 'completed', `Ranked ${rankingResult.foundersFound} founders`)
+          } else {
+            updateStep('Founder Analysis', 'error', 'Ranking failed')
+            throw new Error('Founder ranking failed')
+          }
+        } else {
+          updateStep('Founder Analysis', 'completed', 'No founders to analyze')
+        }
+      } else {
+        updateStep('Founder Analysis', 'completed', 'No founders found')
+      }
+
+      // Step 4: Get Final Results
+      updateStep('Preparing Results', 'running')
+      const [companiesData, foundersData] = await Promise.all([
+        fetch('http://localhost:8000/api/companies').then(r => r.json()),
+        fetch('http://localhost:8000/api/founders/rankings').then(r => r.json()).catch(() => [])
+      ])
+
+      setResults({
+        companies: companiesData,
+        founders: foundersData,
+        jobId: pipelineResult.jobId
+      })
+
+      updateStep('Preparing Results', 'completed', 'Pipeline completed successfully')
+
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error occurred'
+      setError(message)
+      updateStep('Pipeline', 'error', message)
+    } finally {
+      setIsRunning(false)
+    }
+  }
+
+  const downloadCSV = async (type: 'companies' | 'founders') => {
+    try {
+      const endpoint = type === 'companies' 
+        ? 'http://localhost:8000/api/companies/export'
+        : 'http://localhost:8000/api/founders/rankings/export'
+      
+      const response = await fetch(endpoint)
+      if (!response.ok) throw new Error(`Export failed: ${response.statusText}`)
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${type}_${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      setError(`Download failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    }
+  }
+
+  const getStepIcon = (status: PipelineStatus['status']) => {
+    switch (status) {
+      case 'completed': return '✅'
+      case 'running': return '🔄'
+      case 'error': return '❌'
+      default: return '⏳'
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Initiation Pipeline</h1>
+        
+        {/* Year Input Section */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">Company Foundation Year</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Year
+              </label>
+              <select
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={isRunning}
+              >
+                {Array.from({ length: 25 }, (_, i) => 2000 + i).map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={runPipeline}
+              disabled={isRunning}
+              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {isRunning ? 'Running...' : 'Run Pipeline'}
+            </button>
+          </div>
+        </div>
+
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <p className="text-red-800">{error}</p>
+          </div>
+        )}
+
+        {/* Pipeline Steps */}
+        {steps.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 className="text-xl font-semibold mb-4">Pipeline Progress</h2>
+            <div className="space-y-3">
+              {steps.map((step, index) => (
+                <div key={index} className="flex items-center space-x-3">
+                  <span className="text-2xl">{getStepIcon(step.status)}</span>
+                  <div className="flex-1">
+                    <div className="font-medium">{step.step}</div>
+                    {step.message && (
+                      <div className="text-sm text-gray-600">{step.message}</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Results Section */}
+        {results && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">Results</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-blue-600">{results.companies.length}</div>
+                <div className="text-gray-600 mb-4">Companies Found</div>
+                <button
+                  onClick={() => downloadCSV('companies')}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                >
+                  Download Companies CSV
+                </button>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-purple-600">{results.founders.length}</div>
+                <div className="text-gray-600 mb-4">Founders Analyzed</div>
+                <button
+                  onClick={() => downloadCSV('founders')}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                  disabled={results.founders.length === 0}
+                >
+                  Download Founders CSV
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

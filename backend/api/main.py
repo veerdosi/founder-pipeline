@@ -15,7 +15,7 @@ from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
-from .models import CompanyDiscoveryRequest, DashboardStats, PipelineJobResponse
+from .models import CompanyDiscoveryRequest, DashboardStats, PipelineJobResponse, SimpleDateRangeRequest, YearBasedRequest
 from .dependencies import get_pipeline_service, get_ranking_service
 from ..core.discovery import InitiationPipeline
 from ..core.ranking import FounderRankingService
@@ -81,6 +81,52 @@ async def get_dashboard_stats():
     )
 
 # --- Company Discovery Endpoints ---
+
+@app.post("/api/pipeline/run", response_model=PipelineJobResponse)
+async def run_simple_pipeline(
+    params: YearBasedRequest,
+    pipeline_service: InitiationPipeline = Depends(get_pipeline_service),
+):
+    """Year-based endpoint that takes a single year and runs the full pipeline."""
+    try:
+        # Convert to standard discovery request
+        discovery_params = params.to_discovery_request()
+        
+        # Convert to pipeline parameters
+        pipeline_params = {
+            'limit': discovery_params.limit,
+            'categories': discovery_params.categories,
+            'regions': discovery_params.regions,
+            'sources': discovery_params.sources,
+            'founded_after': discovery_params.founded_after,
+            'founded_before': discovery_params.founded_before
+        }
+        
+        # Run checkpointed pipeline
+        result = await checkpointed_runner.run_checkpointed_pipeline(
+            pipeline_service=pipeline_service,
+            ranking_service=None,  # Not needed for discovery
+            params=pipeline_params,
+            force_restart=False
+        )
+        
+        # Extract companies from result
+        enriched_companies = result.get('companies', [])
+        
+        # Update latest results for API access
+        latest_results["companies"] = enriched_companies
+        latest_results["last_job_id"] = result['job_id']
+        
+        return PipelineJobResponse(
+            jobId=result['job_id'],
+            status="completed",
+            companiesFound=len(enriched_companies),
+            foundersFound=sum(len(ec.profiles) for ec in enriched_companies),
+            message="Pipeline complete with checkpointing."
+        )
+    except Exception as e:
+        logger.error(f"Pipeline failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/companies/discover", response_model=PipelineJobResponse)
 async def discover_companies(
