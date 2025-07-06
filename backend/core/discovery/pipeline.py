@@ -49,37 +49,56 @@ class InitiationPipeline:
         try:
             # Step 1: Discover companies
             console.print("🔍 Discovering companies...")
+            
+            # Extract target year from date range if provided
+            target_year = None
+            if founded_after and founded_before and founded_after.year == founded_before.year:
+                target_year = founded_after.year
+            elif founded_after:
+                target_year = founded_after.year
+            
             companies = await self.company_discovery.find_companies(
                 limit=company_limit,
                 categories=categories,
-                regions=regions
+                regions=regions,
+                founded_year=target_year
             )
             
-            # Step 2: Filter by date range
+            # Step 2: Filter by date range with error handling
             if founded_after or founded_before:
                 filtered_companies = []
+                filter_errors = 0
+                
                 for company in companies:
-                    if company.founded_year:
-                        company_year = company.founded_year
-                        
-                        # Check if company year is within range
-                        include_company = True
-                        
-                        if founded_after:
-                            if company_year < founded_after.year:
-                                include_company = False
-                        
-                        if founded_before:
-                            if company_year > founded_before.year:
-                                include_company = False
-                        
-                        if include_company:
-                            filtered_companies.append(company)
-                    else:
-                        # Include companies without founding year data
-                        filtered_companies.append(company)
+                    try:
+                        if company.founded_year:
+                            company_year = company.founded_year
+                            
+                            # Check if company year is within range
+                            include_company = True
+                            
+                            if founded_after:
+                                if company_year < founded_after.year:
+                                    include_company = False
+                            
+                            if founded_before:
+                                if company_year > founded_before.year:
+                                    include_company = False
+                            
+                            if include_company:
+                                filtered_companies.append(company)
+                        else:
+                            # Include companies without founding year data if no strict year filter
+                            if not target_year:
+                                filtered_companies.append(company)
+                    except Exception as filter_error:
+                        logger.warning(f"Error filtering company {company.name}: {filter_error}")
+                        filter_errors += 1
+                        continue
                 
                 companies = filtered_companies
+                if filter_errors > 0:
+                    logger.warning(f"Encountered {filter_errors} errors during filtering")
                 console.print(f"📅 Filtered to {len(companies)} companies in date range")
             
             if not companies:
@@ -95,14 +114,30 @@ class InitiationPipeline:
                 
                 for company in companies:
                     try:
-                        profiles = await self.profile_enrichment.find_profiles(company)
+                        # Find profiles with timeout and error handling
+                        try:
+                            profiles = await self.profile_enrichment.find_profiles(company)
+                        except Exception as profile_error:
+                            logger.warning(f"Failed to find profiles for {company.name}: {profile_error}")
+                            profiles = []
+                        
+                        if not profiles:
+                            # Add company without profiles if none found
+                            enriched_companies.append(
+                                EnrichedCompany(company=company, profiles=[])
+                            )
+                            progress.update(task, advance=1)
+                            continue
                         
                         # Limit to top 3 profiles per company
                         profiles_to_enrich = profiles[:3]
+                        
+                        # Enrich profiles with error handling
                         try:
                             enriched_profiles = await self.profile_enrichment.enrich_profiles_batch(profiles_to_enrich)
-                        except Exception as e:
-                            logger.warning(f"Failed to enrich profiles for {company.name}: {e}")
+                        except Exception as enrich_error:
+                            logger.warning(f"Failed to enrich profiles for {company.name}: {enrich_error}")
+                            # Use basic profiles without enrichment
                             enriched_profiles = profiles_to_enrich
                         
                         enriched_company = EnrichedCompany(
@@ -112,11 +147,15 @@ class InitiationPipeline:
                         enriched_companies.append(enriched_company)
                         
                     except Exception as e:
-                        logger.error(f"Error processing {company.name}: {e}")
-                        # Add company without profiles
-                        enriched_companies.append(
-                            EnrichedCompany(company=company, profiles=[])
-                        )
+                        logger.error(f"Unexpected error processing {company.name}: {e}")
+                        # Add company without profiles as fallback
+                        try:
+                            enriched_companies.append(
+                                EnrichedCompany(company=company, profiles=[])
+                            )
+                        except Exception as fallback_error:
+                            logger.error(f"Even fallback failed for {company.name}: {fallback_error}")
+                            continue
                     
                     progress.update(task, advance=1)
                     await asyncio.sleep(0.5)  # Rate limiting
@@ -214,7 +253,8 @@ class InitiationPipeline:
             companies = await self.company_discovery.find_companies(
                 limit=limit,
                 categories=categories,
-                regions=regions
+                regions=regions,
+                founded_year=None  # No specific year filtering for this method
             )
         
         return companies
@@ -324,7 +364,10 @@ class InitiationPipeline:
         console.print("🔍 Multi-source AI company discovery...")
         
         with Timer("Company Discovery"):
-            companies = await self.company_discovery.find_companies(limit=limit)
+            companies = await self.company_discovery.find_companies(
+                limit=limit,
+                founded_year=None  # Standard discovery without specific year
+            )
         
         # Save checkpoint
         await save_checkpoint(companies, checkpoint_name)

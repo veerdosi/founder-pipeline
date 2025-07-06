@@ -57,6 +57,34 @@ async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
+@app.get("/api/checkpoints")
+async def get_available_checkpoints():
+    """Get list of available checkpoints."""
+    try:
+        jobs = checkpoint_manager.list_active_jobs()
+        checkpoints = []
+        
+        for job_progress in jobs:
+            job_id = job_progress['job_id']
+            companies_stage = job_progress['stages'].get('companies', {})
+            
+            if companies_stage.get('completed'):
+                checkpoints.append({
+                    "id": job_id,
+                    "created_at": companies_stage['timestamp'].isoformat() if hasattr(companies_stage['timestamp'], 'isoformat') else str(companies_stage['timestamp']),
+                    "companies_count": companies_stage.get('data_count', 0),
+                    "completion_percentage": job_progress['completion_percentage'],
+                    "stages_completed": len([s for s in job_progress['stages'].values() if s.get('completed')])
+                })
+        
+        # Sort by creation date, newest first
+        checkpoints.sort(key=lambda x: x['created_at'], reverse=True)
+        return checkpoints
+        
+    except Exception as e:
+        logger.error(f"Error fetching checkpoints: {e}")
+        return []
+
 # --- Dashboard Endpoints ---
 
 @app.get("/api/dashboard/stats", response_model=DashboardStats)
@@ -83,11 +111,12 @@ async def get_dashboard_stats():
 # --- Company Discovery Endpoints ---
 
 @app.post("/api/pipeline/run", response_model=PipelineJobResponse)
-async def run_simple_pipeline(
+async def run_complete_pipeline(
     params: YearBasedRequest,
     pipeline_service: InitiationPipeline = Depends(get_pipeline_service),
+    ranking_service: FounderRankingService = Depends(get_ranking_service),
 ):
-    """Year-based endpoint that takes a single year and runs the full pipeline."""
+    """Year-based endpoint that runs the complete pipeline including ranking."""
     try:
         # Convert to standard discovery request
         discovery_params = params.to_discovery_request()
@@ -102,38 +131,40 @@ async def run_simple_pipeline(
             'founded_before': discovery_params.founded_before
         }
         
-        # Run checkpointed pipeline
+        # Run complete checkpointed pipeline including ranking
         result = await checkpointed_runner.run_checkpointed_pipeline(
             pipeline_service=pipeline_service,
-            ranking_service=None,  # Not needed for discovery
+            ranking_service=ranking_service,
             params=pipeline_params,
             force_restart=False
         )
         
-        # Extract companies from result
+        # Extract results
         enriched_companies = result.get('companies', [])
+        rankings = result.get('rankings', [])
         
         # Update latest results for API access
         latest_results["companies"] = enriched_companies
+        latest_results["rankings"] = rankings
         latest_results["last_job_id"] = result['job_id']
         
         return PipelineJobResponse(
             jobId=result['job_id'],
             status="completed",
             companiesFound=len(enriched_companies),
-            foundersFound=sum(len(ec.profiles) for ec in enriched_companies),
-            message="Pipeline complete with checkpointing."
+            foundersFound=len(rankings) if rankings else sum(len(ec.profiles) for ec in enriched_companies),
+            message="Complete pipeline with ranking finished successfully."
         )
     except Exception as e:
-        logger.error(f"Pipeline failed: {e}", exc_info=True)
+        logger.error(f"Complete pipeline failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/companies/discover", response_model=PipelineJobResponse)
-async def discover_companies(
+async def discover_companies_only(
     params: CompanyDiscoveryRequest,
     pipeline_service: InitiationPipeline = Depends(get_pipeline_service),
 ):
-    """Discover companies using checkpointed pipeline for reliability."""
+    """Discover companies only (without ranking) using checkpointed pipeline."""
     try:
         # Convert request to pipeline parameters
         pipeline_params = {
@@ -145,10 +176,10 @@ async def discover_companies(
             'founded_before': params.founded_before
         }
         
-        # Run checkpointed pipeline
+        # Run discovery-only pipeline
         result = await checkpointed_runner.run_checkpointed_pipeline(
             pipeline_service=pipeline_service,
-            ranking_service=None,  # Not needed for discovery
+            ranking_service=None,  # Skip ranking for discovery-only
             params=pipeline_params,
             force_restart=False
         )
@@ -165,7 +196,7 @@ async def discover_companies(
             status="completed",
             companiesFound=len(enriched_companies),
             foundersFound=sum(len(ec.profiles) for ec in enriched_companies),
-            message="Discovery complete with checkpointing."
+            message="Company discovery complete (ranking skipped)."
         )
     except Exception as e:
         logger.error(f"Discovery failed: {e}", exc_info=True)

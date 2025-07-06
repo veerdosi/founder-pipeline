@@ -18,6 +18,92 @@ class FounderRankingService:
     def __init__(self):
         self.claude_ranking_service = ClaudeSonnet4RankingService()
     
+    async def rank_founders_batch(
+        self,
+        founder_profiles: List[FounderProfile],
+        batch_size: int = 5,
+        use_enhanced: bool = True
+    ) -> List[Dict[str, Any]]:
+        """Simple ranking method without verification complexity."""
+        logger.info(f"🎯 Ranking {len(founder_profiles)} founders (simplified)")
+        
+        # Convert profiles to founder data for AI analysis
+        founders_data = [
+            self._profile_to_ai_dict(profile) 
+            for profile in founder_profiles
+        ]
+        
+        # Batch AI analysis for L-level classification
+        try:
+            analysis_results = await self.claude_ranking_service.rank_founders_batch(
+                founders_data=founders_data,
+                batch_size=batch_size,
+                use_verification=False
+            )
+        except Exception as e:
+            logger.error(f"Claude ranking service failed: {e}")
+            # Create fallback results for all founders
+            analysis_results = []
+            for _ in founder_profiles:
+                from ..analysis.ai_analysis import FounderAnalysisResult
+                fallback_result = FounderAnalysisResult(
+                    experience_level="INSUFFICIENT_DATA",
+                    confidence_score=0.1,
+                    reasoning=f"Ranking service unavailable: {str(e)}",
+                    evidence=[],
+                    verification_sources=[]
+                )
+                analysis_results.append(fallback_result)
+        
+        if len(analysis_results) != len(founder_profiles):
+            logger.warning(f"Mismatch in analysis results: {len(analysis_results)} vs {len(founder_profiles)} profiles")
+            # Pad with fallback results if needed
+            while len(analysis_results) < len(founder_profiles):
+                from ..analysis.ai_analysis import FounderAnalysisResult
+                fallback_result = FounderAnalysisResult(
+                    experience_level="INSUFFICIENT_DATA",
+                    confidence_score=0.1,
+                    reasoning="Analysis incomplete - missing result",
+                    evidence=[],
+                    verification_sources=[]
+                )
+                analysis_results.append(fallback_result)
+        
+        # Create rankings dataset
+        rankings = []
+        for profile, analysis_result in zip(founder_profiles, analysis_results):
+            try:
+                # Convert AI result to L-level classification
+                classification = self._convert_to_classification(analysis_result, profile)
+                
+                # Create simple ranking result
+                ranking = {
+                    'profile': profile,
+                    'classification': classification,
+                    'timestamp': datetime.now().isoformat()
+                }
+                rankings.append(ranking)
+                
+            except Exception as e:
+                logger.error(f"Error ranking {profile.name}: {e}")
+                # Add fallback ranking
+                fallback_classification = LevelClassification(
+                    level=ExperienceLevel.INSUFFICIENT_DATA,
+                    confidence_score=0.1,
+                    reasoning=f"Ranking failed: {str(e)}",
+                    evidence=[],
+                    verification_sources=[]
+                )
+                ranking = {
+                    'profile': profile,
+                    'classification': fallback_classification,
+                    'timestamp': datetime.now().isoformat()
+                }
+                rankings.append(ranking)
+        
+        logger.info(f"✅ Ranked {len(rankings)} founders")
+        return rankings
+    
     async def add_rankings_to_dataset(
         self, 
         enhanced_profiles: List[FounderProfile],
@@ -32,11 +118,11 @@ class FounderRankingService:
             for profile in enhanced_profiles
         ]
         
-        # Batch AI analysis for L-level classification
+        # Simplified batch AI analysis without verification
         analysis_results = await self.claude_ranking_service.rank_founders_batch(
             founders_data=founders_data,
             batch_size=batch_size,
-            use_verification=True
+            use_verification=False
         )
         
         # Create final dataset with rankings added

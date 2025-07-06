@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 
 interface PipelineStatus {
   step: string
@@ -12,12 +12,23 @@ interface PipelineResults {
   jobId: string
 }
 
+interface CheckpointInfo {
+  id: string
+  created_at: string
+  companies_count: number
+  completion_percentage: number
+  stages_completed: number
+}
+
 export default function App() {
-  const [year, setYear] = useState('2024')
+  const [year, setYear] = useState('2025')
   const [isRunning, setIsRunning] = useState(false)
   const [steps, setSteps] = useState<PipelineStatus[]>([])
   const [results, setResults] = useState<PipelineResults | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [startMode, setStartMode] = useState<'fresh' | 'resume'>('fresh')
+  const [checkpoints, setCheckpoints] = useState<CheckpointInfo[]>([])
+  const [selectedCheckpoint, setSelectedCheckpoint] = useState<string>('')
 
   const updateStep = (stepName: string, status: PipelineStatus['status'], message?: string) => {
     setSteps(prev => {
@@ -30,6 +41,26 @@ export default function App() {
       return [...prev, { step: stepName, status, message }]
     })
   }
+
+  const loadCheckpoints = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/checkpoints')
+      if (response.ok) {
+        const checkpointList = await response.json()
+        setCheckpoints(checkpointList)
+        if (checkpointList.length > 0 && !selectedCheckpoint) {
+          setSelectedCheckpoint(checkpointList[0].id)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load checkpoints:', error)
+    }
+  }
+
+  // Load checkpoints on component mount
+  useEffect(() => {
+    loadCheckpoints()
+  }, [])
 
   const runPipeline = async () => {
     if (!year) {
@@ -172,58 +203,120 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Initiation Pipeline</h1>
+    <div className="container animate-fade-in">
+      <h1>Initiation Pipeline</h1>
+      <p className="text-center mb-8">AI-powered company and founder discovery platform</p>
         
+        {/* Start Options Section */}
+        <div className="card mb-6">
+          <h2>Start Options</h2>
+          <div className="mb-4">
+            <div className="flex gap-4 mb-4">
+              <label className="flex items-center">
+                <input 
+                  type="radio" 
+                  value="fresh" 
+                  checked={startMode === 'fresh'}
+                  onChange={(e) => setStartMode(e.target.value as 'fresh' | 'resume')}
+                  disabled={isRunning}
+                  className="mr-2"
+                />
+                Start Fresh
+              </label>
+              <label className="flex items-center">
+                <input 
+                  type="radio" 
+                  value="resume" 
+                  checked={startMode === 'resume'}
+                  onChange={(e) => setStartMode(e.target.value as 'fresh' | 'resume')}
+                  disabled={isRunning || checkpoints.length === 0}
+                  className="mr-2"
+                />
+                Resume from Checkpoint
+              </label>
+            </div>
+
+            {startMode === 'resume' && checkpoints.length > 0 && (
+              <div className="form-group">
+                <label className="form-label">Select Checkpoint</label>
+                <select
+                  value={selectedCheckpoint}
+                  onChange={(e) => setSelectedCheckpoint(e.target.value)}
+                  className="form-select"
+                  disabled={isRunning}
+                >
+                  {checkpoints.map(cp => (
+                    <option key={cp.id} value={cp.id}>
+                      {new Date(cp.created_at).toLocaleDateString()} - {cp.companies_count} companies ({cp.completion_percentage.toFixed(0)}% complete)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {startMode === 'resume' && checkpoints.length === 0 && (
+              <p className="text-gray-500">No checkpoints available. Start fresh to create a new pipeline.</p>
+            )}
+          </div>
+        </div>
+
         {/* Year Input Section */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Company Foundation Year</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+        <div className="card mb-6">
+          <h2>Company Foundation Year</h2>
+          <div className="flex flex-col md:flex-row gap-4 items-end">
+            <div className="form-group w-full">
+              <label className="form-label">
                 Year
               </label>
               <select
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={isRunning}
+                className="form-select"
+                disabled={isRunning || startMode === 'resume'}
               >
-                {Array.from({ length: 25 }, (_, i) => 2000 + i).map(year => (
+                {Array.from({ length: new Date().getFullYear() - 2000 + 1 }, (_, i) => 2000 + i).map(year => (
                   <option key={year} value={year}>{year}</option>
                 ))}
               </select>
             </div>
             <button
               onClick={runPipeline}
-              disabled={isRunning}
-              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              disabled={isRunning || (startMode === 'resume' && !selectedCheckpoint)}
+              className="btn btn-primary"
             >
-              {isRunning ? 'Running...' : 'Run Pipeline'}
+              {isRunning ? (
+                <>
+                  <span className="animate-spin">🔄</span>
+                  Running...
+                </>
+              ) : startMode === 'resume' ? (
+                'Resume Pipeline'
+              ) : (
+                'Run Pipeline'
+              )}
             </button>
           </div>
         </div>
 
         {/* Error Display */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <p className="text-red-800">{error}</p>
+          <div className="status-message status-error animate-fade-in">
+            <p>{error}</p>
           </div>
         )}
 
         {/* Pipeline Steps */}
         {steps.length > 0 && (
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">Pipeline Progress</h2>
-            <div className="space-y-3">
+          <div className="progress-container animate-fade-in">
+            <h2>Pipeline Progress</h2>
+            <div className="gap-2">
               {steps.map((step, index) => (
-                <div key={index} className="flex items-center space-x-3">
-                  <span className="text-2xl">{getStepIcon(step.status)}</span>
-                  <div className="flex-1">
-                    <div className="font-medium">{step.step}</div>
+                <div key={index} className={`progress-step ${step.status}`}>
+                  <span style={{ fontSize: '1.5rem', marginRight: '1rem' }}>{getStepIcon(step.status)}</span>
+                  <div className="w-full">
+                    <div style={{ fontWeight: 600 }}>{step.step}</div>
                     {step.message && (
-                      <div className="text-sm text-gray-600">{step.message}</div>
+                      <div style={{ fontSize: '0.875rem', opacity: 0.8 }}>{step.message}</div>
                     )}
                   </div>
                 </div>
@@ -234,34 +327,33 @@ export default function App() {
 
         {/* Results Section */}
         {results && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold mb-4">Results</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-blue-600">{results.companies.length}</div>
-                <div className="text-gray-600 mb-4">Companies Found</div>
+          <div className="card animate-fade-in">
+            <h2>Results</h2>
+            <div className="results-grid">
+              <div className="result-card">
+                <div className="result-number">{results.companies.length}</div>
+                <div className="result-label mb-4">Companies Found</div>
                 <button
                   onClick={() => downloadCSV('companies')}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                  className="btn btn-success"
                 >
-                  Download Companies CSV
+                  📊 Download Companies CSV
                 </button>
               </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-purple-600">{results.founders.length}</div>
-                <div className="text-gray-600 mb-4">Founders Analyzed</div>
+              <div className="result-card">
+                <div className="result-number">{results.founders.length}</div>
+                <div className="result-label mb-4">Founders Analyzed</div>
                 <button
                   onClick={() => downloadCSV('founders')}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                  className="btn btn-success"
                   disabled={results.founders.length === 0}
                 >
-                  Download Founders CSV
+                  👥 Download Founders CSV
                 </button>
               </div>
             </div>
           </div>
         )}
-      </div>
     </div>
   )
 }

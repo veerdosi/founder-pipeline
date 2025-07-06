@@ -105,8 +105,8 @@ Provide a structured JSON response with:
 - verification_sources: What additional sources would verify key claims"""
 
     @staticmethod
-    def create_founder_analysis_prompt(profile: FounderProfile) -> str:
-        """Create the main analysis prompt for a founder."""
+    def create_founder_analysis_prompt(profile: FounderProfile, company_founding_year: int = None) -> str:
+        """Create the main analysis prompt for a founder with year context."""
         
         # Build experience summary
         experiences = []
@@ -131,6 +131,16 @@ Provide a structured JSON response with:
         # Build skills summary
         skills = [skill for skill in [profile.skill_1, profile.skill_2, profile.skill_3] if skill]
         skills_text = ", ".join(skills) if skills else "No skills listed"
+        
+        # Add year context if available
+        year_context = ""
+        if company_founding_year:
+            year_context = f"""
+YEAR CONTEXT:
+This founder's current company was founded in {company_founding_year}. 
+Consider their experience level relative to building a company in {company_founding_year}.
+Evaluate their track record and preparation leading up to {company_founding_year}.
+"""
         
         prompt = f"""
 FOUNDER ANALYSIS REQUEST
@@ -157,7 +167,7 @@ EDUCATION:
 
 SKILLS:
 {skills_text}
-
+{year_context}
 ANALYSIS INSTRUCTIONS:
 1. Carefully evaluate this founder's track record using the L1-L10 framework
 2. Look for concrete evidence of exits, valuations, company scale, funding rounds
@@ -167,6 +177,7 @@ ANALYSIS INSTRUCTIONS:
 6. For levels L7+, look for multiple successful companies or major exits
 7. For levels L4-L6, focus on proven execution and scale achievements
 8. For levels L1-L3, assess potential based on education, early experience, and current trajectory
+9. If year context is provided, evaluate their readiness and experience level for founding a company in that specific year
 
 Key questions to address:
 - What concrete achievements can be verified?
