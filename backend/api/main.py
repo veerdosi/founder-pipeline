@@ -48,9 +48,34 @@ latest_results: Dict[str, Any] = {
     "last_job_id": None
 }
 
+# Ensure rankings is always a list, never None
+def safe_get_rankings():
+    rankings = latest_results.get("rankings", [])
+    return rankings if rankings is not None else []
+
+def safe_get_companies():
+    companies = latest_results.get("companies", [])
+    return companies if companies is not None else []
+
 logger = logging.getLogger(__name__)
 
 # --- API Endpoints ---
+
+@app.get("/api/debug/data")
+async def debug_data():
+    """Debug endpoint to check what data is stored."""
+    companies = safe_get_companies()
+    rankings = safe_get_rankings()
+    
+    return {
+        "companies_count": len(companies),
+        "companies_sample": [ec.company.name for ec in companies[:5]] if companies else [],
+        "rankings_count": len(rankings),
+        "rankings_sample": [r.profile.name for r in rankings[:5]] if rankings else [],
+        "last_job_id": latest_results.get("last_job_id"),
+        "companies_structure": str(type(companies[0])) if companies else "No companies",
+        "first_company_fields": list(vars(companies[0].company).keys()) if companies else "No companies"
+    }
 
 @app.get("/api/health")
 async def health_check():
@@ -90,8 +115,8 @@ async def get_available_checkpoints():
 @app.get("/api/dashboard/stats", response_model=DashboardStats)
 async def get_dashboard_stats():
     """Get basic dashboard statistics from checkpointed results."""
-    companies = latest_results.get("companies", [])
-    rankings = latest_results.get("rankings", [])
+    companies = safe_get_companies()
+    rankings = safe_get_rankings()
 
     # Calculate level distribution
     level_dist = {}
@@ -109,6 +134,72 @@ async def get_dashboard_stats():
     )
 
 # --- Company Discovery Endpoints ---
+
+@app.post("/api/pipeline/resume/{checkpoint_id}", response_model=PipelineJobResponse)
+async def resume_pipeline_from_checkpoint(
+    checkpoint_id: str,
+    pipeline_service: InitiationPipeline = Depends(get_pipeline_service),
+    ranking_service: FounderRankingService = Depends(get_ranking_service),
+):
+    """Resume pipeline from a specific checkpoint."""
+    try:
+        # Try to resume from the specified checkpoint
+        resume_data = checkpoint_manager.resume_pipeline(checkpoint_id)
+        
+        if resume_data is None:
+            raise HTTPException(status_code=404, detail=f"Checkpoint {checkpoint_id} not found or empty")
+        
+        if resume_data.get('stage') == 'complete':
+            # Pipeline already complete, just load results
+            result = resume_data['data']
+            enriched_companies = result.get('companies', [])
+            rankings = result.get('rankings', [])
+            
+            # Update latest results for API access
+            latest_results["companies"] = enriched_companies
+            latest_results["rankings"] = rankings
+            latest_results["last_job_id"] = checkpoint_id
+            
+            return PipelineJobResponse(
+                jobId=checkpoint_id,
+                status="completed",
+                companiesFound=len(enriched_companies),
+                foundersFound=len(rankings) if rankings else sum(len(ec.profiles) for ec in enriched_companies),
+                message="Pipeline already complete. Results loaded from checkpoint."
+            )
+        
+        # Resume from partial completion
+        stage = resume_data['stage']
+        logger.info(f"🔄 Resuming pipeline from checkpoint {checkpoint_id} at stage: {stage}")
+        
+        # Run remaining pipeline stages
+        result = await checkpointed_runner.resume_checkpointed_pipeline(
+            checkpoint_id=checkpoint_id,
+            pipeline_service=pipeline_service,
+            ranking_service=ranking_service,
+            resume_data=resume_data
+        )
+        
+        # Extract results
+        enriched_companies = result.get('companies', [])
+        rankings = result.get('rankings', [])
+        
+        # Update latest results for API access
+        latest_results["companies"] = enriched_companies
+        latest_results["rankings"] = rankings
+        latest_results["last_job_id"] = checkpoint_id
+        
+        return PipelineJobResponse(
+            jobId=checkpoint_id,
+            status="completed",
+            companiesFound=len(enriched_companies),
+            foundersFound=len(rankings) if rankings else sum(len(ec.profiles) for ec in enriched_companies),
+            message=f"Pipeline resumed from checkpoint and completed successfully."
+        )
+        
+    except Exception as e:
+        logger.error(f"Resume from checkpoint failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/pipeline/run", response_model=PipelineJobResponse)
 async def run_complete_pipeline(
@@ -205,7 +296,7 @@ async def discover_companies_only(
 @app.get("/api/companies")
 async def get_companies():
     """Fetch discovered companies from latest checkpointed results."""
-    enriched_companies = latest_results.get("companies", [])
+    enriched_companies = safe_get_companies()
     formatted_companies = []
     for ec in enriched_companies:
         company = ec.company
@@ -217,7 +308,7 @@ async def get_companies():
             "aiCategory": company.ai_focus or "N/A",
             "fundingTotal": company.funding_total_usd,
             "location": f"{company.city}, {company.country}" if company.city else "N/A",
-            "founders": [p.person_name for p in ec.profiles] if ec.profiles else [],
+            "founders": getattr(company, 'founders', []) or [],
             "source": urlparse(company.source_url).hostname if company.source_url else "N/A"
         })
     return formatted_companies
@@ -225,9 +316,78 @@ async def get_companies():
 @app.get("/api/companies/export")
 async def export_companies():
     """Export companies from latest checkpointed results."""
-    enriched_companies = latest_results.get("companies", [])
-    if not enriched_companies:
-        raise HTTPException(status_code=404, detail="No companies discovered yet. Run a discovery first.")
+    try:
+        enriched_companies = safe_get_companies()
+        logger.info(f"📊 Export request - Found {len(enriched_companies)} companies in latest_results")
+        
+        if not enriched_companies:
+            logger.warning("No companies found for export")
+            raise HTTPException(status_code=404, detail="No companies discovered yet. Run a discovery first.")
+
+        output = io.StringIO()
+        company_records = []
+        
+        for i, ec in enumerate(enriched_companies):
+            try:
+                c = ec.company
+                record = {
+                    "company_name": c.name,
+                    "description": c.description,
+                    "short_description": getattr(c, 'short_description', None),
+                    "website": str(c.website) if c.website else "",
+                    "founded_year": c.founded_year,
+                    "ai_focus": c.ai_focus,
+                    "sector": c.sector,
+                    "funding_total_usd": c.funding_total_usd,
+                    "funding_stage": c.funding_stage.value if c.funding_stage else None,
+                    "city": c.city,
+                    "region": getattr(c, 'region', None),
+                    "country": c.country,
+                    "founders": "; ".join(getattr(c, 'founders', []) or []),
+                    "founders_count": len(getattr(c, 'founders', []) or []),
+                    "investors": "; ".join(getattr(c, 'investors', []) or []),
+                    "categories": "; ".join(getattr(c, 'categories', []) or []),
+                    "linkedin_url": getattr(c, 'linkedin_url', None),
+                    "employee_count": getattr(c, 'employee_count', None),
+                    "revenue_millions": getattr(c, 'revenue_millions', None),
+                    "valuation_millions": getattr(c, 'valuation_millions', None),
+                    "last_funding_date": getattr(c, 'last_funding_date', None),
+                    "tech_stack": "; ".join(getattr(c, 'tech_stack', []) or []),
+                    "competitors": "; ".join(getattr(c, 'competitors', []) or []),
+                    "source_url": c.source_url,
+                    "extraction_date": getattr(c, 'extraction_date', None),
+                    "confidence_score": c.confidence_score,
+                    "linkedin_profiles_found": len(ec.profiles)
+                }
+                company_records.append(record)
+            except Exception as company_error:
+                logger.error(f"Error processing company {i}: {company_error}")
+                continue
+        
+        logger.info(f"📈 Created {len(company_records)} company records for CSV")
+        
+        df = pd.DataFrame(company_records)
+        df.to_csv(output, index=False)
+        
+        output.seek(0)
+        csv_content = output.getvalue()
+        logger.info(f"📄 Generated CSV with {len(csv_content)} characters")
+        
+        filename = f"companies_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        
+        return StreamingResponse(
+            io.BytesIO(csv_content.encode('utf-8')),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Content-Type": "text/csv; charset=utf-8"
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Companies export failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")=404, detail="No companies discovered yet. Run a discovery first.")
 
     output = io.StringIO()
     company_records = []
@@ -236,15 +396,31 @@ async def export_companies():
         company_records.append({
             "company_name": c.name,
             "description": c.description,
+            "short_description": getattr(c, 'short_description', None),
             "website": str(c.website) if c.website else "",
             "founded_year": c.founded_year,
             "ai_focus": c.ai_focus,
             "sector": c.sector,
             "funding_total_usd": c.funding_total_usd,
-            "funding_stage": c.funding_stage,
+            "funding_stage": c.funding_stage.value if c.funding_stage else None,
             "city": c.city,
+            "region": getattr(c, 'region', None),
             "country": c.country,
-            "founders_count": len(ec.profiles)
+            "founders": "; ".join(getattr(c, 'founders', []) or []),
+            "founders_count": len(getattr(c, 'founders', []) or []),
+            "investors": "; ".join(getattr(c, 'investors', []) or []),
+            "categories": "; ".join(getattr(c, 'categories', []) or []),
+            "linkedin_url": getattr(c, 'linkedin_url', None),
+            "employee_count": getattr(c, 'employee_count', None),
+            "revenue_millions": getattr(c, 'revenue_millions', None),
+            "valuation_millions": getattr(c, 'valuation_millions', None),
+            "last_funding_date": getattr(c, 'last_funding_date', None),
+            "tech_stack": "; ".join(getattr(c, 'tech_stack', []) or []),
+            "competitors": "; ".join(getattr(c, 'competitors', []) or []),
+            "source_url": c.source_url,
+            "extraction_date": getattr(c, 'extraction_date', None),
+            "confidence_score": c.confidence_score,
+            "linkedin_profiles_found": len(ec.profiles)
         })
     df = pd.DataFrame(company_records)
     df.to_csv(output, index=False)
@@ -299,7 +475,8 @@ async def rank_founders_from_file(
 @app.get("/api/founders/rankings")
 async def get_rankings():
     """Fetch ranked founders from latest checkpointed results."""
-    rankings = latest_results.get("rankings", [])
+    rankings = safe_get_rankings()
+    
     formatted_rankings = []
     for r in rankings:
         formatted_rankings.append({

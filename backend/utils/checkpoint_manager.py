@@ -242,6 +242,83 @@ class CheckpointedPipelineRunner:
     def __init__(self, checkpoint_manager: PipelineCheckpointManager):
         self.checkpoint_manager = checkpoint_manager
     
+    async def resume_checkpointed_pipeline(
+        self,
+        checkpoint_id: str,
+        pipeline_service,
+        ranking_service,
+        resume_data: Dict[str, Any]
+    ):
+        """Resume pipeline from a specific checkpoint."""
+        logger.info(f"🔄 Resuming pipeline from checkpoint: {checkpoint_id}")
+        
+        try:
+            stage = resume_data.get('stage')
+            
+            if stage == 'complete':
+                logger.info(f"✅ Pipeline {checkpoint_id} already complete")
+                return resume_data['data']
+            
+            # Load existing data based on completed stage
+            companies = None
+            enriched_companies = None
+            rankings = None
+            
+            if stage in ['companies', 'enriched_companies', 'rankings']:
+                companies = self.checkpoint_manager.load_checkpoint(checkpoint_id, 'companies')
+                
+            if stage in ['enriched_companies', 'rankings']:
+                enriched_companies = self.checkpoint_manager.load_checkpoint(checkpoint_id, 'enriched_companies')
+                
+            if stage == 'rankings':
+                rankings = self.checkpoint_manager.load_checkpoint(checkpoint_id, 'rankings')
+            
+            # Continue from where we left off
+            if companies is None:
+                logger.info("🔍 Stage 1: Company Discovery (from scratch)")
+                # This shouldn't happen if we're resuming, but handle it
+                companies = await pipeline_service.discover_companies(limit=50)
+                self.checkpoint_manager.save_checkpoint(checkpoint_id, 'companies', companies)
+            
+            if enriched_companies is None:
+                logger.info("👤 Stage 2: Profile Enrichment")
+                enriched_companies = await pipeline_service.enrich_profiles(companies)
+                self.checkpoint_manager.save_checkpoint(checkpoint_id, 'enriched_companies', enriched_companies)
+            
+            if rankings is None and ranking_service is not None:
+                logger.info("🏆 Stage 3: Founder Ranking")
+                # Extract founder profiles for ranking
+                founder_profiles = []
+                for ec in enriched_companies:
+                    for profile in ec.profiles:
+                        founder_profiles.append(profile)
+                
+                if founder_profiles:
+                    rankings = await ranking_service.rank_founders_batch(
+                        founder_profiles, 
+                        batch_size=5,
+                        use_enhanced=True
+                    )
+                    self.checkpoint_manager.save_checkpoint(checkpoint_id, 'rankings', rankings)
+                else:
+                    rankings = []
+            
+            # Mark as complete
+            result = {
+                'companies': enriched_companies,
+                'rankings': rankings or [],
+                'job_id': checkpoint_id
+            }
+            
+            self.checkpoint_manager.save_checkpoint(checkpoint_id, 'complete', result)
+            logger.info(f"✅ Pipeline {checkpoint_id} completed successfully")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"❌ Pipeline resume failed for {checkpoint_id}: {e}")
+            raise
+
     async def run_checkpointed_pipeline(
         self,
         pipeline_service,
@@ -270,11 +347,10 @@ class CheckpointedPipelineRunner:
             companies = self.checkpoint_manager.load_checkpoint(job_id, 'companies')
             if companies is None:
                 logger.info("🔍 Stage 1: Company Discovery")
-                companies = await pipeline_service.run_complete_pipeline_with_date_range(
-                    company_limit=params.get('limit', 50),
+                companies = await pipeline_service.discover_companies(
+                    limit=params.get('limit', 50),
                     categories=params.get('categories'),
                     regions=params.get('regions'),
-                    sources=params.get('sources'),
                     founded_after=params.get('founded_after'),
                     founded_before=params.get('founded_before')
                 )
@@ -282,13 +358,24 @@ class CheckpointedPipelineRunner:
             else:
                 logger.info("📂 Stage 1: Loaded companies from checkpoint")
             
+            # Stage 2: Profile Enrichment
+            enriched_companies = self.checkpoint_manager.load_checkpoint(job_id, 'enriched_companies')
+            if enriched_companies is None:
+                logger.info("👤 Stage 2: Profile Enrichment")
+                enriched_companies = await pipeline_service.enrich_profiles(companies)
+                self.checkpoint_manager.save_checkpoint(job_id, 'enriched_companies', enriched_companies)
+            else:
+                logger.info("📂 Stage 2: Loaded enriched companies from checkpoint")
+            
             if not companies:
                 raise ValueError("No companies found in discovery stage")
             
-            # Stage 2: Profile Collection (already included in pipeline)
-            # Companies already have profiles from pipeline
+            if not enriched_companies:
+                raise ValueError("No enriched companies found in enrichment stage")
+            
+            # Extract profiles data for further processing
             profiles_data = []
-            for ec in companies:
+            for ec in enriched_companies:
                 for profile in ec.profiles:
                     profiles_data.append({
                         'company_name': ec.company.name,
@@ -311,24 +398,24 @@ class CheckpointedPipelineRunner:
                     founder_profile = FounderProfile(
                         name=profile.person_name,
                         company_name=pd['company_name'],
-                        title=profile.title or "",
-                        linkedin_url=str(profile.linkedin_url),
-                        location=profile.location,
-                        about=profile.about,
-                        estimated_age=profile.estimated_age,
-                        experience_1_title=profile.experience_1_title,
-                        experience_1_company=profile.experience_1_company,
-                        experience_2_title=profile.experience_2_title,
-                        experience_2_company=profile.experience_2_company,
-                        experience_3_title=profile.experience_3_title,
-                        experience_3_company=profile.experience_3_company,
-                        education_1_school=profile.education_1_school,
-                        education_1_degree=profile.education_1_degree,
-                        education_2_school=profile.education_2_school,
-                        education_2_degree=profile.education_2_degree,
-                        skill_1=profile.skill_1,
-                        skill_2=profile.skill_2,
-                        skill_3=profile.skill_3
+                        title=getattr(profile, 'current_position', '') or "",
+                        linkedin_url=str(profile.linkedin_url) if profile.linkedin_url else "",
+                        location=getattr(profile, 'location', '') or "",
+                        about=getattr(profile, 'summary', '') or "",
+                        estimated_age=getattr(profile, 'estimated_age', None),
+                        experience_1_title=getattr(profile, 'experience_1_title', None),
+                        experience_1_company=getattr(profile, 'experience_1_company', None),
+                        experience_2_title=getattr(profile, 'experience_2_title', None),
+                        experience_2_company=getattr(profile, 'experience_2_company', None),
+                        experience_3_title=getattr(profile, 'experience_3_title', None),
+                        experience_3_company=getattr(profile, 'experience_3_company', None),
+                        education_1_school=getattr(profile, 'education_1_school', None),
+                        education_1_degree=getattr(profile, 'education_1_degree', None),
+                        education_2_school=getattr(profile, 'education_2_school', None),
+                        education_2_degree=getattr(profile, 'education_2_degree', None),
+                        skill_1=getattr(profile, 'skill_1', None),
+                        skill_2=getattr(profile, 'skill_2', None),
+                        skill_3=getattr(profile, 'skill_3', None)
                     )
                     founder_profiles.append((founder_profile, profile))
                 
@@ -357,12 +444,12 @@ class CheckpointedPipelineRunner:
             # Stage 4: Complete - Final result
             final_result = {
                 'job_id': job_id,
-                'companies': companies,
+                'companies': enriched_companies,
                 'profiles': profiles_data,
                 'rankings': rankings,
                 'completed_at': datetime.now(),
                 'stats': {
-                    'total_companies': len(companies),
+                    'total_companies': len(enriched_companies),
                     'total_founders': len(profiles_data),
                     'ranked_founders': len(rankings) if rankings else 0,
                     'high_confidence_founders': len([r for r in rankings if r.classification.confidence_score >= 0.75]) if rankings else 0

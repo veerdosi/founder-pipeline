@@ -323,8 +323,30 @@ Return a JSON object with this structure:
                 content = content[:-3]  # Remove ```
             content = content.strip()
             
+            # Handle cases where AI adds commentary after JSON
+            # Find the JSON portion by locating the first { and the last }
+            start_idx = content.find('{')
+            if start_idx == -1:
+                logger.warning("No JSON found in response for profiles with names")
+                return []
+            
+            # Find the matching closing brace
+            brace_count = 0
+            end_idx = start_idx
+            for i, char in enumerate(content[start_idx:], start_idx):
+                if char == '{':
+                    brace_count += 1
+                elif char == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        end_idx = i
+                        break
+            
+            # Extract just the JSON portion
+            json_content = content[start_idx:end_idx + 1]
+            
             import json
-            result = json.loads(content)
+            result = json.loads(json_content)
             
             profiles = []
             for profile_data in result.get("linkedin", []):
@@ -343,8 +365,8 @@ Return a JSON object with this structure:
                     person_name=name,
                     linkedin_url=url,
                     company_name=company.name,
-                    title=self._extract_title_from_result(url, combined),
-                    role=self._extract_role_from_title(name)
+                    current_position=self._extract_title_from_result(url, combined),
+                    summary=""  # Will be enriched later
                 )
                 profiles.append(profile)
             
@@ -431,8 +453,30 @@ Return a JSON object with this structure:
                 content = content[:-3]  # Remove ```
             content = content.strip()
             
+            # Handle cases where AI adds commentary after JSON
+            # Find the JSON portion by locating the first { and the last }
+            start_idx = content.find('{')
+            if start_idx == -1:
+                logger.warning("No JSON found in response for profiles general")
+                return []
+            
+            # Find the matching closing brace
+            brace_count = 0
+            end_idx = start_idx
+            for i, char in enumerate(content[start_idx:], start_idx):
+                if char == '{':
+                    brace_count += 1
+                elif char == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        end_idx = i
+                        break
+            
+            # Extract just the JSON portion
+            json_content = content[start_idx:end_idx + 1]
+            
             import json
-            result = json.loads(content)
+            result = json.loads(json_content)
             
             profiles = []
             for profile_data in result.get("linkedin", []):
@@ -451,8 +495,8 @@ Return a JSON object with this structure:
                     person_name=name,
                     linkedin_url=url,
                     company_name=company.name,
-                    title=self._extract_title_from_result(url, combined),
-                    role=self._extract_role_from_title(name)
+                    current_position=self._extract_title_from_result(url, combined),
+                    summary=""  # Will be enriched later
                 )
                 profiles.append(profile)
             

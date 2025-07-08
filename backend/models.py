@@ -34,6 +34,7 @@ class Company(BaseModel):
     uuid: str = Field(default_factory=lambda: str(uuid4()))
     name: str
     description: Optional[str] = None
+    short_description: Optional[str] = None
     website: Optional[HttpUrl] = None
     founded_year: Optional[int] = None
     ai_focus: Optional[str] = None
@@ -41,8 +42,20 @@ class Company(BaseModel):
     funding_total_usd: Optional[float] = None
     funding_stage: Optional[FundingStage] = None
     city: Optional[str] = None
+    region: Optional[str] = None
     country: Optional[str] = None
+    founders: Optional[List[str]] = Field(default_factory=list)
+    investors: Optional[List[str]] = Field(default_factory=list)
+    categories: Optional[List[str]] = Field(default_factory=list)
+    linkedin_url: Optional[str] = None
+    employee_count: Optional[int] = None
+    revenue_millions: Optional[float] = None
+    valuation_millions: Optional[float] = None
+    last_funding_date: Optional[date] = None
+    tech_stack: Optional[List[str]] = Field(default_factory=list)
+    competitors: Optional[List[str]] = Field(default_factory=list)
     source_url: Optional[str] = None
+    extraction_date: Optional[datetime] = None
     confidence_score: float = Field(default=0.0, ge=0.0, le=1.0)
     
     class Config:
