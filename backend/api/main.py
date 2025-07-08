@@ -315,7 +315,7 @@ async def get_companies():
 
 @app.get("/api/companies/export")
 async def export_companies():
-    """Export companies from latest checkpointed results."""
+    """Export companies to CSV file in outputs folder."""
     try:
         enriched_companies = safe_get_companies()
         logger.info(f"📊 Export request - Found {len(enriched_companies)} companies in latest_results")
@@ -324,7 +324,6 @@ async def export_companies():
             logger.warning("No companies found for export")
             raise HTTPException(status_code=404, detail="No companies discovered yet. Run a discovery first.")
 
-        output = io.StringIO()
         company_records = []
         
         for i, ec in enumerate(enriched_companies):
@@ -366,28 +365,31 @@ async def export_companies():
         
         logger.info(f"📈 Created {len(company_records)} company records for CSV")
         
-        df = pd.DataFrame(company_records)
-        df.to_csv(output, index=False)
-        
-        output.seek(0)
-        csv_content = output.getvalue()
-        logger.info(f"📄 Generated CSV with {len(csv_content)} characters")
+        # Save to outputs folder
+        import os
+        output_dir = "/Users/veerdosi/Documents/code/github/initiation-pipeline/output"
+        os.makedirs(output_dir, exist_ok=True)
         
         filename = f"companies_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        filepath = os.path.join(output_dir, filename)
         
-        return StreamingResponse(
-            io.BytesIO(csv_content.encode('utf-8')),
-            media_type="text/csv",
-            headers={
-                "Content-Disposition": f"attachment; filename={filename}",
-                "Content-Type": "text/csv; charset=utf-8"
-            }
-        )
+        df = pd.DataFrame(company_records)
+        df.to_csv(filepath, index=False)
+        
+        logger.info(f"📄 Saved CSV to: {filepath}")
+        
+        return {
+            "status": "success",
+            "message": f"Companies exported successfully to {filename}",
+            "filepath": filepath,
+            "companies_count": len(company_records)
+        }
+        
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"❌ Companies export failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")=404, detail="No companies discovered yet. Run a discovery first.")
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
     output = io.StringIO()
     company_records = []
@@ -494,30 +496,58 @@ async def get_rankings():
 
 @app.get("/api/founders/rankings/export")
 async def export_rankings():
-    """Export founder rankings from latest checkpointed results."""
-    rankings = latest_results.get("rankings", [])
-    if not rankings:
-        raise HTTPException(status_code=404, detail="No rankings available to export. Run a ranking job first.")
+    """Export founder rankings to CSV file in outputs folder."""
+    try:
+        rankings = safe_get_rankings()
+        logger.info(f"📊 Export request - Found {len(rankings)} rankings in latest_results")
+        
+        if not rankings:
+            logger.warning("No rankings found for export")
+            raise HTTPException(status_code=404, detail="No rankings available to export. Run a ranking job first.")
 
-    output = io.StringIO()
-    ranking_records = []
-    for r in rankings:
-        ranking_records.append({
-            "founder_name": r.profile.name,
-            "company_name": r.profile.company_name,
-            "linkedin_url": r.profile.linkedin_url,
-            "l_level": r.classification.level.value,
-            "confidence_score": r.classification.confidence_score,
-            "reasoning": r.classification.reasoning,
-            "evidence": " | ".join(r.classification.evidence),
-        })
-    df = pd.DataFrame(ranking_records)
-    df.to_csv(output, index=False)
-    
-    output.seek(0)
-    filename = f"founder_rankings_{datetime.now().strftime('%Y%m%d')}.csv"
-    return StreamingResponse(
-        io.BytesIO(output.getvalue().encode()),
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
-    )
+        ranking_records = []
+        for i, r in enumerate(rankings):
+            try:
+                record = {
+                    "founder_name": r.profile.name,
+                    "company_name": r.profile.company_name,
+                    "linkedin_url": r.profile.linkedin_url,
+                    "l_level": r.classification.level.value,
+                    "confidence_score": r.classification.confidence_score,
+                    "reasoning": r.classification.reasoning,
+                    "evidence": " | ".join(r.classification.evidence),
+                    "verification_sources": " | ".join(r.classification.verification_sources),
+                    "timestamp": r.timestamp
+                }
+                ranking_records.append(record)
+            except Exception as ranking_error:
+                logger.error(f"Error processing ranking {i}: {ranking_error}")
+                continue
+        
+        logger.info(f"📈 Created {len(ranking_records)} ranking records for CSV")
+        
+        # Save to outputs folder
+        import os
+        output_dir = "/Users/veerdosi/Documents/code/github/initiation-pipeline/output"
+        os.makedirs(output_dir, exist_ok=True)
+        
+        filename = f"founder_rankings_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        filepath = os.path.join(output_dir, filename)
+        
+        df = pd.DataFrame(ranking_records)
+        df.to_csv(filepath, index=False)
+        
+        logger.info(f"📄 Saved CSV to: {filepath}")
+        
+        return {
+            "status": "success",
+            "message": f"Founder rankings exported successfully to {filename}",
+            "filepath": filepath,
+            "rankings_count": len(ranking_records)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Rankings export failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")

@@ -25,6 +25,7 @@ export default function App() {
   const [isRunning, setIsRunning] = useState(false)
   const [steps, setSteps] = useState<PipelineStatus[]>([])
   const [results, setResults] = useState<PipelineResults | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [startMode, setStartMode] = useState<'fresh' | 'resume'>('fresh')
   const [checkpoints, setCheckpoints] = useState<CheckpointInfo[]>([])
@@ -207,6 +208,19 @@ export default function App() {
         })
 
         updateStep('Preparing Results', 'completed', 'Pipeline completed successfully')
+        
+        // Automatically export CSVs
+        updateStep('Saving Results', 'running', 'Saving CSV files...')
+        try {
+          await downloadCSV('companies')
+          if (foundersData.length > 0) {
+            await downloadCSV('founders')
+          }
+          updateStep('Saving Results', 'completed', 'CSV files saved to output folder')
+        } catch (exportError) {
+          updateStep('Saving Results', 'error', 'Failed to save CSV files')
+          console.error('Auto-export failed:', exportError)
+        }
       }
 
       // Reload checkpoints after completion
@@ -230,17 +244,16 @@ export default function App() {
       const response = await fetch(endpoint)
       if (!response.ok) throw new Error(`Export failed: ${response.statusText}`)
       
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${type}_${new Date().toISOString().split('T')[0]}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      window.URL.revokeObjectURL(url)
+      const result = await response.json()
+      
+      if (result.status === 'success') {
+        setSuccess(`✅ ${result.message}`)
+        setTimeout(() => setSuccess(null), 5000) // Clear after 5 seconds
+      } else {
+        throw new Error(result.message || 'Export failed')
+      }
     } catch (err) {
-      setError(`Download failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      setError(`Export failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
     }
   }
 
@@ -365,6 +378,13 @@ export default function App() {
           </div>
         )}
 
+        {/* Success Display */}
+        {success && (
+          <div className="status-message status-success animate-fade-in">
+            <p>{success}</p>
+          </div>
+        )}
+
         {/* Pipeline Steps */}
         {steps.length > 0 && (
           <div className="progress-container animate-fade-in">
@@ -397,7 +417,7 @@ export default function App() {
                   onClick={() => downloadCSV('companies')}
                   className="btn btn-success"
                 >
-                  📊 Download Companies CSV
+                  💾 Save Companies CSV
                 </button>
               </div>
               <div className="result-card">
@@ -408,7 +428,7 @@ export default function App() {
                   className="btn btn-success"
                   disabled={results.founders.length === 0}
                 >
-                  👥 Download Founders CSV
+                  💾 Save Founders CSV
                 </button>
               </div>
             </div>
