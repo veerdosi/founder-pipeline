@@ -29,7 +29,6 @@ class ClaudeSonnet4RankingService:
     
     def __init__(self):
         self.anthropic_client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-        self.perplexity_verifier = PerplexityVerificationService()
         
     async def rank_founder(
         self, 

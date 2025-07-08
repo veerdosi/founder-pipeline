@@ -70,7 +70,7 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
         sources: Optional[List[str]] = None
     ) -> List[Company]:
         """Discover companies using comprehensive 20+ source monitoring."""
-        logger.info(f"🔍 Starting comprehensive discovery from 20+ sources...")
+        logger.info(f"🚀 Starting discovery: {limit} companies from 20+ sources...")
         
         companies = await self.find_companies(
             limit=limit,
@@ -89,6 +89,7 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
         founded_year: Optional[int] = None
     ) -> List[Company]:
         """Find AI companies using Exa search."""
+        start_time = time.time()
         year_context = f" (founded in {founded_year})" if founded_year else ""
         logger.info(f"🔍 Finding {limit} AI companies with Exa{year_context}...")
         
@@ -96,14 +97,15 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
         
         # Generate search queries with optional year filtering
         queries = self._generate_search_queries(categories, regions, founded_year)
+        logger.info(f"📝 Running {len(queries)} search queries...")
         
         all_companies = []
         # Increase results per query to account for deduplication
         results_per_query = max(8, (limit * 2) // len(queries))  # 2x multiplier for dedup buffer
         
-        # Execute searches
+        # Execute searches with progress tracking
         for i, query in enumerate(queries):
-            logger.info(f"  Query {i+1}/{len(queries)}: {query[:50]}...")
+            logger.info(f"🔍 [{i+1}/{len(queries)}] {query[:50]}...")
             
             try:
                 await self.rate_limiter.acquire()
@@ -143,16 +145,22 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
                             "producthunt.com"
                         ]
                     )
+                    if result and result.results:
+                        logger.info(f"  Found {len(result.results)} articles")
+                    else:
+                        logger.debug(f"  No results for query: {query}")
+                        continue
                 except Exception as search_error:
-                    logger.error(f"Exa search failed for query '{query}': {search_error}")
+                    logger.error(f"  Search failed: {search_error}")
                     continue
                 
                 if not result or not result.results:
-                    logger.warning(f"No results for query: {query}")
                     continue
                 
                 # Extract company data from results with individual error handling
-                for item in result.results:
+                companies_found_this_query = 0
+                
+                for j, item in enumerate(result.results):
                     try:
                         company = await self._extract_company_data(
                             item.text,
@@ -162,9 +170,14 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
                         )
                         if company:
                             all_companies.append(company)
+                            companies_found_this_query += 1
+                            logger.info(f"  ✅ {company.name}")
                     except Exception as extract_error:
-                        logger.warning(f"Failed to extract data from {item.url}: {extract_error}")
+                        logger.debug(f"  Failed to extract from {item.url}: {extract_error}")
                         continue
+                
+                if companies_found_this_query > 0:
+                    logger.info(f"  📊 {companies_found_this_query} companies found ({len(all_companies)} total)")
                         
             except Exception as e:
                 logger.error(f"Unexpected error with query '{query}': {e}")
@@ -172,7 +185,9 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
         
         # Deduplicate companies
         unique_companies = self._deduplicate_companies(all_companies)
-        logger.info(f"✅ Found {len(unique_companies)} unique AI companies")
+        
+        elapsed_time = time.time() - start_time
+        logger.info(f"✅ Discovery complete: {len(unique_companies)} unique companies ({elapsed_time:.1f}s)")
         
         return unique_companies[:limit]
     
@@ -265,11 +280,15 @@ If the company was not founded in {target_year}, return null for the founded_yea
 """
         
         prompt = f"""
-Extract company information from this content. Return valid JSON only:
+Extract company information from this content. If no specific company is mentioned or this is just general AI news, return null.
+
+IMPORTANT: Return ONLY valid JSON in the exact format shown below. Do not add any explanations or extra text.
 
 Content: {content[:1500]}
 Title: {title}
 {year_instruction}
+
+If a specific company is mentioned, return this JSON structure:
 {{
     "name": "exact company name",
     "description": "what the company does in 1-2 sentences",
@@ -288,8 +307,11 @@ Title: {title}
     "website": "company website if mentioned",
     "linkedin_url": "company LinkedIn URL if mentioned (format: https://linkedin.com/company/...)"
 }}
+
+If no specific company is mentioned, return: null
 """
         
+        result = None  # Initialize result to avoid NoneType errors
         try:
             await self.rate_limiter.acquire()
             
@@ -302,7 +324,7 @@ Title: {title}
                     timeout=30.0  # 30 second timeout
                 )
             except Exception as api_error:
-                logger.error(f"OpenAI API call failed for {url}: {api_error}")
+                logger.debug(f"OpenAI API call failed for {url}: {api_error}")
                 return None
             
             if not response or not response.choices:
@@ -326,6 +348,22 @@ Title: {title}
             
             raw_content = raw_content.strip()
             
+            # Handle common AI response patterns
+            if raw_content.lower().startswith("based on"):
+                # AI sometimes adds explanatory text before JSON
+                lines = raw_content.split('\n')
+                for i, line in enumerate(lines):
+                    if line.strip().startswith('{') or line.strip().lower() == 'null':
+                        raw_content = '\n'.join(lines[i:])
+                        break
+            
+            # Clean up any remaining text around JSON
+            raw_content = raw_content.strip()
+            if raw_content.startswith("Here's the JSON:") or raw_content.startswith("Here is the JSON:"):
+                raw_content = raw_content.split(":", 1)[1].strip()
+            
+            raw_content = raw_content.strip()
+            
             # Parse JSON with error handling
             try:
                 result = json.loads(raw_content)
@@ -334,54 +372,121 @@ Title: {title}
                 logger.debug(f"Raw content: {raw_content[:500]}...")
                 return None
             
-            # Validate required fields
-            if not result.get("name"):
-                logger.warning(f"No company name found for {url}")
+            # Handle null response (no company found)
+            if result is None:
+                logger.debug(f"No company found in content for {url}")
                 return None
+            
+            # Handle different JSON structures
+            if not isinstance(result, dict):
+                logger.warning(f"Invalid JSON structure for {url} - Expected dict or null, got {type(result)}")
+                logger.debug(f"Actual result: {result}")
+                
+                # Try to handle common non-dict structures
+                if isinstance(result, list) and len(result) > 0 and isinstance(result[0], dict):
+                    logger.info(f"Converting list to dict for {url}")
+                    result = result[0]
+                elif isinstance(result, str):
+                    # Check if it's a string that contains "null" or similar
+                    if result.lower().strip() in ['null', 'none', 'no company']:
+                        logger.debug(f"AI returned no company indication for {url}")
+                        return None
+                    logger.warning(f"AI returned string instead of JSON for {url}: {result[:200]}...")
+                    return None
+                else:
+                    return None
+            
+            # Validate required fields
+            if not result.get("name") or not isinstance(result.get("name"), str):
+                logger.warning(f"No valid company name found for {url}")
+                return None
+            
+            # Helper function to safely get values from result
+            def safe_get(key, default=None):
+                try:
+                    return result.get(key, default) if result and isinstance(result, dict) else default
+                except Exception:
+                    return default
             
             # Map funding stage with error handling
             funding_stage = None
-            if result.get("funding_stage"):
+            funding_stage_raw = safe_get("funding_stage")
+            if funding_stage_raw and isinstance(funding_stage_raw, str):
                 try:
-                    funding_stage = FundingStage(result["funding_stage"])
+                    # Normalize funding stage string
+                    raw_stage = funding_stage_raw.lower().strip()
+                    
+                    # Common funding stage mappings
+                    stage_mappings = {
+                        "early stage vc": FundingStage.SEED,
+                        "early stage": FundingStage.SEED,
+                        "early-stage": FundingStage.SEED,
+                        "pre-seed": FundingStage.PRE_SEED,
+                        "pre seed": FundingStage.PRE_SEED,
+                        "preseed": FundingStage.PRE_SEED,
+                        "seed": FundingStage.SEED,
+                        "series a": FundingStage.SERIES_A,
+                        "series-a": FundingStage.SERIES_A,
+                        "series_a": FundingStage.SERIES_A,
+                        "series b": FundingStage.SERIES_B,
+                        "series-b": FundingStage.SERIES_B,
+                        "series_b": FundingStage.SERIES_B,
+                        "series c": FundingStage.SERIES_C,
+                        "series-c": FundingStage.SERIES_C,
+                        "series_c": FundingStage.SERIES_C,
+                        "growth": FundingStage.GROWTH,
+                        "growth stage": FundingStage.GROWTH,
+                        "ipo": FundingStage.IPO,
+                        "public": FundingStage.IPO,
+                        "acquired": FundingStage.ACQUIRED,
+                        "acquisition": FundingStage.ACQUIRED,
+                        "unknown": FundingStage.UNKNOWN
+                    }
+                    
+                    if raw_stage in stage_mappings:
+                        funding_stage = stage_mappings[raw_stage]
+                    else:
+                        # Try direct enum lookup
+                        funding_stage = FundingStage(funding_stage_raw)
                 except ValueError as stage_error:
-                    logger.warning(f"Invalid funding stage '{result['funding_stage']}' for {result['name']}: {stage_error}")
+                    logger.warning(f"Invalid funding stage '{funding_stage_raw}' for {safe_get('name', 'unknown')}: {stage_error}")
                     funding_stage = FundingStage.UNKNOWN
             
             # Preprocess website URL
-            website = result.get("website")
-            if website and not website.startswith(('http://', 'https://')):
+            website = safe_get("website")
+            if website and isinstance(website, str) and not website.startswith(('http://', 'https://')):
                 website = f'https://{website}'
             
             # Process LinkedIn URL
-            linkedin_url = result.get("linkedin_url")
-            if linkedin_url and not linkedin_url.startswith(('http://', 'https://')):
+            linkedin_url = safe_get("linkedin_url")
+            if linkedin_url and isinstance(linkedin_url, str) and not linkedin_url.startswith(('http://', 'https://')):
                 linkedin_url = f'https://{linkedin_url}'
             
             # Convert funding from millions to USD
-            funding_millions = result.get("funding_amount_millions")
+            funding_millions = safe_get("funding_amount_millions")
             funding_total_usd = None
             if funding_millions and isinstance(funding_millions, (int, float)):
                 funding_total_usd = funding_millions * 1_000_000
             
             # Create Company object with error handling
             try:
+                company_name = safe_get("name", "")
                 company = Company(
-                    uuid=f"comp_{hash(result.get('name', ''))}", # Generate simple UUID
-                    name=clean_text(result.get("name", "")),
-                    description=clean_text(result.get("description", "")),
-                    short_description=clean_text(result.get("short_description", "")),
-                    founded_year=result.get("founded_year"),
+                    uuid=f"comp_{hash(company_name)}", # Generate simple UUID
+                    name=clean_text(company_name),
+                    description=clean_text(safe_get("description", "")),
+                    short_description=clean_text(safe_get("short_description", "")),
+                    founded_year=safe_get("founded_year"),
                     funding_total_usd=funding_total_usd,
                     funding_stage=funding_stage,
-                    founders=result.get("founders", []),
-                    investors=result.get("investors", []),
-                    categories=result.get("categories", []),
-                    city=clean_text(result.get("city", "")),
-                    region=clean_text(result.get("region", "")),
-                    country=clean_text(result.get("country", "")),
-                    ai_focus=clean_text(result.get("ai_focus", "")),
-                    sector=clean_text(result.get("sector", "")),
+                    founders=safe_get("founders", []),
+                    investors=safe_get("investors", []),
+                    categories=safe_get("categories", []),
+                    city=clean_text(safe_get("city", "")),
+                    region=clean_text(safe_get("region", "")),
+                    country=clean_text(safe_get("country", "")),
+                    ai_focus=clean_text(safe_get("ai_focus", "")),
+                    sector=clean_text(safe_get("sector", "")),
                     website=website,
                     linkedin_url=linkedin_url,
                     source_url=url,
@@ -396,11 +501,18 @@ Title: {title}
                 return company
                 
             except Exception as company_error:
-                logger.error(f"Failed to create Company object for {result.get('name', 'unknown')}: {company_error}")
+                company_name = safe_get('name', 'unknown')
+                logger.error(f"Failed to create Company object for {company_name}: {company_error}")
                 return None
             
         except Exception as e:
-            logger.error(f"Error extracting company data: {e}")
+            company_name = "unknown"
+            try:
+                if result is not None and isinstance(result, dict):
+                    company_name = result.get('name', 'unknown')
+            except Exception:
+                pass  # Keep default company_name
+            logger.error(f"Error extracting company data from {url} (company: {company_name}): {e}")
             return None
     
     def _deduplicate_companies(self, companies: List[Company]) -> List[Company]:

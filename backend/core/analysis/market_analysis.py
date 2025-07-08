@@ -13,6 +13,7 @@ from openai import AsyncOpenAI
 from .. import MarketAnalysisService
 from ...core import settings
 from ...utils.data_processing import clean_text
+from ...utils.rate_limiter import RateLimiter
 from ...models import MarketMetrics, MarketStage
 
 import logging

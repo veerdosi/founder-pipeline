@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from .. import ProfileEnrichmentService
 from ...core import settings
 from ...utils.data_processing import clean_text
+from ...utils.rate_limiter import RateLimiter
 from ...validators import validate_linkedin_url
 from ...models import Company, LinkedInProfile
 

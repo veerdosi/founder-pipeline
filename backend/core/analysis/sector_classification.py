@@ -9,6 +9,7 @@ from datetime import datetime
 from openai import AsyncOpenAI
 
 from ...core import settings
+from ...utils.rate_limiter import RateLimiter
 from ...validators import validate_text_length
 
 import logging

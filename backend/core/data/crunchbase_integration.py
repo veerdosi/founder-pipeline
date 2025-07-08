@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass
 
 from ...core import settings
+from ...utils.rate_limiter import RateLimiter
 from ...validators import validate_url, validate_funding_amount, validate_year
 
 import logging
