@@ -181,38 +181,22 @@ class FounderRankingService:
         logger.info(f"✅ Exported {len(df)} ranked founders to {output_path}")
         return output_path
     
-    def _profile_to_ai_dict(self, profile) -> Dict[str, Any]:
-        """Convert profile to dict for AI ranking (handles both FounderProfile and LinkedInProfile)."""
-        # Handle LinkedInProfile objects
-        if hasattr(profile, 'person_name'):
-            data = {
-                "name": profile.person_name,
-                "company_name": getattr(profile, 'company_name', None),
-                "title": getattr(profile, 'current_position', None),
-                "about": getattr(profile, 'summary', None),
-                "location": getattr(profile, 'location', None),
-                "estimated_age": None,
-                "experience_1_title": None,
-                "experience_1_company": getattr(profile, 'company_name', None),
-                "education_1_school": profile.education[0] if profile.education else None,
-                "education_1_degree": None,
-                "linkedin_url": getattr(profile, 'linkedin_url', None)
-            }
-        else:
-            # Handle FounderProfile objects
-            data = {
-                "name": profile.name,
-                "company_name": profile.company_name,
-                "title": profile.title,
-                "about": profile.about,
-                "location": profile.location,
-                "estimated_age": profile.estimated_age,
-                "experience_1_title": profile.experience_1_title,
-                "experience_1_company": profile.experience_1_company,
-                "education_1_school": profile.education_1_school,
-                "education_1_degree": profile.education_1_degree,
-                "linkedin_url": profile.linkedin_url
-            }
+    def _profile_to_ai_dict(self, profile: FounderProfile) -> Dict[str, Any]:
+        """Convert profile to dict for AI ranking (includes enhanced data if available)."""
+        # Basic profile data
+        data = {
+            "name": profile.name,
+            "company_name": profile.company_name,
+            "title": profile.title,
+            "about": profile.about,
+            "location": profile.location,
+            "estimated_age": profile.estimated_age,
+            "experience_1_title": profile.experience_1_title,
+            "experience_1_company": profile.experience_1_company,
+            "education_1_school": profile.education_1_school,
+            "education_1_degree": profile.education_1_degree,
+            "linkedin_url": profile.linkedin_url
+        }
         
         # Add enhanced data if available (for better AI ranking)
         if profile.has_enhanced_data():

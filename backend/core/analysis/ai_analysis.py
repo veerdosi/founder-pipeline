@@ -1,4 +1,4 @@
-"""AI system for founder ranking using Claude Sonnet 4 with Perplexity fallback."""
+"""AI system for founder ranking using Claude Sonnet 4."""
 
 import asyncio
 from typing import Dict, List, Any, Optional
@@ -7,7 +7,7 @@ import json
 
 import anthropic
 
-from ...core.config import settings
+from ...core import settings
 
 import logging
 logger = logging.getLogger(__name__)
@@ -24,12 +24,11 @@ class FounderAnalysisResult:
 
 
 class ClaudeSonnet4RankingService:
-    """Claude Sonnet 4 ranking service for L1-L10 founder classification with Perplexity fallback."""
+    """Claude Sonnet 4 ranking service for L1-L10 founder classification."""
     
     def __init__(self):
         self.anthropic_client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
         self.perplexity_verifier = None  # Lazy load to avoid circular import
-        self.perplexity_fallback = None  # Lazy load Perplexity fallback
         
     def _get_perplexity_verifier(self):
         """Lazy load perplexity verifier to avoid circular import."""
@@ -37,13 +36,6 @@ class ClaudeSonnet4RankingService:
             from ..ranking.verification_service import RealTimeFounderVerifier
             self.perplexity_verifier = RealTimeFounderVerifier()
         return self.perplexity_verifier
-    
-    def _get_perplexity_fallback(self):
-        """Lazy load perplexity fallback service."""
-        if self.perplexity_fallback is None:
-            from .perplexity_ranking import PerplexityRankingService
-            self.perplexity_fallback = PerplexityRankingService()
-        return self.perplexity_fallback
         
     async def rank_founder(
         self, 
@@ -51,30 +43,20 @@ class ClaudeSonnet4RankingService:
         company_data: Dict[str, Any] = None,
         use_verification: bool = True
     ) -> FounderAnalysisResult:
-        """Rank a single founder using Claude Sonnet 4 with Perplexity fallback."""
+        """Rank a single founder using Claude Sonnet 4."""
         
         founder_name = founder_data.get('name', 'Unknown')
         company_name = company_data.get('name', '') if company_data else founder_data.get('company_name', '')
         
         logger.info(f"Ranking founder: {founder_name}")
         
-        # Step 1: Try Claude Sonnet 4 first
+        # Step 1: Initial ranking with Claude Sonnet 4
         initial_ranking = await self._analyze_with_claude(founder_data, company_data)
         
-        # Step 2: If Claude fails, fall back to Perplexity
         if not initial_ranking:
-            logger.warning(f"Claude failed for {founder_name}, falling back to Perplexity")
-            try:
-                perplexity_service = self._get_perplexity_fallback()
-                result = await perplexity_service.rank_founder(founder_data, company_data)
-                # Mark as fallback result
-                result.reasoning = f"[PERPLEXITY FALLBACK] {result.reasoning}"
-                return result
-            except Exception as e:
-                logger.error(f"Perplexity fallback also failed for {founder_name}: {e}")
-                return self._create_fallback_result(founder_name)
+            return self._create_fallback_result(founder_name)
         
-        # Step 3: Verification with Perplexity (if enabled)
+        # Step 2: Verification with Perplexity (if enabled)
         verification_data = {}
         if use_verification and initial_ranking.get('experience_level'):
             try:
@@ -89,7 +71,7 @@ class ClaudeSonnet4RankingService:
                 logger.warning(f"Perplexity verification failed for {founder_name}: {e}")
                 verification_data = {}
         
-        # Step 4: Final ranking with verification data
+        # Step 3: Final ranking with verification data
         final_ranking = await self._finalize_ranking_with_verification(
             initial_ranking, verification_data
         )
@@ -193,18 +175,8 @@ Be conservative - require strong evidence for higher levels."""
             
             return json.loads(content)
             
-        except anthropic.BadRequestError as e:
-            logger.error(f"Claude bad request: {e}")
-            return None
-        except anthropic.RateLimitError as e:
-            logger.error(f"Claude rate limit: {e}")
-            return None
         except Exception as e:
-            error_msg = str(e)
-            if "529" in error_msg or "overloaded" in error_msg.lower():
-                logger.error(f"Claude overloaded (529): {e}")
-            else:
-                logger.error(f"Claude analysis failed: {e}")
+            logger.error(f"Claude analysis failed: {e}")
             return None
     
     def _prepare_founder_context(
