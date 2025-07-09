@@ -380,11 +380,15 @@ class CheckpointedPipelineRunner:
             
             # Load existing data based on completed stage
             companies = None
+            enhanced_companies = None
             enriched_companies = None
             rankings = None
             
-            if stage in ['companies', 'enriched_companies', 'rankings']:
+            if stage in ['companies', 'enhanced_companies', 'enriched_companies', 'rankings']:
                 companies = self.checkpoint_manager.load_checkpoint(checkpoint_id, 'companies')
+                
+            if stage in ['enhanced_companies', 'enriched_companies', 'rankings']:
+                enhanced_companies = self.checkpoint_manager.load_checkpoint(checkpoint_id, 'enhanced_companies')
                 
             if stage in ['enriched_companies', 'rankings']:
                 enriched_companies = self.checkpoint_manager.load_checkpoint(checkpoint_id, 'enriched_companies')
@@ -395,13 +399,17 @@ class CheckpointedPipelineRunner:
             # Continue from where we left off
             if companies is None:
                 logger.info("🔍 Stage 1: Company Discovery (from scratch)")
-                # This shouldn't happen if we're resuming, but handle it
                 companies = await pipeline_service.discover_companies(limit=50)
                 self.checkpoint_manager.save_checkpoint(checkpoint_id, 'companies', companies)
             
+            if enhanced_companies is None:
+                logger.info("🔄 Stage 1.5: Company Enhancement")
+                enhanced_companies = await pipeline_service.enhance_companies(companies)
+                self.checkpoint_manager.save_checkpoint(checkpoint_id, 'enhanced_companies', enhanced_companies)
+            
             if enriched_companies is None:
                 logger.info("👤 Stage 2: Profile Enrichment")
-                enriched_companies = await pipeline_service.enrich_profiles(companies)
+                enriched_companies = await pipeline_service.enrich_profiles(enhanced_companies)
                 self.checkpoint_manager.save_checkpoint(checkpoint_id, 'enriched_companies', enriched_companies)
             
             if rankings is None and ranking_service is not None:
@@ -486,11 +494,20 @@ class CheckpointedPipelineRunner:
                 if not csv_path.exists():
                     await self._export_companies_csv(companies, job_id)
             
+            # Stage 1.5: Company Enhancement with Crunchbase data fusion
+            enhanced_companies = self.checkpoint_manager.load_checkpoint(job_id, 'enhanced_companies')
+            if enhanced_companies is None:
+                logger.info("🔄 Stage 1.5: Company Enhancement")
+                enhanced_companies = await pipeline_service.enhance_companies(companies)
+                self.checkpoint_manager.save_checkpoint(job_id, 'enhanced_companies', enhanced_companies)
+            else:
+                logger.info("📂 Stage 1.5: Loaded enhanced companies from checkpoint")
+            
             # Stage 2: Profile Enrichment
             enriched_companies = self.checkpoint_manager.load_checkpoint(job_id, 'enriched_companies')
             if enriched_companies is None:
                 logger.info("👤 Stage 2: Profile Enrichment")
-                enriched_companies = await pipeline_service.enrich_profiles(companies)
+                enriched_companies = await pipeline_service.enrich_profiles(enhanced_companies)
                 self.checkpoint_manager.save_checkpoint(job_id, 'enriched_companies', enriched_companies)
                 
             else:

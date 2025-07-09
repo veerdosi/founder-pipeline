@@ -73,8 +73,50 @@ class InitiationPipeline:
         
         return companies
     
+    async def enhance_companies(self, companies: List[Company]) -> List[Company]:
+        """Stage 1.5: Company Enhancement with Crunchbase data fusion."""
+        from ..data.data_fusion import DataFusionService
+        
+        print("🔄 Enhancing companies with Crunchbase data fusion...")
+        enhanced_companies = []
+        
+        # Initialize data fusion service
+        fusion_service = DataFusionService()
+        
+        for i, company in enumerate(companies):
+            try:
+                print(f"   🔄 [{i+1}/{len(companies)}] Fusing data for {company.name}...")
+                
+                # Enhanced company data with Crunchbase fusion
+                fused_company_data = await fusion_service.fuse_company_data(company)
+                
+                # Update company with fused data
+                company.description = fused_company_data.description or company.description
+                company.funding_total_usd = fused_company_data.total_funding_usd or company.funding_total_usd
+                company.funding_stage = fused_company_data.funding_stage or company.funding_stage
+                company.founded_year = fused_company_data.founded_year or company.founded_year
+                company.founders = fused_company_data.founders or company.founders
+                
+                # Add additional fused data as attributes
+                company.crunchbase_url = fused_company_data.crunchbase_url
+                company.linkedin_url = fused_company_data.linkedin_url
+                company.employee_count = fused_company_data.employee_count
+                company.data_quality_score = fused_company_data.data_quality_score
+                company.confidence_score = fused_company_data.confidence_score
+                
+                enhanced_companies.append(company)
+                
+                print(f"   ✅ [{i+1}/{len(companies)}] Enhanced {company.name} with Crunchbase data (quality: {fused_company_data.data_quality_score:.2f})")
+                
+            except Exception as e:
+                logger.error(f"Error enhancing {company.name}: {e}")
+                # Add company without enhancement on error
+                enhanced_companies.append(company)
+        
+        return enhanced_companies
+
     async def enrich_profiles(self, companies: List[Company]) -> List[EnrichedCompany]:
-        """Stage 2: Profile Enrichment - separate method for checkpointing."""
+        """Stage 2: Profile Enrichment - find LinkedIn profiles using enhanced company data."""
         print("👤 Finding LinkedIn profiles...")
         enriched_companies = []
         
@@ -82,7 +124,7 @@ class InitiationPipeline:
             try:
                 print(f"   👤 [{i+1}/{len(companies)}] Processing {company.name}...")
                 
-                # Find profiles with timeout and error handling
+                # Find profiles with enhanced company data
                 try:
                     profiles = await self.profile_enrichment.find_profiles(company)
                 except Exception as profile_error:
