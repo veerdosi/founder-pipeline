@@ -26,9 +26,9 @@ class Settings(BaseSettings):
     log_level: str = Field("INFO", env="LOG_LEVEL")
     log_file: Optional[str] = Field(None, env="LOG_FILE")
     
-    # Rate Limiting
-    requests_per_minute: int = Field(30, env="REQUESTS_PER_MINUTE")
-    concurrent_requests: int = Field(3, env="CONCURRENT_REQUESTS")
+    # Rate Limiting - increased for better performance
+    requests_per_minute: int = Field(60, env="REQUESTS_PER_MINUTE")  # Increased from 30
+    concurrent_requests: int = Field(5, env="CONCURRENT_REQUESTS")   # Increased from 3
     
     # Output Settings
     default_output_dir: Path = Field(

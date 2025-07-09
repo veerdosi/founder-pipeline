@@ -57,7 +57,7 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
         self.exa = Exa(settings.exa_api_key)
         self.openai = AsyncOpenAI(api_key=settings.openai_api_key)
         self.rate_limiter = RateLimiter(
-            max_requests=settings.requests_per_minute,
+            max_requests=settings.requests_per_minute * 2,  # Double the rate limit for better throughput
             time_window=60
         )
         self.session: Optional[aiohttp.ClientSession] = None
@@ -101,8 +101,8 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
         
         all_companies = []
         processed_urls = set()  # Track processed URLs to avoid duplicates
-        # Increase results per query to account for deduplication
-        results_per_query = max(8, (limit * 2) // len(queries))  # 2x multiplier for dedup buffer
+        # Increase results per query significantly for better yield
+        results_per_query = max(12, (limit * 3) // len(queries))  # 3x multiplier for better coverage
         
         # Execute searches with progress tracking
         for i, query in enumerate(queries):
@@ -128,6 +128,9 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
                             "theverge.com",
                             "wired.com",
                             "arstechnica.com",
+                            "thenextweb.com",
+                            "mashable.com",
+                            "engadget.com",
                             
                             # Business and funding news
                             "bloomberg.com", 
@@ -137,6 +140,9 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
                             "inc.com",
                             "fastcompany.com",
                             "axios.com",
+                            "fortune.com",
+                            "wsj.com",
+                            "ft.com",
                             
                             # Startup databases and platforms
                             "crunchbase.com",
@@ -144,6 +150,9 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
                             "producthunt.com",
                             "angel.co",
                             "f6s.com",
+                            "startupgrind.com",
+                            "founder.org",
+                            "wellcome.org",
                             
                             # Regional startup coverage
                             "eu-startups.com",
@@ -154,6 +163,23 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
                             "dealstreetasia.com",
                             "technode.com",
                             "e27.co",
+                            "techround.co.uk",
+                            "startupsmagazine.co.uk",
+                            "silicon.co.uk",
+                            "uktech.news",
+                            "thecusp.com",
+                            "labsoflatvia.com",
+                            "arcticstartup.com",
+                            "techeu.com",
+                            "foundingfuel.com",
+                            "yourstory.com",
+                            "inc42.com",
+                            "entrackr.com",
+                            "techcircle.in",
+                            "techstory.in",
+                            "indianweb2.com",
+                            "medianama.com",
+                            "nextbigwhat.com",
                             
                             # Industry publications
                             "theinformation.com",
@@ -161,12 +187,54 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
                             "coindesk.com",
                             "protocol.com",
                             "stratechery.com",
+                            "recode.net",
+                            "allthingsd.com",
+                            "gigaom.com",
+                            "readwrite.com",
+                            "ventureburn.com",
+                            "disrupt-africa.com",
+                            "wamda.com",
+                            "magnitt.com",
+                            "techpoint.africa",
+                            "techcabal.com",
+                            "bighit.com",
+                            "rudebaguette.com",
+                            "maddyness.com",
+                            "frenchweb.fr",
+                            "journaldunet.com",
+                            "usine-digitale.fr",
+                            "lafrenchtech.com",
+                            "techcrunch.jp",
+                            "bridge.jp",
+                            "thebridge.jp",
+                            "startup-db.com",
+                            "jvn.jp",
+                            "nikkei.com",
+                            "japantimes.co.jp",
+                            "technode.com",
+                            "36kr.com",
+                            "pingwest.com",
+                            "techinasia.com",
+                            "kr-asia.com",
+                            "geekpark.net",
+                            "tmtpost.com",
+                            "leiphone.com",
+                            "iyiou.com",
+                            "huxiu.com",
+                            "ifanr.com",
                             
                             # Accelerator and VC sites
                             "ycombinator.com",
                             "techstars.com",
                             "500.co",
-                            "angellist.com"
+                            "angellist.com",
+                            "seedcamp.com",
+                            "ef.com",
+                            "antler.co",
+                            "rockstart.com",
+                            "startupbootcamp.org",
+                            "plugandplaytechcenter.com",
+                            "masschallenge.org"
                         ]
                     )
                     if result and result.results:
@@ -240,7 +308,7 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
         """Generate targeted, non-overlapping search queries for AI companies."""
         
         if founded_year:
-            # Year-specific queries - highly targeted to avoid duplicates
+            # Year-specific queries - expanded to 30+ queries for better coverage
             logger.info(f"🎯 Generating year-specific queries for companies founded in {founded_year}")
             queries = [
                 # Funding announcements with specific stages
@@ -248,6 +316,10 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
                 f"new artificial intelligence companies {founded_year} pre-seed investment",
                 f"machine learning startups {founded_year} Series A funding raised",
                 f"computer vision startups {founded_year} early stage venture capital",
+                f"AI companies {founded_year} raised pre-seed round",
+                f"startup funding {founded_year} artificial intelligence seed",
+                f"machine learning companies {founded_year} venture capital",
+                f"AI unicorns {founded_year} Series B funding round",
                 
                 # Category-specific with year
                 f"generative AI companies launched {founded_year} seed round",
@@ -255,20 +327,59 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
                 f"AI robotics companies founded {founded_year} investment",
                 f"AI healthcare startups {founded_year} venture capital",
                 f"fintech AI companies {founded_year} seed funding",
+                f"autonomous vehicle AI startups {founded_year} funding",
+                f"AI cybersecurity companies {founded_year} investment",
+                f"AI drug discovery startups {founded_year} biotech funding",
+                f"AI education startups {founded_year} edtech funding",
+                f"AI supply chain logistics startups {founded_year}",
                 
                 # Geographic diversity
                 f"European AI startups founded {founded_year} early stage",
                 f"Asian AI companies {founded_year} Singapore Israel India funding",
                 f"US AI startups {founded_year} Y Combinator Techstars demo day",
+                f"Canadian AI companies {founded_year} Toronto Vancouver funding",
+                f"UK AI startups {founded_year} London venture capital",
+                f"German AI companies {founded_year} Berlin Munich funding",
+                f"French AI startups {founded_year} Paris Station F",
+                f"Israeli AI companies {founded_year} Tel Aviv funding",
+                f"Australian AI startups {founded_year} Sydney Melbourne",
+                f"Japanese AI companies {founded_year} Tokyo funding",
                 
-                # Discovery platforms and ecosystems
+                # Discovery platforms and ecosystems - expanded
                 f"Product Hunt AI startups {founded_year} recently launched",
                 f"Y Combinator batch {founded_year} AI machine learning companies",
-                f"Techstars AI startups {founded_year} accelerator demo day"
+                f"Techstars AI startups {founded_year} accelerator demo day",
+                f"500 Startups AI companies {founded_year} batch",
+                f"Plug and Play AI startups {founded_year} accelerator",
+                f"AngelList AI companies {founded_year} fundraising",
+                f"Seedcamp AI startups {founded_year} European",
+                f"Entrepreneur First AI companies {founded_year}",
+                f"Antler AI startups {founded_year} early stage",
+                f"Founders Fund AI companies {founded_year} investment",
+                f"Andreessen Horowitz AI startups {founded_year} a16z",
+                f"Sequoia Capital AI companies {founded_year} funding",
+                f"Google Ventures AI startups {founded_year} GV",
+                f"Microsoft Ventures AI companies {founded_year} M12",
+                f"Intel Capital AI startups {founded_year} investment",
+                
+                # University and research spinoffs
+                f"Stanford AI startups {founded_year} university spinoff",
+                f"MIT AI companies {founded_year} research commercialization",
+                f"Carnegie Mellon AI startups {founded_year} CMU",
+                f"Berkeley AI companies {founded_year} UC research",
+                f"Cambridge AI startups {founded_year} university spinout",
+                f"Oxford AI companies {founded_year} research commercialization",
+                
+                # Industry-specific
+                f"enterprise AI startups {founded_year} B2B software",
+                f"consumer AI apps {founded_year} B2C products",
+                f"AI infrastructure companies {founded_year} cloud computing",
+                f"AI developer tools {founded_year} programming",
+                f"AI media entertainment {founded_year} content creation"
             ]
-            return queries[:15]
+            return queries[:35]  # Increased from 15 to 35
         else:
-            # Current year searches with distinct targeting
+            # Current year searches with distinct targeting - expanded
             current_year = datetime.now().year
             previous_year = current_year - 1
             
@@ -278,12 +389,28 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
                 f"artificial intelligence companies raised seed round {current_year}",
                 f"machine learning startups Series A funding {current_year}",
                 f"AI companies closed Series B round {previous_year} {current_year}",
+                f"generative AI startups funding {current_year}",
+                f"computer vision companies venture capital {current_year}",
+                f"NLP startups natural language processing funding {current_year}",
+                f"AI robotics companies investment {current_year}",
                 
-                # Platform and accelerator specific (non-overlapping sources)
+                # Platform and accelerator specific - expanded
                 f"Y Combinator AI startups demo day {current_year}",
                 f"Techstars artificial intelligence companies {current_year}",
+                f"500 Startups AI batch {current_year}",
+                f"Plug and Play AI accelerator {current_year}",
                 f"Product Hunt AI tools launched {current_year}",
                 f"AngelList AI startups fundraising {current_year}",
+                f"Seedcamp European AI startups {current_year}",
+                f"Entrepreneur First AI companies {current_year}",
+                f"Antler AI startups early stage {current_year}",
+                f"Startup Grind AI companies {current_year}",
+                f"TechCrunch Startup Battlefield AI {current_year}",
+                f"SXSW AI startups pitch competition {current_year}",
+                f"Web Summit AI companies {current_year}",
+                f"Slush AI startups Nordic {current_year}",
+                f"Station F AI startups Paris {current_year}",
+                f"Rocket Internet AI companies {current_year}",
                 
                 # Geographic clusters (distinct regions)
                 f"Silicon Valley AI startups seed funding {current_year}",
@@ -291,6 +418,13 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
                 f"Singapore AI startups Southeast Asia funding {current_year}",
                 f"Tel Aviv Israeli AI companies venture capital {current_year}",
                 f"Toronto Vancouver Canadian AI startups {current_year}",
+                f"Australian AI companies Sydney Melbourne {current_year}",
+                f"Japanese AI startups Tokyo Osaka {current_year}",
+                f"Korean AI companies Seoul funding {current_year}",
+                f"Indian AI startups Bangalore Mumbai {current_year}",
+                f"Chinese AI companies Beijing Shanghai {current_year}",
+                f"Nordic AI startups Stockholm Helsinki {current_year}",
+                f"Dutch AI companies Amsterdam {current_year}",
                 
                 # Vertical-specific AI (distinct industries)
                 f"healthcare AI startups medical devices {current_year}",
@@ -298,15 +432,149 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
                 f"retail AI startups e-commerce personalization {current_year}",
                 f"manufacturing AI companies industrial automation {current_year}",
                 f"education AI startups edtech learning platforms {current_year}",
+                f"logistics AI companies supply chain {current_year}",
+                f"cybersecurity AI startups threat detection {current_year}",
+                f"legal AI companies lawtech {current_year}",
+                f"real estate AI startups proptech {current_year}",
+                f"agriculture AI companies agtech {current_year}",
+                f"energy AI startups cleantech {current_year}",
+                f"entertainment AI companies media {current_year}",
                 
                 # Technology-specific (distinct AI approaches)
                 f"computer vision startups autonomous vehicles {current_year}",
                 f"natural language processing chatbot startups {current_year}",
                 f"AI robotics companies hardware automation {current_year}",
                 f"generative AI video image content creation {current_year}",
-                f"AI drug discovery biotech pharmaceutical {current_year}"
+                f"AI drug discovery biotech pharmaceutical {current_year}",
+                f"machine learning MLOps platforms {current_year}",
+                f"AI chips semiconductor startups {current_year}",
+                f"quantum computing AI startups {current_year}",
+                f"edge AI IoT companies {current_year}",
+                f"AI security privacy startups {current_year}",
+                
+                # Investor-specific searches
+                f"Andreessen Horowitz AI investments {current_year}",
+                f"Sequoia Capital AI startups {current_year}",
+                f"Google Ventures AI companies {current_year}",
+                f"Microsoft Ventures AI startups {current_year}",
+                f"Intel Capital AI investments {current_year}",
+                f"NVIDIA Inception AI startups {current_year}",
+                f"Amazon Alexa Fund AI companies {current_year}",
+                f"Salesforce Ventures AI startups {current_year}"
             ]
-            return queries[:20]
+            return queries[:40]  # Increased from 20 to 40
+    
+    async def _is_company_alive(self, company_name: str, website: str = None) -> bool:
+        """Use Perplexity to verify if a company is still active and operating."""
+        try:
+            # Import here to avoid circular imports
+            from openai import AsyncOpenAI
+            
+            # Use OpenAI client configured for Perplexity
+            perplexity_client = AsyncOpenAI(
+                api_key=settings.perplexity_api_key,
+                base_url="https://api.perplexity.ai"
+            )
+            
+            query = f"Is {company_name} still active and operating in 2024? Are they still in business?"
+            if website:
+                query += f" Website: {website}"
+            
+            response = await perplexity_client.chat.completions.create(
+                model="llama-3.1-sonar-small-128k-online",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a business research assistant. Answer with 'ACTIVE' if the company is still operating and in business, 'INACTIVE' if they have shut down or ceased operations, or 'UNKNOWN' if you cannot determine their status."
+                    },
+                    {
+                        "role": "user", 
+                        "content": query
+                    }
+                ],
+                max_tokens=50,
+                temperature=0.1
+            )
+            
+            if response and response.choices:
+                answer = response.choices[0].message.content.strip().upper()
+                if "ACTIVE" in answer:
+                    return True
+                elif "INACTIVE" in answer:
+                    logger.info(f"Company {company_name} appears to be inactive - filtering out")
+                    return False
+                else:
+                    # Default to including if uncertain
+                    return True
+                    
+        except Exception as e:
+            logger.debug(f"Error checking if {company_name} is alive: {e}")
+            # Default to including company if verification fails
+            return True
+        
+        return True
+        """Use AI to determine if a company is an early-stage startup suitable for VC investment."""
+        
+        # Determine the context year for assessment
+        current_year = datetime.now().year
+        assessment_year = target_year if target_year else current_year
+        
+        # Calculate time-based context for what constitutes "early stage" at that time
+        if target_year:
+            # For historical searches, assess based on the target year context
+            founded_year = company_data.get('founded_year')
+            if founded_year and isinstance(founded_year, int):
+                years_since_founding = max(0, assessment_year - founded_year)
+                time_context = f"This analysis is for companies in {target_year}. A company founded in {founded_year} would be {years_since_founding} years old in {target_year}."
+            else:
+                time_context = f"This analysis is for companies in {target_year}. Company founding year is unknown."
+        else:
+            # For current searches, use present-day context
+            time_context = f"This analysis is for present-day ({current_year}) investment opportunities."
+        
+        prompt = f"""
+Analyze this company information and determine if it was an early-stage startup suitable for VC investment at the time of analysis.
+
+Company: {company_data.get('name', 'Unknown')}
+Description: {company_data.get('description', 'No description')}
+Founded Year: {company_data.get('founded_year', 'Unknown')}
+Funding Stage: {company_data.get('funding_stage', 'Unknown')}
+Funding Amount: {company_data.get('funding_amount_millions', 'Unknown')}
+
+{time_context}
+
+Context from article: {content[:800]}
+
+CLASSIFICATION CRITERIA:
+- EARLY-STAGE STARTUP: Pre-seed, seed, Series A, Series B, Series C (if recent), private company with growth potential, seeking venture capital, founded after 2015
+- MATURE/ESTABLISHED: Public companies, mega-unicorns (>$10B valuation), Big Tech (Google, Meta, Apple, Microsoft, Amazon, etc.), well-established enterprises with >10 years and >$100M revenue
+
+IMPORTANT: Be INCLUSIVE rather than exclusive. If unsure, classify as early-stage. Focus on excluding only obviously mature companies.
+
+Answer with ONLY "YES" if this is an early-stage startup suitable for VC investment, or "NO" if it's clearly a mature/established company.
+"""
+        
+        try:
+            await self.rate_limiter.acquire()
+            
+            response = await self.openai.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+                max_tokens=10,
+                timeout=15.0
+            )
+            
+            if response and response.choices:
+                answer = response.choices[0].message.content.strip().upper()
+                return answer == "YES"
+            
+        except Exception as e:
+            logger.debug(f"Error in maturity assessment for {company_data.get('name', 'Unknown')}: {e}")
+            # Default to including the company if AI assessment fails
+            return True
+        
+        return True
     
     async def _is_early_stage_startup(self, company_data: dict, content: str, target_year: Optional[int] = None) -> bool:
         """Use AI to determine if a company is an early-stage startup suitable for VC investment."""
@@ -342,12 +610,12 @@ Funding Amount: {company_data.get('funding_amount_millions', 'Unknown')}
 Context from article: {content[:800]}
 
 CLASSIFICATION CRITERIA:
-- EARLY-STAGE STARTUP: Pre-seed, seed, Series A, Series B, private company with growth potential, small-to-medium team, seeking venture capital
-- MATURE/ESTABLISHED: Public companies, unicorns (>$1B valuation), Series C+ (unless very recent), household name brands, Big Tech (Google, Meta, Apple, Microsoft, etc.), well-established enterprises
+- EARLY-STAGE STARTUP: Pre-seed, seed, Series A, Series B, Series C (if recent), private company with growth potential, seeking venture capital, founded after 2015
+- MATURE/ESTABLISHED: Public companies, mega-unicorns (>$10B valuation), Big Tech (Google, Meta, Apple, Microsoft, Amazon, etc.), well-established enterprises with >10 years and >$100M revenue
 
-IMPORTANT: Focus on the company's maturity level and funding stage rather than just age. A 5-year-old company can still be early-stage if it's pre-revenue or seeking Series A funding.
+IMPORTANT: Be INCLUSIVE rather than exclusive. If unsure, classify as early-stage. Focus on excluding only obviously mature companies.
 
-Answer with ONLY "YES" if this is an early-stage startup suitable for VC investment, or "NO" if it's a mature/established company.
+Answer with ONLY "YES" if this is an early-stage startup suitable for VC investment, or "NO" if it's clearly a mature/established company.
 """
         
         try:
@@ -379,7 +647,7 @@ Answer with ONLY "YES" if this is an early-stage startup suitable for VC investm
         title: str,
         target_year: Optional[int] = None
     ) -> Optional[Company]:
-        """Extract structured company data using GPT-4."""
+        """Extract structured company data using GPT-4 with improved extraction."""
         year_instruction = ""
         if target_year:
             year_instruction = f"""
@@ -387,43 +655,44 @@ IMPORTANT: Pay special attention to the founding year. Only extract companies th
 If the company was not founded in {target_year}, return null for the founded_year field.
 """
         
+        # Enhanced prompt for better extraction
         prompt = f"""
-Extract company information from this content. This is for a VC firm looking for early-stage investment opportunities.
+Extract company information from this content. Focus on finding ANY startup mentioned, not just the main subject.
 
-IMPORTANT FILTERING CRITERIA:
-- ONLY extract companies that are startups or early-stage companies (seed, pre-seed, Series A/B)
-- EXCLUDE well-established companies like Google, Meta, Apple, Microsoft, Amazon, OpenAI, Anthropic, etc.
-- EXCLUDE public companies and unicorns over $1B valuation
-- FOCUS on companies with recent funding rounds or newly founded companies
-- If no suitable startup is mentioned or this is just general AI news, return null
+EXTRACTION RULES:
+1. Extract ALL companies mentioned in the article, even if briefly mentioned
+2. For each company, include: name, description, founding year, funding info, founders, location
+3. If multiple companies are mentioned, extract the MOST RELEVANT early-stage startup
+4. IGNORE: Google, Meta, Apple, Microsoft, Amazon, OpenAI, Anthropic, public companies, unicorns >$1B
+5. FOCUS ON: Recently founded companies, seed/Series A/B stage, private startups
 
-IMPORTANT: Return ONLY valid JSON in the exact format shown below. Do not add any explanations or extra text.
+IMPORTANT: Return ONLY valid JSON. No explanations.
 
-Content: {content[:1500]}
+Content: {content[:2000]}  
 Title: {title}
 {year_instruction}
 
-If a suitable early-stage startup is mentioned, return this JSON structure:
+REQUIRED JSON FORMAT (return exactly this structure):
 {{
     "name": "exact company name",
-    "description": "what the company does in 1-2 sentences",
-    "short_description": "brief 1-sentence description",
-    "founded_year": "YYYY as integer (be precise about the founding year) or null if not {target_year if target_year else 'found'}",
-    "funding_amount_millions": "funding amount in millions USD as number or null",
-    "funding_stage": "seed/series-a/series-b/series-c/ipo or null",
-    "founders": ["founder names if mentioned"],
-    "investors": ["investor names if mentioned"],
-    "categories": ["industry categories/tags"],
-    "city": "city name only",
-    "region": "state/province/region",
+    "description": "detailed description of what the company does",
+    "short_description": "1-sentence summary",
+    "founded_year": "YYYY as integer or null",
+    "funding_amount_millions": "amount in USD millions as number or null",
+    "funding_stage": "pre-seed/seed/series-a/series-b/series-c or null",
+    "founders": ["founder names"],
+    "investors": ["investor/VC names"],
+    "categories": ["AI/ML category tags"],
+    "city": "city name",
+    "region": "state/province",
     "country": "country name",
-    "ai_focus": "specific AI area like NLP, computer vision, robotics, etc",
-    "sector": "business sector like fintech, healthcare, retail, etc",
-    "website": "company website if mentioned",
-    "linkedin_url": "company LinkedIn URL if mentioned (format: https://linkedin.com/company/...)"
+    "ai_focus": "specific AI area (NLP, computer vision, robotics, etc.)",
+    "sector": "industry sector (fintech, healthcare, etc.)",
+    "website": "company website URL",
+    "linkedin_url": "LinkedIn company URL"
 }}
 
-If no specific company is mentioned, return: null
+If NO suitable early-stage startup found, return: null
 """
         
         result = None  # Initialize result to avoid NoneType errors
@@ -436,7 +705,7 @@ If no specific company is mentioned, return: null
                     model="gpt-4o-mini",
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.1,
-                    timeout=30.0  # 30 second timeout
+                    timeout=45.0  # Increased timeout for better reliability
                 )
             except Exception as api_error:
                 logger.debug(f"OpenAI API call failed for {url}: {api_error}")
@@ -520,6 +789,14 @@ If no specific company is mentioned, return: null
             if not await self._is_early_stage_startup(result, content, target_year):
                 print(f"     🚫 Filtered out mature company: {result.get('name')}")
                 logger.debug(f"Filtered out mature/established company: {result.get('name')} for {url}")
+                return None
+            
+            # Check if company is still alive and operating
+            company_name = result.get('name')
+            website = result.get('website')
+            if not await self._is_company_alive(company_name, website):
+                print(f"     💀 Filtered out inactive company: {company_name}")
+                logger.debug(f"Filtered out inactive company: {company_name} for {url}")
                 return None
             
             # Helper function to safely get values from result

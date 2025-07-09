@@ -1,4 +1,4 @@
-"""Simplified AI system for founder ranking using Claude Sonnet 4."""
+"""AI system for founder ranking using Claude Sonnet 4."""
 
 import asyncio
 from typing import Dict, List, Any, Optional
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass 
 class FounderAnalysisResult:
-    """Simplified founder analysis result."""
+    """founder analysis result."""
     experience_level: str  # L1-L10
     confidence_score: float
     reasoning: str
