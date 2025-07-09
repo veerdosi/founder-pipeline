@@ -92,7 +92,7 @@ class PipelineCheckpointManager:
     
     def get_job_progress(self, job_id: str) -> Dict[str, Any]:
         """Get progress information for a job."""
-        stages = ['companies', 'profiles', 'rankings', 'complete']
+        stages = ['companies', 'enriched_companies', 'rankings', 'complete']
         progress = {
             'job_id': job_id,
             'stages': {},
@@ -134,7 +134,7 @@ class PipelineCheckpointManager:
         latest_stage = None
         latest_data = None
         
-        for stage in ['rankings', 'profiles', 'companies']:
+        for stage in ['rankings', 'enriched_companies', 'companies']:
             if progress['stages'].get(stage, {}).get('completed'):
                 latest_stage = stage
                 latest_data = self.load_checkpoint(job_id, stage)
@@ -175,13 +175,17 @@ class PipelineCheckpointManager:
         
         for checkpoint_file in self.checkpoint_dir.glob("*.pkl"):
             try:
-                # Extract job_id from filename
-                parts = checkpoint_file.stem.split('_')
-                if len(parts) >= 4:  # job_YYYYMMDD_HHMM_hash_stage
-                    job_id = '_'.join(parts[:-1])  # Everything except the last part (stage)
-                    
-                    if job_id not in jobs:
-                        jobs[job_id] = self.get_job_progress(job_id)
+                # Extract job_id from filename: job_YYYYMMDD_HHMM_hash_stage
+                filename = checkpoint_file.stem
+                if filename.startswith('job_'):
+                    # Split and find the pattern: job_YYYYMMDD_HHMM_hash
+                    parts = filename.split('_')
+                    if len(parts) >= 4:
+                        # Job ID is always job_YYYYMMDD_HHMM_hash (first 4 parts)
+                        job_id = '_'.join(parts[:4])
+                        
+                        if job_id not in jobs:
+                            jobs[job_id] = self.get_job_progress(job_id)
             except Exception:
                 continue
         
@@ -414,11 +418,35 @@ class CheckpointedPipelineRunner:
             
             if rankings is None and ranking_service is not None:
                 logger.info("🏆 Stage 3: Founder Ranking")
-                # Extract founder profiles for ranking
+                # Extract and convert founder profiles for ranking
                 founder_profiles = []
                 for ec in enriched_companies:
                     for profile in ec.profiles:
-                        founder_profiles.append(profile)
+                        # Convert LinkedInProfile to FounderProfile for ranking
+                        from ..core.ranking.models import FounderProfile
+                        founder_profile = FounderProfile(
+                            name=profile.person_name,
+                            company_name=ec.company.name,
+                            title=getattr(profile, 'current_position', '') or "",
+                            linkedin_url=str(profile.linkedin_url) if profile.linkedin_url else "",
+                            location=getattr(profile, 'location', '') or "",
+                            about=getattr(profile, 'summary', '') or "",
+                            estimated_age=getattr(profile, 'estimated_age', None),
+                            experience_1_title=getattr(profile, 'experience_1_title', None),
+                            experience_1_company=getattr(profile, 'experience_1_company', None),
+                            experience_2_title=getattr(profile, 'experience_2_title', None),
+                            experience_2_company=getattr(profile, 'experience_2_company', None),
+                            experience_3_title=getattr(profile, 'experience_3_title', None),
+                            experience_3_company=getattr(profile, 'experience_3_company', None),
+                            education_1_school=getattr(profile, 'education_1_school', None),
+                            education_1_degree=getattr(profile, 'education_1_degree', None),
+                            education_2_school=getattr(profile, 'education_2_school', None),
+                            education_2_degree=getattr(profile, 'education_2_degree', None),
+                            skill_1=getattr(profile, 'skill_1', None),
+                            skill_2=getattr(profile, 'skill_2', None),
+                            skill_3=getattr(profile, 'skill_3', None)
+                        )
+                        founder_profiles.append(founder_profile)
                 
                 if founder_profiles:
                     rankings = await ranking_service.rank_founders_batch(
