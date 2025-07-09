@@ -56,11 +56,11 @@ class Settings(BaseSettings):
         env="AI_CATEGORIES"
     )
     
-    # Global Geographic Focus
+    # Global Geographic Focus - US Market Only
     target_regions: List[str] = Field(
         default=[
-            "United States", "Europe", "Asia", "Canada", "Australia", 
-            "Israel", "Singapore", "India", "South Korea", "Japan"
+            "United States", "US", "USA", "Silicon Valley", "San Francisco", 
+            "New York", "Boston", "Seattle", "Austin", "Los Angeles", "Chicago"
         ],
         env="TARGET_REGIONS"
     )

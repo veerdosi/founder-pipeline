@@ -305,164 +305,147 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
         regions: Optional[List[str]] = None,
         founded_year: Optional[int] = None
     ) -> List[str]:
-        """Generate targeted, non-overlapping search queries for AI companies."""
+        """Generate US-focused search queries for AI companies."""
         
         if founded_year:
-            # Year-specific queries - expanded to 30+ queries for better coverage
-            logger.info(f"🎯 Generating year-specific queries for companies founded in {founded_year}")
+            # Year-specific queries - US market focused
+            logger.info(f"🇺🇸 Generating US-focused queries for companies founded in {founded_year}")
             queries = [
-                # Funding announcements with specific stages
-                f"AI startups founded {founded_year} announced seed funding round",
-                f"new artificial intelligence companies {founded_year} pre-seed investment",
-                f"machine learning startups {founded_year} Series A funding raised",
-                f"computer vision startups {founded_year} early stage venture capital",
-                f"AI companies {founded_year} raised pre-seed round",
-                f"startup funding {founded_year} artificial intelligence seed",
-                f"machine learning companies {founded_year} venture capital",
-                f"AI unicorns {founded_year} Series B funding round",
+                # US funding announcements
+                f"US AI startups founded {founded_year} announced seed funding",
+                f"American artificial intelligence companies {founded_year} pre-seed",
+                f"Silicon Valley AI startups {founded_year} Series A funding",
+                f"US machine learning companies {founded_year} venture capital",
+                f"American AI companies {founded_year} raised seed round",
+                f"US startup funding {founded_year} artificial intelligence",
+                f"American generative AI companies {founded_year} investment",
+                f"US computer vision startups {founded_year} funding",
                 
-                # Category-specific with year
-                f"generative AI companies launched {founded_year} seed round",
-                f"NLP natural language processing startups {founded_year} funding",
-                f"AI robotics companies founded {founded_year} investment",
-                f"AI healthcare startups {founded_year} venture capital",
-                f"fintech AI companies {founded_year} seed funding",
-                f"autonomous vehicle AI startups {founded_year} funding",
-                f"AI cybersecurity companies {founded_year} investment",
-                f"AI drug discovery startups {founded_year} biotech funding",
-                f"AI education startups {founded_year} edtech funding",
-                f"AI supply chain logistics startups {founded_year}",
+                # US-specific accelerators and VCs
+                f"Y Combinator AI startups {founded_year} batch",
+                f"Techstars US AI companies {founded_year} demo day",
+                f"500 Startups American AI batch {founded_year}",
+                f"Andreessen Horowitz AI investments {founded_year} a16z",
+                f"Sequoia Capital US AI startups {founded_year}",
+                f"Google Ventures American AI companies {founded_year}",
+                f"Microsoft Ventures US AI startups {founded_year}",
+                f"Intel Capital American AI investments {founded_year}",
+                f"NVIDIA Inception US AI startups {founded_year}",
+                f"Amazon Alexa Fund American AI companies {founded_year}",
+                f"Salesforce Ventures US AI startups {founded_year}",
                 
-                # Geographic diversity
-                f"European AI startups founded {founded_year} early stage",
-                f"Asian AI companies {founded_year} Singapore Israel India funding",
-                f"US AI startups {founded_year} Y Combinator Techstars demo day",
-                f"Canadian AI companies {founded_year} Toronto Vancouver funding",
-                f"UK AI startups {founded_year} London venture capital",
-                f"German AI companies {founded_year} Berlin Munich funding",
-                f"French AI startups {founded_year} Paris Station F",
-                f"Israeli AI companies {founded_year} Tel Aviv funding",
-                f"Australian AI startups {founded_year} Sydney Melbourne",
-                f"Japanese AI companies {founded_year} Tokyo funding",
+                # US geographic hubs
+                f"Silicon Valley AI startups {founded_year} Palo Alto",
+                f"San Francisco AI companies {founded_year} Bay Area",
+                f"Seattle AI startups {founded_year} Washington",
+                f"New York AI companies {founded_year} NYC",
+                f"Boston AI startups {founded_year} Cambridge",
+                f"Austin AI companies {founded_year} Texas",
+                f"Los Angeles AI startups {founded_year} California",
+                f"Chicago AI companies {founded_year} Illinois",
+                f"Denver AI startups {founded_year} Colorado",
+                f"Atlanta AI companies {founded_year} Georgia",
                 
-                # Discovery platforms and ecosystems - expanded
-                f"Product Hunt AI startups {founded_year} recently launched",
-                f"Y Combinator batch {founded_year} AI machine learning companies",
-                f"Techstars AI startups {founded_year} accelerator demo day",
-                f"500 Startups AI companies {founded_year} batch",
-                f"Plug and Play AI startups {founded_year} accelerator",
-                f"AngelList AI companies {founded_year} fundraising",
-                f"Seedcamp AI startups {founded_year} European",
-                f"Entrepreneur First AI companies {founded_year}",
-                f"Antler AI startups {founded_year} early stage",
-                f"Founders Fund AI companies {founded_year} investment",
-                f"Andreessen Horowitz AI startups {founded_year} a16z",
-                f"Sequoia Capital AI companies {founded_year} funding",
-                f"Google Ventures AI startups {founded_year} GV",
-                f"Microsoft Ventures AI companies {founded_year} M12",
-                f"Intel Capital AI startups {founded_year} investment",
+                # US industry-specific
+                f"US healthcare AI startups {founded_year} medical",
+                f"American fintech AI companies {founded_year} financial",
+                f"US enterprise AI startups {founded_year} B2B",
+                f"American consumer AI apps {founded_year} B2C",
+                f"US AI infrastructure companies {founded_year} cloud",
+                f"American AI developer tools {founded_year} programming",
+                f"US cybersecurity AI startups {founded_year} security",
+                f"American autonomous vehicle AI {founded_year} self-driving",
+                f"US AI robotics companies {founded_year} automation",
+                f"American AI drug discovery {founded_year} biotech",
                 
-                # University and research spinoffs
+                # US universities and research
                 f"Stanford AI startups {founded_year} university spinoff",
-                f"MIT AI companies {founded_year} research commercialization",
+                f"MIT AI companies {founded_year} research spin-out",
                 f"Carnegie Mellon AI startups {founded_year} CMU",
-                f"Berkeley AI companies {founded_year} UC research",
-                f"Cambridge AI startups {founded_year} university spinout",
-                f"Oxford AI companies {founded_year} research commercialization",
-                
-                # Industry-specific
-                f"enterprise AI startups {founded_year} B2B software",
-                f"consumer AI apps {founded_year} B2C products",
-                f"AI infrastructure companies {founded_year} cloud computing",
-                f"AI developer tools {founded_year} programming",
-                f"AI media entertainment {founded_year} content creation"
+                f"UC Berkeley AI companies {founded_year} California",
+                f"Harvard AI startups {founded_year} Cambridge",
+                f"Caltech AI companies {founded_year} Pasadena"
             ]
-            return queries[:35]  # Increased from 15 to 35
+            return queries[:35]
         else:
-            # Current year searches with distinct targeting - expanded
+            # Current year searches - US market focused
             current_year = datetime.now().year
             previous_year = current_year - 1
             
             queries = [
-                # Recent funding announcements (distinct by funding stage)
-                f"AI startups announced pre-seed funding {current_year}",
-                f"artificial intelligence companies raised seed round {current_year}",
-                f"machine learning startups Series A funding {current_year}",
-                f"AI companies closed Series B round {previous_year} {current_year}",
-                f"generative AI startups funding {current_year}",
-                f"computer vision companies venture capital {current_year}",
-                f"NLP startups natural language processing funding {current_year}",
-                f"AI robotics companies investment {current_year}",
+                # US funding announcements
+                f"US AI startups announced pre-seed funding {current_year}",
+                f"American artificial intelligence companies raised seed {current_year}",
+                f"Silicon Valley AI startups Series A funding {current_year}",
+                f"US machine learning companies venture capital {current_year}",
+                f"American generative AI startups funding {current_year}",
+                f"US computer vision companies investment {current_year}",
+                f"American NLP startups funding {current_year}",
+                f"US AI robotics companies venture capital {current_year}",
                 
-                # Platform and accelerator specific - expanded
+                # US accelerators and VCs
                 f"Y Combinator AI startups demo day {current_year}",
-                f"Techstars artificial intelligence companies {current_year}",
-                f"500 Startups AI batch {current_year}",
-                f"Plug and Play AI accelerator {current_year}",
-                f"Product Hunt AI tools launched {current_year}",
-                f"AngelList AI startups fundraising {current_year}",
-                f"Seedcamp European AI startups {current_year}",
-                f"Entrepreneur First AI companies {current_year}",
-                f"Antler AI startups early stage {current_year}",
-                f"Startup Grind AI companies {current_year}",
-                f"TechCrunch Startup Battlefield AI {current_year}",
-                f"SXSW AI startups pitch competition {current_year}",
-                f"Web Summit AI companies {current_year}",
-                f"Slush AI startups Nordic {current_year}",
-                f"Station F AI startups Paris {current_year}",
-                f"Rocket Internet AI companies {current_year}",
+                f"Techstars US AI companies {current_year}",
+                f"500 Startups American AI batch {current_year}",
+                f"Andreessen Horowitz US AI investments {current_year}",
+                f"Sequoia Capital American AI startups {current_year}",
+                f"Google Ventures US AI companies {current_year}",
+                f"Microsoft Ventures American AI startups {current_year}",
+                f"Intel Capital US AI investments {current_year}",
+                f"NVIDIA Inception American AI startups {current_year}",
+                f"Amazon Alexa Fund US AI companies {current_year}",
+                f"Salesforce Ventures American AI startups {current_year}",
+                f"Founders Fund US AI companies {current_year}",
+                f"Kleiner Perkins American AI investments {current_year}",
+                f"Bessemer Venture Partners US AI {current_year}",
                 
-                # Geographic clusters (distinct regions)
+                # US geographic hubs
                 f"Silicon Valley AI startups seed funding {current_year}",
-                f"European AI companies Berlin London Paris funding {current_year}",
-                f"Singapore AI startups Southeast Asia funding {current_year}",
-                f"Tel Aviv Israeli AI companies venture capital {current_year}",
-                f"Toronto Vancouver Canadian AI startups {current_year}",
-                f"Australian AI companies Sydney Melbourne {current_year}",
-                f"Japanese AI startups Tokyo Osaka {current_year}",
-                f"Korean AI companies Seoul funding {current_year}",
-                f"Indian AI startups Bangalore Mumbai {current_year}",
-                f"Chinese AI companies Beijing Shanghai {current_year}",
-                f"Nordic AI startups Stockholm Helsinki {current_year}",
-                f"Dutch AI companies Amsterdam {current_year}",
+                f"San Francisco AI companies Bay Area {current_year}",
+                f"Seattle AI startups Washington state {current_year}",
+                f"New York AI companies NYC funding {current_year}",
+                f"Boston AI startups Cambridge {current_year}",
+                f"Austin AI companies Texas {current_year}",
+                f"Los Angeles AI startups California {current_year}",
+                f"Chicago AI companies Illinois {current_year}",
+                f"Denver AI startups Colorado {current_year}",
+                f"Atlanta AI companies Georgia {current_year}",
+                f"Miami AI startups Florida {current_year}",
+                f"Phoenix AI companies Arizona {current_year}",
                 
-                # Vertical-specific AI (distinct industries)
-                f"healthcare AI startups medical devices {current_year}",
-                f"fintech AI companies financial services {current_year}",
-                f"retail AI startups e-commerce personalization {current_year}",
-                f"manufacturing AI companies industrial automation {current_year}",
-                f"education AI startups edtech learning platforms {current_year}",
-                f"logistics AI companies supply chain {current_year}",
-                f"cybersecurity AI startups threat detection {current_year}",
-                f"legal AI companies lawtech {current_year}",
-                f"real estate AI startups proptech {current_year}",
-                f"agriculture AI companies agtech {current_year}",
-                f"energy AI startups cleantech {current_year}",
-                f"entertainment AI companies media {current_year}",
+                # US industry verticals
+                f"US healthcare AI startups medical devices {current_year}",
+                f"American fintech AI companies financial {current_year}",
+                f"US enterprise AI startups B2B software {current_year}",
+                f"American consumer AI apps B2C {current_year}",
+                f"US AI infrastructure companies cloud {current_year}",
+                f"American AI developer tools programming {current_year}",
+                f"US cybersecurity AI startups security {current_year}",
+                f"American autonomous vehicle AI {current_year}",
+                f"US AI robotics companies automation {current_year}",
+                f"American AI drug discovery biotech {current_year}",
+                f"US logistics AI companies supply chain {current_year}",
+                f"American legal AI startups lawtech {current_year}",
                 
-                # Technology-specific (distinct AI approaches)
-                f"computer vision startups autonomous vehicles {current_year}",
-                f"natural language processing chatbot startups {current_year}",
-                f"AI robotics companies hardware automation {current_year}",
-                f"generative AI video image content creation {current_year}",
-                f"AI drug discovery biotech pharmaceutical {current_year}",
-                f"machine learning MLOps platforms {current_year}",
-                f"AI chips semiconductor startups {current_year}",
-                f"quantum computing AI startups {current_year}",
-                f"edge AI IoT companies {current_year}",
-                f"AI security privacy startups {current_year}",
+                # US universities and research
+                f"Stanford AI startups university spinoff {current_year}",
+                f"MIT AI companies research commercialization {current_year}",
+                f"Carnegie Mellon AI startups CMU {current_year}",
+                f"UC Berkeley AI companies California {current_year}",
+                f"Harvard AI startups Cambridge {current_year}",
+                f"Caltech AI companies Pasadena {current_year}",
+                f"Georgia Tech AI startups Atlanta {current_year}",
+                f"University of Washington AI companies Seattle {current_year}",
                 
-                # Investor-specific searches
-                f"Andreessen Horowitz AI investments {current_year}",
-                f"Sequoia Capital AI startups {current_year}",
-                f"Google Ventures AI companies {current_year}",
-                f"Microsoft Ventures AI startups {current_year}",
-                f"Intel Capital AI investments {current_year}",
-                f"NVIDIA Inception AI startups {current_year}",
-                f"Amazon Alexa Fund AI companies {current_year}",
-                f"Salesforce Ventures AI startups {current_year}"
+                # US platform-specific
+                f"Product Hunt AI tools launched US {current_year}",
+                f"AngelList AI startups fundraising America {current_year}",
+                f"TechCrunch US AI companies {current_year}",
+                f"VentureBeat American AI startups {current_year}",
+                f"Crunchbase US AI funding {current_year}",
+                f"PitchBook American AI companies {current_year}"
             ]
-            return queries[:40]  # Increased from 20 to 40
+            return queries[:40]
     
     async def _is_company_alive(self, company_name: str, website: str = None) -> bool:
         """Use Perplexity to verify if a company is still active and operating."""
@@ -510,68 +493,6 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
         except Exception as e:
             logger.debug(f"Error checking if {company_name} is alive: {e}")
             # Default to including company if verification fails
-            return True
-        
-        return True
-        """Use AI to determine if a company is an early-stage startup suitable for VC investment."""
-        
-        # Determine the context year for assessment
-        current_year = datetime.now().year
-        assessment_year = target_year if target_year else current_year
-        
-        # Calculate time-based context for what constitutes "early stage" at that time
-        if target_year:
-            # For historical searches, assess based on the target year context
-            founded_year = company_data.get('founded_year')
-            if founded_year and isinstance(founded_year, int):
-                years_since_founding = max(0, assessment_year - founded_year)
-                time_context = f"This analysis is for companies in {target_year}. A company founded in {founded_year} would be {years_since_founding} years old in {target_year}."
-            else:
-                time_context = f"This analysis is for companies in {target_year}. Company founding year is unknown."
-        else:
-            # For current searches, use present-day context
-            time_context = f"This analysis is for present-day ({current_year}) investment opportunities."
-        
-        prompt = f"""
-Analyze this company information and determine if it was an early-stage startup suitable for VC investment at the time of analysis.
-
-Company: {company_data.get('name', 'Unknown')}
-Description: {company_data.get('description', 'No description')}
-Founded Year: {company_data.get('founded_year', 'Unknown')}
-Funding Stage: {company_data.get('funding_stage', 'Unknown')}
-Funding Amount: {company_data.get('funding_amount_millions', 'Unknown')}
-
-{time_context}
-
-Context from article: {content[:800]}
-
-CLASSIFICATION CRITERIA:
-- EARLY-STAGE STARTUP: Pre-seed, seed, Series A, Series B, Series C (if recent), private company with growth potential, seeking venture capital, founded after 2015
-- MATURE/ESTABLISHED: Public companies, mega-unicorns (>$10B valuation), Big Tech (Google, Meta, Apple, Microsoft, Amazon, etc.), well-established enterprises with >10 years and >$100M revenue
-
-IMPORTANT: Be INCLUSIVE rather than exclusive. If unsure, classify as early-stage. Focus on excluding only obviously mature companies.
-
-Answer with ONLY "YES" if this is an early-stage startup suitable for VC investment, or "NO" if it's clearly a mature/established company.
-"""
-        
-        try:
-            await self.rate_limiter.acquire()
-            
-            response = await self.openai.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.1,
-                max_tokens=10,
-                timeout=15.0
-            )
-            
-            if response and response.choices:
-                answer = response.choices[0].message.content.strip().upper()
-                return answer == "YES"
-            
-        except Exception as e:
-            logger.debug(f"Error in maturity assessment for {company_data.get('name', 'Unknown')}: {e}")
-            # Default to including the company if AI assessment fails
             return True
         
         return True

@@ -8,7 +8,6 @@ import json
 import anthropic
 
 from ...core import settings
-from ..ranking.verification_service import RealTimeFounderVerifier
 
 import logging
 logger = logging.getLogger(__name__)
@@ -29,6 +28,14 @@ class ClaudeSonnet4RankingService:
     
     def __init__(self):
         self.anthropic_client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+        self.perplexity_verifier = None  # Lazy load to avoid circular import
+        
+    def _get_perplexity_verifier(self):
+        """Lazy load perplexity verifier to avoid circular import."""
+        if self.perplexity_verifier is None:
+            from ..ranking.verification_service import RealTimeFounderVerifier
+            self.perplexity_verifier = RealTimeFounderVerifier()
+        return self.perplexity_verifier
         
     async def rank_founder(
         self, 
@@ -53,7 +60,8 @@ class ClaudeSonnet4RankingService:
         verification_data = {}
         if use_verification and initial_ranking.get('experience_level'):
             try:
-                verification_data = await self.perplexity_verifier.verify_founder_data(
+                verifier = self._get_perplexity_verifier()
+                verification_data = await verifier.verify_founder_data(
                     founder_name=founder_name,
                     company_name=company_name,
                     claimed_level=initial_ranking['experience_level'],
