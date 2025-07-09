@@ -551,55 +551,6 @@ class InitiationPipeline:
         
         console.print("=" * 70)
     
-    def export_results(
-        self, 
-        enriched_companies: List[EnrichedCompany], 
-        output_path: Path,
-        format: str = "csv",
-        separate_tables: bool = True
-    ):
-        """Export results to separate CSV files."""
-        if format.lower() == "csv":
-            self._export_enriched_to_separate_csvs(enriched_companies, output_path)
-        elif format.lower() == "json":
-            self._export_enriched_to_json(enriched_companies, output_path)
-        else:
-            raise ValueError(f"Unsupported format: {format}")
-    
-    def _export_enriched_to_separate_csvs(self, enriched_companies: List[EnrichedCompany], base_output_path: Path):
-        """Export EnrichedCompany objects to separate CSV files."""
-        import csv
-        
-        if not enriched_companies:
-            return
-        
-        # Use the built-in to_separate_csv_records method
-        pipeline_result = PipelineResult(
-            companies=enriched_companies,
-            stats={},
-            execution_time=0.0
-        )
-        company_records, founder_records = pipeline_result.to_separate_csv_records()
-        
-        # Export companies CSV
-        company_path = base_output_path.parent / f"{base_output_path.stem}_companies.csv"
-        if company_records:
-            with open(company_path, 'w', newline='', encoding='utf-8') as csvfile:
-                writer = csv.DictWriter(csvfile, fieldnames=company_records[0].keys())
-                writer.writeheader()
-                writer.writerows(company_records)
-        
-        # Export founders CSV
-        founder_path = base_output_path.parent / f"{base_output_path.stem}_founders.csv"
-        if founder_records:
-            with open(founder_path, 'w', newline='', encoding='utf-8') as csvfile:
-                writer = csv.DictWriter(csvfile, fieldnames=founder_records[0].keys())
-                writer.writeheader()
-                writer.writerows(founder_records)
-        
-        logger.info(f"Exported {len(company_records)} companies to {company_path}")
-        logger.info(f"Exported {len(founder_records)} founders to {founder_path}")
-    
     def _export_enriched_to_json(self, enriched_companies: List[EnrichedCompany], output_path: Path):
         """Export EnrichedCompany objects to JSON."""
         import json

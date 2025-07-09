@@ -242,6 +242,125 @@ class CheckpointedPipelineRunner:
     def __init__(self, checkpoint_manager: PipelineCheckpointManager):
         self.checkpoint_manager = checkpoint_manager
     
+    async def _export_companies_csv(self, companies: List, job_id: str):
+        """Export companies to CSV immediately after discovery."""
+        import csv
+        from pathlib import Path
+        
+        try:
+            # Create output directory if it doesn't exist
+            output_dir = Path("./output")
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Generate CSV filename with job ID
+            csv_path = output_dir / f"{job_id}_companies.csv"
+            
+            if not companies:
+                logger.warning("No companies to export")
+                return
+            
+            # Define CSV columns for companies
+            columns = [
+                'name', 'description', 'short_description', 'founded_year',
+                'funding_total_usd', 'funding_stage', 'founders', 'investors',
+                'categories', 'city', 'region', 'country', 'ai_focus', 'sector',
+                'website', 'linkedin_url', 'source_url', 'extraction_date'
+            ]
+            
+            with open(csv_path, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=columns)
+                writer.writeheader()
+                
+                for company in companies:
+                    row = {
+                        'name': getattr(company, 'name', ''),
+                        'description': getattr(company, 'description', ''),
+                        'short_description': getattr(company, 'short_description', ''),
+                        'founded_year': getattr(company, 'founded_year', ''),
+                        'funding_total_usd': getattr(company, 'funding_total_usd', ''),
+                        'funding_stage': getattr(company, 'funding_stage', ''),
+                        'founders': '|'.join(getattr(company, 'founders', [])),
+                        'investors': '|'.join(getattr(company, 'investors', [])),
+                        'categories': '|'.join(getattr(company, 'categories', [])),
+                        'city': getattr(company, 'city', ''),
+                        'region': getattr(company, 'region', ''),
+                        'country': getattr(company, 'country', ''),
+                        'ai_focus': getattr(company, 'ai_focus', ''),
+                        'sector': getattr(company, 'sector', ''),
+                        'website': getattr(company, 'website', ''),
+                        'linkedin_url': getattr(company, 'linkedin_url', ''),
+                        'source_url': getattr(company, 'source_url', ''),
+                        'extraction_date': getattr(company, 'extraction_date', '')
+                    }
+                    writer.writerow(row)
+            
+            logger.info(f"💾 Exported {len(companies)} companies to {csv_path}")
+            print(f"💾 Companies CSV saved: {csv_path}")
+            
+        except Exception as e:
+            logger.error(f"Failed to export companies CSV: {e}")
+            print(f"❌ Failed to export companies CSV: {e}")
+    
+    async def _export_founders_csv(self, enriched_companies: List, job_id: str):
+        """Export founders to CSV with ranking data included."""
+        import csv
+        from pathlib import Path
+        
+        try:
+            # Create output directory if it doesn't exist
+            output_dir = Path("./output")
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Generate CSV filename with job ID
+            csv_path = output_dir / f"{job_id}_founders.csv"
+            
+            # Extract all founder profiles with ranking data
+            founder_records = []
+            for ec in enriched_companies:
+                company_name = ec.company.name
+                for profile in ec.profiles:
+                    founder_records.append({
+                        'company_name': company_name,
+                        'name': getattr(profile, 'name', ''),
+                        'title': getattr(profile, 'title', ''),
+                        'linkedin_url': getattr(profile, 'linkedin_url', ''),
+                        'location': getattr(profile, 'location', ''),
+                        'experience': getattr(profile, 'experience', ''),
+                        'education': getattr(profile, 'education', ''),
+                        'skills': '|'.join(getattr(profile, 'skills', [])),
+                        'summary': getattr(profile, 'summary', ''),
+                        'connection_count': getattr(profile, 'connection_count', ''),
+                        'industry': getattr(profile, 'industry', ''),
+                        'l_level': getattr(profile, 'l_level', ''),  # Ranking level
+                        'confidence_score': getattr(profile, 'confidence_score', ''),  # Ranking confidence
+                        'reasoning': getattr(profile, 'reasoning', ''),  # Ranking reasoning
+                        'extraction_date': getattr(profile, 'extraction_date', '')
+                    })
+            
+            if not founder_records:
+                logger.warning("No founders to export")
+                return
+            
+            # Define CSV columns for founders including ranking columns
+            columns = [
+                'company_name', 'name', 'title', 'linkedin_url', 'location',
+                'experience', 'education', 'skills', 'summary', 'connection_count',
+                'industry', 'l_level', 'confidence_score', 'reasoning', 'extraction_date'
+            ]
+            
+            with open(csv_path, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=columns)
+                writer.writeheader()
+                writer.writerows(founder_records)
+            
+            logger.info(f"💾 Exported {len(founder_records)} founders to {csv_path}")
+            print(f"💾 Founders CSV saved: {csv_path}")
+            
+        except Exception as e:
+            logger.error(f"Failed to export founders CSV: {e}")
+            print(f"❌ Failed to export founders CSV: {e}")
+    
+    
     async def resume_checkpointed_pipeline(
         self,
         checkpoint_id: str,
@@ -355,8 +474,17 @@ class CheckpointedPipelineRunner:
                     founded_before=params.get('founded_before')
                 )
                 self.checkpoint_manager.save_checkpoint(job_id, 'companies', companies)
+                
+                # Export companies CSV immediately after discovery
+                await self._export_companies_csv(companies, job_id)
+                
             else:
                 logger.info("📂 Stage 1: Loaded companies from checkpoint")
+                # Check if companies CSV already exists, if not export it
+                from pathlib import Path
+                csv_path = Path("./output") / f"{job_id}_companies.csv"
+                if not csv_path.exists():
+                    await self._export_companies_csv(companies, job_id)
             
             # Stage 2: Profile Enrichment
             enriched_companies = self.checkpoint_manager.load_checkpoint(job_id, 'enriched_companies')
@@ -364,6 +492,7 @@ class CheckpointedPipelineRunner:
                 logger.info("👤 Stage 2: Profile Enrichment")
                 enriched_companies = await pipeline_service.enrich_profiles(companies)
                 self.checkpoint_manager.save_checkpoint(job_id, 'enriched_companies', enriched_companies)
+                
             else:
                 logger.info("📂 Stage 2: Loaded enriched companies from checkpoint")
             
@@ -438,8 +567,17 @@ class CheckpointedPipelineRunner:
                         original_profile.reasoning = ranking.classification.reasoning
                 
                 self.checkpoint_manager.save_checkpoint(job_id, 'rankings', rankings)
+                
+                # Export founders CSV immediately after ranking
+                await self._export_founders_csv(enriched_companies, job_id)
+                
             else:
                 logger.info("📂 Stage 3: Loaded rankings from checkpoint")
+                # Check if founders CSV already exists, if not export it
+                from pathlib import Path
+                csv_path = Path("./output") / f"{job_id}_founders.csv"
+                if not csv_path.exists():
+                    await self._export_founders_csv(enriched_companies, job_id)
             
             # Stage 4: Complete - Final result
             final_result = {
