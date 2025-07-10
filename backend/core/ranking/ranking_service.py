@@ -198,36 +198,6 @@ class FounderRankingService:
             "linkedin_url": profile.linkedin_url
         }
         
-        # Add enhanced data if available (for better AI ranking)
-        if profile.has_enhanced_data():
-            if profile.financial_profile:
-                financial_metrics = profile.financial_profile.get("metrics", {})
-                data.update({
-                    "total_exits": financial_metrics.get("total_exits", 0),
-                    "total_exit_value_usd": financial_metrics.get("total_exit_value_usd", 0),
-                    "unicorn_companies_count": financial_metrics.get("unicorn_companies_count", 0),
-                    "years_entrepreneurship": financial_metrics.get("years_entrepreneurship", 0)
-                })
-            
-            if profile.education_profile:
-                data.update({
-                    "phd_degrees_count": len(profile.education_profile.get("phd_degrees", [])),
-                    "technical_background": profile.education_profile.get("technical_field_background", False),
-                    "top_tier_institution": profile.education_profile.get("top_tier_institution", False)
-                })
-            
-            if profile.accelerator_profile:
-                data.update({
-                    "accelerator_programs": profile.accelerator_profile.get("total_programs", 0),
-                    "top_accelerator": profile.accelerator_profile.get("has_top_accelerator", False)
-                })
-            
-            if profile.sec_profile:
-                data.update({
-                    "sec_verified_exits": profile.sec_profile.get("exit_count", 0),
-                    "sec_highest_exit": profile.sec_profile.get("highest_exit_value", 0)
-                })
-        
         return data
     
     def _convert_to_classification(
@@ -286,52 +256,8 @@ class FounderRankingService:
             "education_1_degree": profile.education_1_degree,
             "skill_1": profile.skill_1,
             
-            # Enhanced data availability
-            "enhanced_data_available": profile.has_enhanced_data(),
             "ranking_timestamp": datetime.now().isoformat()
         }
-        
-        # Add all enhanced data if available
-        if profile.has_enhanced_data():
-            # Financial intelligence
-            if profile.financial_profile:
-                financial_metrics = profile.financial_profile.get("metrics", {})
-                row.update({
-                    "total_exits": financial_metrics.get("total_exits", 0),
-                    "total_exit_value_usd": financial_metrics.get("total_exit_value_usd", 0),
-                    "total_value_created_usd": financial_metrics.get("total_value_created_usd", 0),
-                    "unicorn_companies_count": financial_metrics.get("unicorn_companies_count", 0),
-                    "major_exits_count": financial_metrics.get("companies_with_major_exits_count", 0),
-                    "highest_exit_value_usd": financial_metrics.get("highest_exit_value_usd", 0),
-                    "years_entrepreneurship": financial_metrics.get("years_entrepreneurship", 0),
-                    "companies_founded_count": len(profile.financial_profile.get("companies_founded", []))
-                })
-            
-            # Education verification
-            if profile.education_profile:
-                row.update({
-                    "phd_degrees_count": len(profile.education_profile.get("phd_degrees", [])),
-                    "highest_degree_verified": profile.education_profile.get("highest_degree"),
-                    "technical_background_verified": profile.education_profile.get("technical_field_background", False),
-                    "top_tier_institution": profile.education_profile.get("top_tier_institution", False),
-                    "academic_publications_count": len(profile.education_profile.get("academic_publications", []))
-                })
-            
-            # Accelerator verification
-            if profile.accelerator_profile:
-                row.update({
-                    "accelerator_programs_count": profile.accelerator_profile.get("total_programs", 0),
-                    "top_tier_accelerator_verified": profile.accelerator_profile.get("has_top_accelerator", False),
-                    "total_accelerator_funding": profile.accelerator_profile.get("total_accelerator_funding", 0),
-                    "accelerator_network_strength": profile.accelerator_profile.get("accelerator_network_strength", 0)
-                })
-            
-            # SEC verification  
-            if profile.sec_profile:
-                row.update({
-                    "sec_verified_exits_count": profile.sec_profile.get("exit_count", 0),
-                    "sec_highest_exit_value": profile.sec_profile.get("highest_exit_value", 0),
-                    "sec_total_exit_value": profile.sec_profile.get("total_verified_exit_value", 0)
-                })
+
         
         return row

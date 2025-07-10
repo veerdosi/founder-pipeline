@@ -7,9 +7,6 @@ from enum import Enum
 
 class SourceType(Enum):
     """Source credibility hierarchy."""
-    SEC_FILING = "sec_filing"  # Highest credibility
-    UNIVERSITY_RECORD = "university_record"
-    PATENT_DATABASE = "patent_database"
     CRUNCHBASE = "crunchbase"
     LINKEDIN = "linkedin"
     MEDIA_REPORT = "media_report"  # Lowest credibility
@@ -18,9 +15,6 @@ class SourceType(Enum):
     def credibility_score(self) -> float:
         """Source credibility score (0.0-1.0)."""
         scores = {
-            SourceType.SEC_FILING: 1.0,
-            SourceType.UNIVERSITY_RECORD: 0.9,
-            SourceType.PATENT_DATABASE: 0.85,
             SourceType.CRUNCHBASE: 0.8,
             SourceType.LINKEDIN: 0.6,
             SourceType.MEDIA_REPORT: 0.4
@@ -75,7 +69,6 @@ class LevelThresholds:
                     "min_years_experience": 20
                 },
                 verification_requirements=[
-                    SourceType.SEC_FILING,
                     SourceType.MEDIA_REPORT
                 ],
                 minimum_sources=3
@@ -99,7 +92,6 @@ class LevelThresholds:
                     "min_years_experience": 15
                 },
                 verification_requirements=[
-                    SourceType.SEC_FILING,
                     SourceType.CRUNCHBASE
                 ],
                 minimum_sources=2
@@ -192,7 +184,6 @@ class LevelThresholds:
                 },
                 verification_requirements=[
                     SourceType.CRUNCHBASE,
-                    SourceType.SEC_FILING
                 ],
                 minimum_sources=2
             ),
@@ -292,7 +283,7 @@ class LevelThresholds:
                 "founder name + multiple IPOs",
                 "industry pioneer",
                 "legendary entrepreneur",
-                "founder name + billion exit + SEC filing"
+                "founder name + billion exit"
             ],
             "L9": [
                 "founder name + billion exit",
