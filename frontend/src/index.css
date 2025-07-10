@@ -481,3 +481,157 @@ p {
 
 .cursor-pointer { cursor: pointer; }
 .cursor-not-allowed { cursor: not-allowed; }
+
+/* Additional styles for Market Analysis */
+.grid {
+  display: grid;
+}
+
+.grid-cols-1 {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grid-cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.border-b {
+  border-bottom: 1px solid var(--secondary-200);
+}
+
+.border-b-2 {
+  border-bottom-width: 2px;
+}
+
+.px-6 {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+.py-3 {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.font-medium {
+  font-weight: 500;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.text-xl {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.text-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.text-blue-600 {
+  color: var(--primary-600);
+}
+
+.text-blue-800 {
+  color: var(--primary-800);
+}
+
+.text-green-800 {
+  color: var(--success-800);
+}
+
+.text-yellow-800 {
+  color: var(--warning-800);
+}
+
+.text-gray-500 {
+  color: var(--secondary-500);
+}
+
+.text-gray-600 {
+  color: var(--secondary-600);
+}
+
+.text-gray-700 {
+  color: var(--secondary-700);
+}
+
+.text-gray-800 {
+  color: var(--secondary-800);
+}
+
+.bg-blue-50 {
+  background-color: var(--primary-50);
+}
+
+.bg-green-50 {
+  background-color: var(--success-50);
+}
+
+.bg-yellow-50 {
+  background-color: var(--warning-50);
+}
+
+.bg-gray-50 {
+  background-color: var(--secondary-50);
+}
+
+.bg-gray-100 {
+  background-color: var(--secondary-100);
+}
+
+.rounded-lg {
+  border-radius: var(--radius-lg);
+}
+
+.p-4 {
+  padding: 1rem;
+}
+
+.space-y-2 > * + * {
+  margin-top: 0.5rem;
+}
+
+.transition-colors {
+  transition: var(--transition-colors);
+}
+
+.hover\:text-gray-700:hover {
+  color: var(--secondary-700);
+}
+
+.capitalize {
+  text-transform: capitalize;
+}
+
+@media (min-width: 768px) {
+  .md\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  
+  .md\:flex-row {
+    flex-direction: row;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lg\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

@@ -19,6 +19,7 @@ from .dependencies import get_pipeline_service, get_ranking_service
 from ..core.discovery import InitiationPipeline
 from ..core.ranking import FounderRankingService
 from ..core.ranking.models import FounderProfile
+from ..core.analysis.market_analysis import PerplexityMarketAnalysis
 from ..models import EnrichedCompany
 from ..utils.checkpoint_manager import checkpointed_runner, checkpoint_manager
 
@@ -504,3 +505,93 @@ async def export_rankings():
     except Exception as e:
         logger.error(f"❌ Rankings export failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+
+
+@app.get("/api/companies/list")
+async def get_companies_list():
+    """Get list of companies from latest results for market analysis dropdown."""
+    try:
+        companies = safe_get_companies()
+        
+        if not companies:
+            return []
+        
+        # Extract company names and info for dropdown
+        company_list = []
+        for ec in companies:
+            company_info = {
+                "id": ec.company.name,
+                "name": ec.company.name,
+                "sector": ec.company.sector or "Unknown",
+                "founded_year": ec.company.founded_year or "Unknown",
+                "ai_focus": ec.company.ai_focus or "AI"
+            }
+            company_list.append(company_info)
+        
+        return company_list
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to get companies list: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get companies: {str(e)}")
+
+
+@app.post("/api/companies/{company_name}/market-analysis")
+async def generate_market_analysis(company_name: str):
+    """Generate market analysis for a specific company."""
+    try:
+        # Find the company in the latest results
+        companies = safe_get_companies()
+        target_company = None
+        
+        for ec in companies:
+            if ec.company.name == company_name:
+                target_company = ec.company
+                break
+        
+        if not target_company:
+            raise HTTPException(status_code=404, detail=f"Company '{company_name}' not found in latest results")
+        
+        # Initialize market analysis service
+        market_analysis = PerplexityMarketAnalysis()
+        
+        # Get company sector and founded year
+        sector = target_company.ai_focus or target_company.sector or "artificial intelligence"
+        founded_year = target_company.founded_year or 2023
+        
+        # Generate market analysis
+        async with market_analysis:
+            metrics = await market_analysis.analyze_market(
+                sector=sector,
+                year=founded_year,
+                region="United States"
+            )
+        
+        # Format response
+        analysis_data = {
+            "company_name": company_name,
+            "sector": sector,
+            "founded_year": founded_year,
+            "market_size_billion": metrics.market_size_billion,
+            "cagr_percent": metrics.cagr_percent,
+            "timing_score": metrics.timing_score,
+            "us_sentiment": metrics.us_sentiment,
+            "sea_sentiment": metrics.sea_sentiment,
+            "competitor_count": metrics.competitor_count,
+            "total_funding_billion": metrics.total_funding_billion,
+            "momentum_score": metrics.momentum_score,
+            "market_stage": metrics.market_stage.value if metrics.market_stage else "unknown",
+            "confidence_score": metrics.confidence_score,
+            "analysis_date": metrics.analysis_date.isoformat() if metrics.analysis_date else datetime.now().isoformat(),
+            "execution_time": metrics.execution_time
+        }
+        
+        return {
+            "status": "success",
+            "data": analysis_data
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Market analysis failed for {company_name}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Market analysis failed: {str(e)}")
