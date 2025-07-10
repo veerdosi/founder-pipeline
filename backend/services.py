@@ -2,7 +2,7 @@
 
 # Discovery Services
 from .core.discovery.company_discovery import ExaCompanyDiscovery
-from .core.discovery.pipeline import InitiationPipeline
+from .core.pipeline import InitiationPipeline
 
 # Data Services  
 from .core.data.profile_enrichment import LinkedInEnrichmentService

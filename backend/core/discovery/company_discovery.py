@@ -498,7 +498,7 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
         return True
     
     async def _is_early_stage_startup(self, company_data: dict, content: str, target_year: Optional[int] = None) -> bool:
-        """Use AI to determine if a company is an early-stage startup suitable for VC investment."""
+        """Use Perplexity to determine if a company is an early-stage startup suitable for VC investment."""
         
         # Determine the context year for assessment
         current_year = datetime.now().year
@@ -540,10 +540,19 @@ Answer with ONLY "YES" if this is an early-stage startup suitable for VC investm
 """
         
         try:
+            # Import here to avoid circular imports
+            from openai import AsyncOpenAI
+            
+            # Use OpenAI client configured for Perplexity
+            perplexity_client = AsyncOpenAI(
+                api_key=settings.perplexity_api_key,
+                base_url="https://api.perplexity.ai"
+            )
+            
             await self.rate_limiter.acquire()
             
-            response = await self.openai.chat.completions.create(
-                model="gpt-4o-mini",
+            response = await perplexity_client.chat.completions.create(
+                model="llama-3.1-sonar-small-128k-online",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
                 max_tokens=10,
@@ -561,6 +570,60 @@ Answer with ONLY "YES" if this is an early-stage startup suitable for VC investm
         
         return True
     
+    async def _get_crunchbase_url(self, company_name: str, website: str = None) -> Optional[str]:
+        """Use Perplexity to find the crunchbase URL for a company."""
+        try:
+            # Import here to avoid circular imports
+            from openai import AsyncOpenAI
+            
+            # Use OpenAI client configured for Perplexity
+            perplexity_client = AsyncOpenAI(
+                api_key=settings.perplexity_api_key,
+                base_url="https://api.perplexity.ai"
+            )
+            
+            query = f"What is the Crunchbase URL for {company_name}?"
+            if website:
+                query += f" Their website is {website}"
+            query += " Please provide the exact Crunchbase URL."
+            
+            response = await perplexity_client.chat.completions.create(
+                model="llama-3.1-sonar-small-128k-online",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a business research assistant. Find the exact Crunchbase URL for companies. Return only the URL if found, or 'NOT_FOUND' if you cannot find it."
+                    },
+                    {
+                        "role": "user", 
+                        "content": query
+                    }
+                ],
+                max_tokens=100,
+                temperature=0.1
+            )
+            
+            if response and response.choices:
+                answer = response.choices[0].message.content.strip()
+                
+                # Extract URL from the response
+                import re
+                url_pattern = r'https?://(?:www\.)?crunchbase\.com/[^\s<>"\']*'
+                urls = re.findall(url_pattern, answer)
+                
+                if urls:
+                    return urls[0]
+                elif "NOT_FOUND" in answer.upper():
+                    return None
+                else:
+                    return None
+                    
+        except Exception as e:
+            logger.debug(f"Error getting crunchbase URL for {company_name}: {e}")
+            return None
+        
+        return None
+    
     async def _extract_company_data(
         self, 
         content: str, 
@@ -568,7 +631,7 @@ Answer with ONLY "YES" if this is an early-stage startup suitable for VC investm
         title: str,
         target_year: Optional[int] = None
     ) -> Optional[Company]:
-        """Extract structured company data using GPT-4 with improved extraction."""
+        """Extract structured company data using GPT-4o-mini with improved extraction."""
         year_instruction = ""
         if target_year:
             year_instruction = f"""
@@ -790,6 +853,10 @@ If NO suitable early-stage startup found, return: null
             # Create Company object with error handling
             try:
                 company_name = safe_get("name", "")
+                
+                # Get crunchbase URL using Perplexity
+                crunchbase_url = await self._get_crunchbase_url(company_name, website)
+                
                 company = Company(
                     uuid=f"comp_{hash(company_name)}", # Generate simple UUID
                     name=clean_text(company_name),
@@ -808,6 +875,7 @@ If NO suitable early-stage startup found, return: null
                     sector=clean_text(safe_get("sector", "")),
                     website=website,
                     linkedin_url=linkedin_url,
+                    crunchbase_url=crunchbase_url,
                     source_url=url,
                     extraction_date=datetime.utcnow()
                 )

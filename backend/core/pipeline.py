@@ -6,12 +6,12 @@ from pathlib import Path
 from typing import List, Optional
 from datetime import date
 
-from ...core import settings
-from ...models import Company, EnrichedCompany, PipelineResult
-from .company_discovery import ExaCompanyDiscovery
-from ..data.profile_enrichment import LinkedInEnrichmentService
-from ..analysis.market_analysis import PerplexityMarketAnalysis
-from ..data.data_fusion import DataFusionService, FusedCompanyData
+from . import settings
+from ..models import Company, EnrichedCompany, PipelineResult
+from .discovery.company_discovery import ExaCompanyDiscovery
+from .data.profile_enrichment import LinkedInEnrichmentService
+from .analysis.market_analysis import PerplexityMarketAnalysis
+from .data.data_fusion import DataFusionService, FusedCompanyData
 
 import logging
 from rich.console import Console
@@ -75,7 +75,7 @@ class InitiationPipeline:
     
     async def enhance_companies(self, companies: List[Company]) -> List[Company]:
         """Stage 1.5: Company Enhancement with Crunchbase data fusion."""
-        from ..data.data_fusion import DataFusionService
+        from .data.data_fusion import DataFusionService
         
         print("🔄 Enhancing companies with Crunchbase data fusion...")
         enhanced_companies = []
@@ -212,7 +212,6 @@ class InitiationPipeline:
         self,
         company_limit: int = 50,
         include_profiles: bool = True,
-        include_market_analysis: bool = True,
         enable_data_fusion: bool = True,
         checkpoint_prefix: str = "pipeline"
     ) -> List[EnrichedCompany]:
@@ -247,17 +246,11 @@ class InitiationPipeline:
                         enriched_companies, checkpoint_prefix
                     )
                 
-                # Step 5: Market Analysis  
-                if include_market_analysis:
-                    enriched_companies = await self._run_market_analysis_from_fused(
-                        enriched_companies, checkpoint_prefix
-                    )
-                
                 final_result = enriched_companies
             else:
                 # Fallback to basic processing
                 final_result = await self._run_basic_processing(
-                    companies, include_profiles, include_market_analysis
+                    companies, include_profiles
                 )
             
             execution_time = time.time() - start_time

@@ -92,7 +92,7 @@ class PipelineCheckpointManager:
     
     def get_job_progress(self, job_id: str) -> Dict[str, Any]:
         """Get progress information for a job."""
-        stages = ['companies', 'profiles', 'rankings', 'complete']
+        stages = ['companies', 'enhanced_companies', 'profiles', 'rankings']
         progress = {
             'job_id': job_id,
             'stages': {},
@@ -128,13 +128,13 @@ class PipelineCheckpointManager:
         
         if progress['completion_percentage'] == 100:
             # Job already complete, return final data
-            return self.load_checkpoint(job_id, 'complete')
+            return self.load_checkpoint(job_id, 'rankings')
         
         # Find the latest completed stage
         latest_stage = None
         latest_data = None
         
-        for stage in ['rankings', 'profiles', 'companies']:
+        for stage in ['rankings', 'profiles', 'enhanced_companies', 'companies']:
             if progress['stages'].get(stage, {}).get('completed'):
                 latest_stage = stage
                 latest_data = self.load_checkpoint(job_id, stage)
@@ -384,14 +384,14 @@ class CheckpointedPipelineRunner:
             enriched_companies = None
             rankings = None
             
-            if stage in ['companies', 'enhanced_companies', 'enriched_companies', 'rankings']:
+            if stage in ['companies', 'enhanced_companies', 'profiles', 'rankings']:
                 companies = self.checkpoint_manager.load_checkpoint(checkpoint_id, 'companies')
                 
-            if stage in ['enhanced_companies', 'enriched_companies', 'rankings']:
+            if stage in ['enhanced_companies', 'profiles', 'rankings']:
                 enhanced_companies = self.checkpoint_manager.load_checkpoint(checkpoint_id, 'enhanced_companies')
                 
-            if stage in ['enriched_companies', 'rankings']:
-                enriched_companies = self.checkpoint_manager.load_checkpoint(checkpoint_id, 'enriched_companies')
+            if stage in ['profiles', 'rankings']:
+                profiles = self.checkpoint_manager.load_checkpoint(checkpoint_id, 'profiles')
                 
             if stage == 'rankings':
                 rankings = self.checkpoint_manager.load_checkpoint(checkpoint_id, 'rankings')
@@ -407,16 +407,16 @@ class CheckpointedPipelineRunner:
                 enhanced_companies = await pipeline_service.enhance_companies(companies)
                 self.checkpoint_manager.save_checkpoint(checkpoint_id, 'enhanced_companies', enhanced_companies)
             
-            if enriched_companies is None:
-                logger.info("👤 Stage 2: Profile Enrichment")
-                enriched_companies = await pipeline_service.enrich_profiles(enhanced_companies)
-                self.checkpoint_manager.save_checkpoint(checkpoint_id, 'enriched_companies', enriched_companies)
+            if profiles is None:
+                logger.info("👤 Stage 3: Profile Enrichment")
+                profiles = await pipeline_service.enrich_profiles(enhanced_companies)
+                self.checkpoint_manager.save_checkpoint(checkpoint_id, 'profiles', profiles)
             
             if rankings is None and ranking_service is not None:
-                logger.info("🏆 Stage 3: Founder Ranking")
+                logger.info("🏆 Stage 4: Founder Ranking")
                 # Extract founder profiles for ranking
                 founder_profiles = []
-                for ec in enriched_companies:
+                for ec in profiles:
                     for profile in ec.profiles:
                         founder_profiles.append(profile)
                 
@@ -432,7 +432,7 @@ class CheckpointedPipelineRunner:
             
             # Mark as complete
             result = {
-                'companies': enriched_companies,
+                'companies': profiles,
                 'rankings': rankings or [],
                 'job_id': checkpoint_id
             }
@@ -503,38 +503,37 @@ class CheckpointedPipelineRunner:
             else:
                 logger.info("📂 Stage 1.5: Loaded enhanced companies from checkpoint")
             
-            # Stage 2: Profile Enrichment
-            enriched_companies = self.checkpoint_manager.load_checkpoint(job_id, 'enriched_companies')
-            if enriched_companies is None:
-                logger.info("👤 Stage 2: Profile Enrichment")
-                enriched_companies = await pipeline_service.enrich_profiles(enhanced_companies)
-                self.checkpoint_manager.save_checkpoint(job_id, 'enriched_companies', enriched_companies)
+            # Stage 3: Profile Enrichment
+            profiles = self.checkpoint_manager.load_checkpoint(job_id, 'profiles')
+            if profiles is None:
+                logger.info("👤 Stage 3: Profile Enrichment")
+                profiles = await pipeline_service.enrich_profiles(enhanced_companies)
+                self.checkpoint_manager.save_checkpoint(job_id, 'profiles', profiles)
                 
             else:
-                logger.info("📂 Stage 2: Loaded enriched companies from checkpoint")
+                logger.info("📂 Stage 3: Loaded profiles from checkpoint")
             
             if not companies:
                 raise ValueError("No companies found in discovery stage")
             
-            if not enriched_companies:
-                raise ValueError("No enriched companies found in enrichment stage")
+            if not profiles:
+                raise ValueError("No profiles found in enrichment stage")
             
             # Extract profiles data for further processing
             profiles_data = []
-            for ec in enriched_companies:
+            for ec in profiles:
                 for profile in ec.profiles:
                     profiles_data.append({
                         'company_name': ec.company.name,
                         'profile': profile
                     })
             
-            self.checkpoint_manager.save_checkpoint(job_id, 'profiles', profiles_data)
-            logger.info(f"📂 Stage 2: Saved {len(profiles_data)} profiles")
+            logger.info(f"📂 Stage 3: Extracted {len(profiles_data)} profiles")
             
-            # Stage 3: Founder Rankings
+            # Stage 4: Founder Rankings
             rankings = self.checkpoint_manager.load_checkpoint(job_id, 'rankings')
             if rankings is None and profiles_data:
-                logger.info("🏆 Stage 3: Founder Rankings")
+                logger.info("🏆 Stage 4: Founder Rankings")
                 
                 # Convert to FounderProfile format for ranking
                 founder_profiles = []
@@ -599,12 +598,12 @@ class CheckpointedPipelineRunner:
             # Stage 4: Complete - Final result
             final_result = {
                 'job_id': job_id,
-                'companies': enriched_companies,
+                'companies': profiles,
                 'profiles': profiles_data,
                 'rankings': rankings,
                 'completed_at': datetime.now(),
                 'stats': {
-                    'total_companies': len(enriched_companies),
+                    'total_companies': len(profiles),
                     'total_founders': len(profiles_data),
                     'ranked_founders': len(rankings) if rankings else 0,
                     'high_confidence_founders': len([r for r in rankings if r.classification.confidence_score >= 0.75]) if rankings else 0

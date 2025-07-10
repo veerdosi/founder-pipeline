@@ -13,7 +13,6 @@ from urllib.parse import urlparse
 import pandas as pd
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
 
 from .models import CompanyDiscoveryRequest, DashboardStats, PipelineJobResponse, SimpleDateRangeRequest, YearBasedRequest
 from .dependencies import get_pipeline_service, get_ranking_service
@@ -390,52 +389,6 @@ async def export_companies():
     except Exception as e:
         logger.error(f"❌ Companies export failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
-
-    output = io.StringIO()
-    company_records = []
-    for ec in enriched_companies:
-        c = ec.company
-        company_records.append({
-            "company_name": c.name,
-            "description": c.description,
-            "short_description": getattr(c, 'short_description', None),
-            "website": str(c.website) if c.website else "",
-            "founded_year": c.founded_year,
-            "ai_focus": c.ai_focus,
-            "sector": c.sector,
-            "funding_total_usd": c.funding_total_usd,
-            "funding_stage": c.funding_stage.value if c.funding_stage else None,
-            "city": c.city,
-            "region": getattr(c, 'region', None),
-            "country": c.country,
-            "founders": "; ".join(getattr(c, 'founders', []) or []),
-            "founders_count": len(getattr(c, 'founders', []) or []),
-            "investors": "; ".join(getattr(c, 'investors', []) or []),
-            "categories": "; ".join(getattr(c, 'categories', []) or []),
-            "linkedin_url": getattr(c, 'linkedin_url', None),
-            "employee_count": getattr(c, 'employee_count', None),
-            "revenue_millions": getattr(c, 'revenue_millions', None),
-            "valuation_millions": getattr(c, 'valuation_millions', None),
-            "last_funding_date": getattr(c, 'last_funding_date', None),
-            "tech_stack": "; ".join(getattr(c, 'tech_stack', []) or []),
-            "competitors": "; ".join(getattr(c, 'competitors', []) or []),
-            "source_url": c.source_url,
-            "extraction_date": getattr(c, 'extraction_date', None),
-            "confidence_score": c.confidence_score,
-            "linkedin_profiles_found": len(ec.profiles)
-        })
-    df = pd.DataFrame(company_records)
-    df.to_csv(output, index=False)
-    
-    output.seek(0)
-    filename = f"companies_export_{datetime.now().strftime('%Y%m%d')}.csv"
-    return StreamingResponse(
-        io.BytesIO(output.getvalue().encode()),
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
-    )
-
-# --- Founder Ranking Endpoints ---
 
 @app.post("/api/founders/rank", response_model=PipelineJobResponse)
 async def rank_founders_from_file(

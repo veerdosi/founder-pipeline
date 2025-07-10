@@ -48,6 +48,7 @@ class Company(BaseModel):
     investors: Optional[List[str]] = Field(default_factory=list)
     categories: Optional[List[str]] = Field(default_factory=list)
     linkedin_url: Optional[str] = None
+    crunchbase_url: Optional[str] = None
     employee_count: Optional[int] = None
     revenue_millions: Optional[float] = None
     valuation_millions: Optional[float] = None
