@@ -1,0 +1,44 @@
+/* === Tabs Component === */
+.tabs-container {
+  display: flex;
+  justify-content: center;
+  border-bottom: 1px solid var(--card-border-color);
+  margin-bottom: 32px;
+}
+
+.tab-button {
+  font-family: var(--font-family);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  background: none;
+  border: none;
+  padding: 16px 32px;
+  cursor: pointer;
+  position: relative;
+  transition: color var(--transition-speed) ease;
+}
+
+.tab-button::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background-color: var(--accent-primary);
+  transform: scaleX(0);
+  transition: transform var(--transition-speed) cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.tab-button:hover {
+  color: var(--text-primary);
+}
+
+.tab-button.active {
+  color: var(--accent-primary);
+}
+
+.tab-button.active::after {
+  transform: scaleX(1);
+}

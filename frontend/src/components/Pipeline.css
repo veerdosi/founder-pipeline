@@ -1,0 +1,19 @@
+/* === Pipeline Component === */
+.pipeline-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.pipeline-grid {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 24px;
+  align-items: flex-end;
+}
+
+@media (max-width: 768px) {
+  .pipeline-grid {
+    grid-template-columns: 1fr;
+  }
+}

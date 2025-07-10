@@ -1,0 +1,50 @@
+/* === Progress Tracker === */
+.progress-tracker-container {
+  margin-top: 32px;
+}
+
+.progress-step {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background-color: #F9FAFB;
+  border: 1px solid var(--card-border-color);
+  border-radius: var(--border-radius-md);
+  margin-bottom: 12px;
+  transition: all var(--transition-speed) ease;
+}
+
+.progress-step-icon {
+  font-size: 1.5rem;
+}
+
+.progress-step-info {
+  flex-grow: 1;
+}
+
+.progress-step-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.progress-step-message {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+/* Status Styles */
+.progress-step.running {
+  background-color: #E3F2FD;
+  border-color: #90CAF9;
+}
+
+.progress-step.completed {
+  background-color: #E8F5E9;
+  border-color: #A5D6A7;
+}
+
+.progress-step.error {
+  background-color: #FFEBEE;
+  border-color: #EF9A9A;
+}

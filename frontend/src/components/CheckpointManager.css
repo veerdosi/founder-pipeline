@@ -1,0 +1,32 @@
+/* === Checkpoint Manager === */
+.checkpoint-options {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.checkpoint-radio {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.checkpoint-radio input {
+  margin-right: 10px;
+  accent-color: var(--accent-primary);
+}
+
+.checkpoint-details {
+  background-color: #F4F7FC;
+  border: 1px solid var(--card-border-color);
+  border-radius: var(--border-radius-md);
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.checkpoint-tip {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  margin-top: 8px;
+}

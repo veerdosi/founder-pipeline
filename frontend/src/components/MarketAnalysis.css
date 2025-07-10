@@ -1,0 +1,59 @@
+/* === Market Analysis === */
+.market-analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.analysis-card {
+  background-color: #F9FAFB;
+  border-radius: var(--border-radius-md);
+  padding: 20px;
+  border: 1px solid var(--card-border-color);
+}
+
+.analysis-card-header {
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+
+.analysis-metric {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.95rem;
+  margin-bottom: 12px;
+  color: var(--text-secondary);
+}
+
+.analysis-metric-value {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.analysis-company-header {
+  margin-bottom: 24px;
+}
+
+.analysis-company-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.analysis-company-details {
+  display: flex;
+  gap: 24px;
+  color: var(--text-tertiary);
+}
+
+.analysis-footer {
+  margin-top: 24px;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.pdf-export-button {
+  margin-left: auto;
+}

@@ -1,0 +1,13 @@
+/* === App Layout === */
+.app-header-subtitle {
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+  max-width: 600px;
+  margin: 0 auto 32px auto;
+}
+
+.app-main-content {
+  padding-top: 24px;
+}
