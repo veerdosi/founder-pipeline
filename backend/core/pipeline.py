@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import List, Optional
 from datetime import date
 
-from . import settings
+from .config import settings
 from ..models import Company, EnrichedCompany, PipelineResult
 from .discovery.company_discovery import ExaCompanyDiscovery
 from .data.profile_enrichment import LinkedInEnrichmentService
@@ -15,9 +15,30 @@ from .data.data_fusion import DataFusionService, FusedCompanyData
 
 import logging
 from rich.console import Console
+from ..utils.checkpoint_manager import checkpoint_manager
 
 logger = logging.getLogger(__name__)
 console = Console()
+
+
+async def load_checkpoint(checkpoint_name: str):
+    """Load checkpoint using the global checkpoint manager."""
+    # Extract job_id and stage from checkpoint_name
+    parts = checkpoint_name.split('_', 1)
+    if len(parts) == 2:
+        job_id, stage = parts
+        return checkpoint_manager.load_checkpoint(job_id, stage)
+    return None
+
+
+async def save_checkpoint(data, checkpoint_name: str):
+    """Save checkpoint using the global checkpoint manager."""
+    # Extract job_id and stage from checkpoint_name  
+    parts = checkpoint_name.split('_', 1)
+    if len(parts) == 2:
+        job_id, stage = parts
+        return checkpoint_manager.save_checkpoint(job_id, stage, data)
+    return False
 
 
 class InitiationPipeline:
@@ -294,34 +315,29 @@ class InitiationPipeline:
         
         enriched_companies = []
         
-        with create_progress_bar() as progress:
-            task = progress.add_task(
-                "Finding LinkedIn profiles...", 
-                total=len(companies)
-            )
-            
-            for company in companies:
-                try:
-                    profiles = await self.profile_enrichment.find_profiles(company)
-                    
-                    # Enrich profiles with full data (batched for efficiency)
-                    profiles_to_enrich = profiles[:3]  # Limit to 3 profiles per company
-                    enriched_profiles = await self.profile_enrichment.enrich_profiles_batch(profiles_to_enrich)
-                    
-                    enriched_company = EnrichedCompany(
-                        company=company,
-                        profiles=enriched_profiles
-                    )
-                    enriched_companies.append(enriched_company)
-                    
-                except Exception as e:
-                    logger.error(f"Error processing {company.name}: {e}")
-                    # Add company without profiles
-                    enriched_companies.append(
-                        EnrichedCompany(company=company, profiles=[])
-                    )
+        logger.info("👤 Processing companies for LinkedIn profiles...")
+        
+        for i, company in enumerate(companies):
+            logger.info(f"Processing company {i+1}/{len(companies)}: {company.name}")
+            try:
+                profiles = await self.profile_enrichment.find_profiles(company)
                 
-                progress.update(task, advance=1)
+                # Enrich profiles with full data (batched for efficiency)
+                profiles_to_enrich = profiles[:3]  # Limit to 3 profiles per company
+                enriched_profiles = await self.profile_enrichment.enrich_profiles_batch(profiles_to_enrich)
+                
+                enriched_company = EnrichedCompany(
+                    company=company,
+                    profiles=enriched_profiles
+                )
+                enriched_companies.append(enriched_company)
+                
+            except Exception as e:
+                logger.error(f"Error processing {company.name}: {e}")
+                # Add company without profiles
+                enriched_companies.append(
+                    EnrichedCompany(company=company, profiles=[])
+                )
         
         return enriched_companies
     
@@ -335,41 +351,36 @@ class InitiationPipeline:
         enriched_companies = []
         
         async with self.market_analysis as analyzer:
-            with create_progress_bar() as progress:
-                task = progress.add_task(
-                    "Analyzing markets...", 
-                    total=len(companies)
-                )
-                
-                for company in companies:
-                    try:
-                        # Determine sector for analysis
-                        sector = company.ai_focus or company.sector or "Artificial Intelligence"
-                        
-                        # Use current year for market analysis (what matters for investment decisions)
-                        from datetime import datetime
-                        current_year = datetime.now().year
-                        
-                        market_metrics = await analyzer.analyze_market(
-                            sector=sector,
-                            year=current_year
-                        )
-                        
-                        enriched_company = EnrichedCompany(
-                            company=company,
-                            profiles=[],
-                            market_metrics=market_metrics
-                        )
-                        enriched_companies.append(enriched_company)
-                        
-                    except Exception as e:
-                        logger.error(f"Error analyzing {company.name}: {e}")
-                        # Add company without market analysis
-                        enriched_companies.append(
-                            EnrichedCompany(company=company, profiles=[])
-                        )
+            logger.info("📊 Processing companies for market analysis...")
+            
+            for i, company in enumerate(companies):
+                logger.info(f"Analyzing company {i+1}/{len(companies)}: {company.name}")
+                try:
+                    # Determine sector for analysis
+                    sector = company.ai_focus or company.sector or "Artificial Intelligence"
                     
-                    progress.update(task, advance=1)
+                    # Use current year for market analysis (what matters for investment decisions)
+                    from datetime import datetime
+                    current_year = datetime.now().year
+                    
+                    market_metrics = await analyzer.analyze_market(
+                        sector=sector,
+                        year=current_year
+                    )
+                    
+                    enriched_company = EnrichedCompany(
+                        company=company,
+                        profiles=[],
+                        market_metrics=market_metrics
+                    )
+                    enriched_companies.append(enriched_company)
+                    
+                except Exception as e:
+                    logger.error(f"Error analyzing {company.name}: {e}")
+                    # Add company without market analysis
+                    enriched_companies.append(
+                        EnrichedCompany(company=company, profiles=[])
+                    )
         
         return enriched_companies
     
@@ -389,11 +400,11 @@ class InitiationPipeline:
         
         console.print("🔍 Multi-source AI company discovery...")
         
-        with Timer("Company Discovery"):
-            companies = await self.company_discovery.find_companies(
-                limit=limit,
-                founded_year=None  # Standard discovery without specific year
-            )
+        logger.info("🔍 Starting company discovery...")
+        companies = await self.company_discovery.find_companies(
+            limit=limit,
+            founded_year=None  # Standard discovery without specific year
+        )
         
         # Save checkpoint
         await save_checkpoint(companies, checkpoint_name)
@@ -416,25 +427,19 @@ class InitiationPipeline:
         
         console.print("🔄 Multi-source data fusion and enhancement...")
         
-        with create_progress_bar() as progress:
-            task = progress.add_task(
-                "Fusing company data...", 
-                total=len(companies)
-            )
+        logger.info("🔄 Processing companies in batches...")
+        
+        # Process companies in batches for efficiency
+        batch_size = min(3, settings.concurrent_requests)  # Smaller batches for complex processing
+        fused_companies = []
+        
+        for i in range(0, len(companies), batch_size):
+            batch = companies[i:i + batch_size]
+            logger.info(f"Processing batch {i//batch_size + 1}/{(len(companies) + batch_size - 1)//batch_size}")
             
-            # Process companies in batches for efficiency
-            batch_size = min(3, settings.concurrent_requests)  # Smaller batches for complex processing
-            fused_companies = []
-            
-            for i in range(0, len(companies), batch_size):
-                batch = companies[i:i + batch_size]
-                
-                # Process batch with data fusion
-                batch_results = await self.data_fusion.batch_fuse_companies(batch, batch_size)
-                fused_companies.extend(batch_results)
-                
-                # Update progress
-                progress.update(task, advance=len(batch))
+            # Process batch with data fusion
+            batch_results = await self.data_fusion.batch_fuse_companies(batch, batch_size)
+            fused_companies.extend(batch_results)
         
         # Save checkpoint
         await save_checkpoint(fused_companies, checkpoint_name)
@@ -444,8 +449,7 @@ class InitiationPipeline:
     async def _run_basic_processing(
         self,
         companies: List[Company],
-        include_profiles: bool,
-        include_market_analysis: bool
+        include_profiles: bool
     ) -> List[EnrichedCompany]:
         """Fallback to basic processing without data fusion."""
         console.print("⚠️  Running basic processing (data fusion disabled)")
@@ -467,11 +471,7 @@ class InitiationPipeline:
                 enriched_companies, "basic"
             )
         
-        # Run market analysis if requested
-        if include_market_analysis:
-            enriched_companies = await self._run_market_analysis_from_fused(
-                enriched_companies, "basic"
-            )
+        # Market analysis can be added later if needed
         
         return enriched_companies
     
@@ -738,32 +738,31 @@ class InitiationPipeline:
         
         console.print("👤 Enriching LinkedIn profiles...")
         
-        with create_progress_bar() as progress:
-            task = progress.add_task("Finding profiles...", total=len(enriched_companies))
-            
-            for enriched in enriched_companies:
+        logger.info("👤 Processing companies for profile enrichment...")
+        
+        for i, enriched in enumerate(enriched_companies):
+            logger.info(f"Processing company {i+1}/{len(enriched_companies)}: {enriched.company.name}")
+            try:
+                # Run profile discovery for this company
+                profiles = await self.profile_enrichment.find_profiles(enriched.company)
+                
+                # Enrich profiles with full LinkedIn data (batched)
+                profiles_to_enrich = profiles[:3]  # Limit to 3 profiles per company
                 try:
-                    # Run profile discovery for this company
-                    profiles = await self.profile_enrichment.find_profiles(enriched.company)
-                    
-                    # Enrich profiles with full LinkedIn data (batched)
-                    profiles_to_enrich = profiles[:3]  # Limit to 3 profiles per company
-                    try:
-                        enriched_profiles = await self.profile_enrichment.enrich_profiles_batch(profiles_to_enrich)
-                    except Exception as e:
-                        logger.warning(f"Failed to batch enrich profiles for {enriched.company.name}: {e}")
-                        # Keep the basic profiles without enriched data
-                        enriched_profiles = profiles_to_enrich
-                    
-                    enriched.profiles = enriched_profiles
-                    
-                    progress.update(task, advance=1)
-                    await asyncio.sleep(0.5)  # Rate limiting
-                    
+                    enriched_profiles = await self.profile_enrichment.enrich_profiles_batch(profiles_to_enrich)
                 except Exception as e:
-                    logger.error(f"Profile enrichment failed for {enriched.company.name}: {e}")
-                    # Continue with empty profiles
-                    enriched.profiles = []
+                    logger.warning(f"Failed to batch enrich profiles for {enriched.company.name}: {e}")
+                    # Keep the basic profiles without enriched data
+                    enriched_profiles = profiles_to_enrich
+                
+                enriched.profiles = enriched_profiles
+                
+                await asyncio.sleep(0.5)  # Rate limiting
+                
+            except Exception as e:
+                logger.error(f"Profile enrichment failed for {enriched.company.name}: {e}")
+                # Continue with empty profiles
+                enriched.profiles = []
         
         # Save checkpoint
         await save_checkpoint(enriched_companies, checkpoint_name)
@@ -785,29 +784,28 @@ class InitiationPipeline:
         
         console.print("📊 Analyzing market metrics...")
         
-        with create_progress_bar() as progress:
-            task = progress.add_task("Market analysis...", total=len(enriched_companies))
-            
-            for enriched in enriched_companies:
-                try:
-                    # Run market analysis for this company
-                    sector = enriched.company.ai_focus or enriched.company.sector or "Artificial Intelligence"
-                    from datetime import datetime
-                    current_year = datetime.now().year
-                    
-                    metrics = await self.market_analysis.analyze_market(
-                        sector=sector,
-                        year=current_year
-                    )
-                    enriched.market_metrics = metrics
-                    
-                    progress.update(task, advance=1)
-                    await asyncio.sleep(0.5)  # Rate limiting
-                    
-                except Exception as e:
-                    logger.error(f"Market analysis failed for {enriched.company.name}: {e}")
-                    # Continue with no market metrics
-                    enriched.market_metrics = None
+        logger.info("📊 Processing companies for market analysis...")
+        
+        for i, enriched in enumerate(enriched_companies):
+            logger.info(f"Analyzing company {i+1}/{len(enriched_companies)}: {enriched.company.name}")
+            try:
+                # Run market analysis for this company
+                sector = enriched.company.ai_focus or enriched.company.sector or "Artificial Intelligence"
+                from datetime import datetime
+                current_year = datetime.now().year
+                
+                metrics = await self.market_analysis.analyze_market(
+                    sector=sector,
+                    year=current_year
+                )
+                enriched.market_metrics = metrics
+                
+                await asyncio.sleep(0.5)  # Rate limiting
+                
+            except Exception as e:
+                logger.error(f"Market analysis failed for {enriched.company.name}: {e}")
+                # Continue with no market metrics
+                enriched.market_metrics = None
         
         # Save checkpoint
         await save_checkpoint(enriched_companies, checkpoint_name)

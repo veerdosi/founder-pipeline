@@ -1,7 +1,8 @@
 """FastAPI dependencies for service injection."""
 
 from ..core.ranking import FounderRankingService
-from ..core.discovery import ExaCompanyDiscovery, InitiationPipeline  
+from ..core.discovery import ExaCompanyDiscovery
+from ..core.pipeline import InitiationPipeline
 from ..core.data import LinkedInEnrichmentService
 from ..core.ranking.verification_service import RealTimeFounderVerifier
 

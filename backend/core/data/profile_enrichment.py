@@ -11,8 +11,8 @@ from apify_client import ApifyClient
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 
-from .. import ProfileEnrichmentService
-from ...core import settings
+from ..interfaces import ProfileEnrichmentService
+from ..config import settings
 from ...utils.data_processing import clean_text
 from ...utils.rate_limiter import RateLimiter
 from ...validators import validate_linkedin_url

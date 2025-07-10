@@ -10,8 +10,8 @@ from typing import Dict, List, Optional
 import aiohttp
 from openai import AsyncOpenAI
 
-from .. import MarketAnalysisService
-from ...core import settings
+from ..interfaces import MarketAnalysisService
+from ..config import settings
 from ...utils.data_processing import clean_text
 from ...utils.rate_limiter import RateLimiter
 from ...models import MarketMetrics, MarketStage
@@ -185,7 +185,9 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
             
             metrics = MarketMetrics(
                 market_size_billion=market_data.get("market_size", 0),
+                market_size_usd=market_data.get("market_size", 0) * 1_000_000_000,  # Convert to USD
                 cagr_percent=market_data.get("cagr", 0),
+                growth_rate=market_data.get("cagr", 0),
                 timing_score=timing_data.get("timing_score", 3.0),
                 us_sentiment=us_sentiment,
                 sea_sentiment=asia_sentiment,  # Using Asia as proxy for SEA
@@ -206,7 +208,9 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
             # Return default metrics
             return MarketMetrics(
                 market_size_billion=0,
+                market_size_usd=0,
                 cagr_percent=0,
+                growth_rate=0,
                 timing_score=3.0,
                 us_sentiment=3.0,
                 sea_sentiment=3.0,
@@ -444,7 +448,7 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
     ) -> MarketStage:
         """Determine market maturity stage."""
         if cagr > 30 and competitor_count < 20 and timing_score >= 4.0:
-            return MarketStage.EMERGING
+            return MarketStage.EARLY  # Changed from EMERGING to EARLY
         elif cagr > 15 and competitor_count < 50 and timing_score >= 3.0:
             return MarketStage.GROWTH
         elif cagr < 15 and competitor_count >= 30:

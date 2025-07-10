@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .models import CompanyDiscoveryRequest, DashboardStats, PipelineJobResponse, SimpleDateRangeRequest, YearBasedRequest
 from .dependencies import get_pipeline_service, get_ranking_service
-from ..core.discovery import InitiationPipeline
+from ..core.pipeline import InitiationPipeline
 from ..core.ranking import FounderRankingService
 from ..core.ranking.models import FounderProfile
 from ..core.analysis.market_analysis import PerplexityMarketAnalysis
