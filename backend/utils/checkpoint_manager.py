@@ -372,129 +372,24 @@ class CheckpointedPipelineRunner:
         logger.info(f"🔄 Resuming pipeline from checkpoint: {checkpoint_id}")
         
         try:
-            stage = resume_data.get('stage')
+            result = await pipeline_service.run(force_restart=False)
             
-            if stage == 'complete':
-                logger.info(f"✅ Pipeline {checkpoint_id} already complete")
-                return resume_data['data']
-            
-            # Load existing data based on completed stage
-            companies = None
-            enhanced_companies = None
-            profiles = None
-            founder_intelligence = None
-            rankings = None
-            
-            if stage in ['companies', 'enhanced_companies', 'profiles', 'founder_intelligence', 'rankings']:
-                companies = self.checkpoint_manager.load_checkpoint(checkpoint_id, 'companies')
-                
-            if stage in ['enhanced_companies', 'profiles', 'founder_intelligence', 'rankings']:
-                enhanced_companies = self.checkpoint_manager.load_checkpoint(checkpoint_id, 'enhanced_companies')
-                
-            if stage in ['profiles', 'founder_intelligence', 'rankings']:
-                profiles = self.checkpoint_manager.load_checkpoint(checkpoint_id, 'profiles')
-                
-            if stage in ['founder_intelligence', 'rankings']:
-                founder_intelligence = self.checkpoint_manager.load_checkpoint(checkpoint_id, 'founder_intelligence')
-                
-            if stage == 'rankings':
-                rankings = self.checkpoint_manager.load_checkpoint(checkpoint_id, 'rankings')
-            
-            # Continue from where we left off
-            if companies is None:
-                logger.info("🔍 Stage 1: Company Discovery (from scratch)")
-                companies = await pipeline_service.discover_companies(limit=50)
-                self.checkpoint_manager.save_checkpoint(checkpoint_id, 'companies', companies)
-            
-            if enhanced_companies is None:
-                logger.info("🔄 Stage 1.5: Company Enhancement")
-                enhanced_companies = await pipeline_service.enhance_companies(companies)
-                self.checkpoint_manager.save_checkpoint(checkpoint_id, 'enhanced_companies', enhanced_companies)
-            
-            if profiles is None:
-                logger.info("👤 Stage 3: Profile Enrichment")
-                profiles = await pipeline_service.enrich_profiles(enhanced_companies)
-                self.checkpoint_manager.save_checkpoint(checkpoint_id, 'profiles', profiles)
-            
-            if founder_intelligence is None:
-                logger.info("🧠 Stage 3.5: Founder Intelligence Collection")
-                print("🧠 Stage 3.5: Founder Intelligence Collection - STARTING NOW")
-                # Import the founder pipeline
-                from ..core.data.founder_pipeline import FounderDataPipeline
-                
-                # Process each enriched company's LinkedIn profiles
-                all_enriched_profiles = []
-                print(f"📊 Found {len(profiles)} companies to process for founder intelligence")
-                async with FounderDataPipeline() as founder_pipeline:
-                    for i, enriched_company in enumerate(profiles):
-                        if enriched_company.profiles:
-                            logger.info(f"Processing {len(enriched_company.profiles)} founder profiles for {enriched_company.company.name}")
-                            print(f"🔍 [{i+1}/{len(profiles)}] Processing {len(enriched_company.profiles)} founder profiles for {enriched_company.company.name}")
-                            
-                            try:
-                                # Convert LinkedIn profiles to FounderProfiles and collect intelligence with timeout
-                                company_founder_profiles = await asyncio.wait_for(
-                                    founder_pipeline.collect_founder_intelligence_from_linkedin_profiles(
-                                        enriched_company.profiles,
-                                        enriched_company.company.name
-                                    ),
-                                    timeout=100  # 5 minute timeout per company
-                                )
-                                
-                                # Update the enriched company with the new FounderProfile objects
-                                enriched_company.profiles = company_founder_profiles
-                                all_enriched_profiles.append(enriched_company)
-                                print(f"✅ [{i+1}/{len(profiles)}] Completed intelligence collection for {enriched_company.company.name}")
-                            except asyncio.TimeoutError:
-                                logger.error(f"⏰ Intelligence collection timeout for {enriched_company.company.name} (5 minute limit)")
-                                print(f"⏰ [{i+1}/{len(profiles)}] Intelligence collection timeout for {enriched_company.company.name} (5 minute limit)")
-                                # Keep original profiles as fallback
-                                all_enriched_profiles.append(enriched_company)
-                            except Exception as e:
-                                logger.error(f"❌ Intelligence collection failed for {enriched_company.company.name}: {e}")
-                                print(f"❌ [{i+1}/{len(profiles)}] Intelligence collection failed for {enriched_company.company.name}: {e}")
-                                # Keep original profiles as fallback
-                                all_enriched_profiles.append(enriched_company)
-                        else:
-                            # Keep companies without profiles as is
-                            all_enriched_profiles.append(enriched_company)
-                            print(f"⚠️ [{i+1}/{len(profiles)}] No profiles found for {enriched_company.company.name}")
-                
-                founder_intelligence = all_enriched_profiles
-                self.checkpoint_manager.save_checkpoint(checkpoint_id, 'founder_intelligence', founder_intelligence)
-                logger.info(f"✅ Founder intelligence collection complete for {len(founder_intelligence)} companies")
-                print(f"✅ Founder intelligence collection complete for {len(founder_intelligence)} companies")
-            
-            if rankings is None and ranking_service is not None:
-                logger.info("🏆 Stage 4: Founder Ranking")
-                # Extract founder profiles for ranking from founder intelligence data
-                founder_profiles = []
-                data_source = founder_intelligence if founder_intelligence else profiles
-                for ec in data_source:
-                    for profile in ec.profiles:
-                        founder_profiles.append(profile)
-                
-                if founder_profiles:
-                    rankings = await ranking_service.rank_founders_batch(
-                        founder_profiles, 
-                        batch_size=5,
-                        use_enhanced=True
-                    )
-                    self.checkpoint_manager.save_checkpoint(checkpoint_id, 'rankings', rankings)
-                else:
-                    rankings = []
-            
-            # Mark as complete
-            result = {
-                'companies': founder_intelligence if founder_intelligence else profiles,
-                'rankings': rankings or [],
-                'job_id': checkpoint_id
+            final_result = {
+                'job_id': checkpoint_id,
+                'companies': result,
+                'rankings': [],
+                'completed_at': datetime.now(),
+                'stats': {
+                    'total_companies': len(result),
+                    'total_founders': sum(len(ec.profiles) for ec in result),
+                    'ranked_founders': 0,
+                    'high_confidence_founders': 0
+                }
             }
-            
-            self.checkpoint_manager.save_checkpoint(checkpoint_id, 'complete', result)
+            self.checkpoint_manager.save_checkpoint(checkpoint_id, 'complete', final_result)
             logger.info(f"✅ Pipeline {checkpoint_id} completed successfully")
             
-            return result
+            return final_result
             
         except Exception as e:
             logger.error(f"❌ Pipeline resume failed for {checkpoint_id}: {e}")
@@ -509,157 +404,30 @@ class CheckpointedPipelineRunner:
     ):
         """Run pipeline with automatic checkpointing and resume capability."""
         
-        # Create job ID based on parameters
         job_id = self.checkpoint_manager.create_job_id(params)
+        pipeline_service.job_id = job_id
         logger.info(f"🚀 Starting checkpointed pipeline: {job_id}")
         
         try:
-            # Check for existing checkpoints unless force restart
-            if not force_restart:
-                resume_data = self.checkpoint_manager.resume_pipeline(job_id)
-                if resume_data:
-                    if resume_data.get('stage') == 'complete':
-                        logger.info(f"✅ Job {job_id} already complete")
-                        return resume_data['data']
-                    else:
-                        logger.info(f"🔄 Resuming from stage: {resume_data['stage']}")
-            
-            # Stage 1: Company Discovery
-            companies = self.checkpoint_manager.load_checkpoint(job_id, 'companies')
-            if companies is None:
-                logger.info("🔍 Stage 1: Company Discovery")
-                companies = await pipeline_service.discover_companies(
-                    limit=params.get('limit', 50),
-                    categories=params.get('categories'),
-                    regions=params.get('regions'),
-                    founded_after=params.get('founded_after'),
-                    founded_before=params.get('founded_before')
-                )
-                self.checkpoint_manager.save_checkpoint(job_id, 'companies', companies)
-                
-                # Export companies CSV immediately after discovery
-                await self._export_companies_csv(companies, job_id)
-                
-            else:
-                logger.info("📂 Stage 1: Loaded companies from checkpoint")
-                # Check if companies CSV already exists, if not export it
-                from pathlib import Path
-                csv_path = Path("./output") / f"{job_id}_companies.csv"
-                if not csv_path.exists():
-                    await self._export_companies_csv(companies, job_id)
-            
-            # Stage 1.5: Company Enhancement with Crunchbase data fusion
-            enhanced_companies = self.checkpoint_manager.load_checkpoint(job_id, 'enhanced_companies')
-            if enhanced_companies is None:
-                logger.info("🔄 Stage 1.5: Company Enhancement")
-                enhanced_companies = await pipeline_service.enhance_companies(companies)
-                self.checkpoint_manager.save_checkpoint(job_id, 'enhanced_companies', enhanced_companies)
-            else:
-                logger.info("📂 Stage 1.5: Loaded enhanced companies from checkpoint")
-            
-            # Stage 3: Profile Enrichment
-            profiles = self.checkpoint_manager.load_checkpoint(job_id, 'profiles')
-            if profiles is None:
-                logger.info("👤 Stage 3: Profile Enrichment")
-                profiles = await pipeline_service.enrich_profiles(enhanced_companies)
-                self.checkpoint_manager.save_checkpoint(job_id, 'profiles', profiles)
-                
-            else:
-                logger.info("📂 Stage 3: Loaded profiles from checkpoint")
-            
-            # Stage 3.5: Founder Intelligence Collection
-            founder_intelligence = self.checkpoint_manager.load_checkpoint(job_id, 'founder_intelligence')
-            if founder_intelligence is None:
-                logger.info("🧠 Stage 3.5: Founder Intelligence Collection")
-                # Import the founder pipeline
-                from ..core.data.founder_pipeline import FounderDataPipeline
-                
-                # Process each enriched company's LinkedIn profiles
-                all_enriched_profiles = []
-                async with FounderDataPipeline() as founder_pipeline:
-                    for enriched_company in profiles:
-                        if enriched_company.profiles:
-                            logger.info(f"Processing {len(enriched_company.profiles)} founder profiles for {enriched_company.company.name}")
-                            
-                            # Convert LinkedIn profiles to FounderProfiles and collect intelligence
-                            company_founder_profiles = await founder_pipeline.collect_founder_intelligence_from_linkedin_profiles(
-                                enriched_company.profiles,
-                                enriched_company.company.name
-                            )
-                            
-                            # Update the enriched company with the new FounderProfile objects
-                            enriched_company.profiles = company_founder_profiles
-                            all_enriched_profiles.append(enriched_company)
-                        else:
-                            # Keep companies without profiles as is
-                            all_enriched_profiles.append(enriched_company)
-                
-                founder_intelligence = all_enriched_profiles
-                self.checkpoint_manager.save_checkpoint(job_id, 'founder_intelligence', founder_intelligence)
-                logger.info(f"✅ Founder intelligence collection complete for {len(founder_intelligence)} companies")
-            else:
-                logger.info("📂 Stage 3.5: Loaded founder intelligence from checkpoint")
-            
-            if not companies:
-                raise ValueError("No companies found in discovery stage")
-            
-            if not founder_intelligence:
-                raise ValueError("No founder intelligence found in enrichment stage")
-            
-            # Extract profiles data for further processing
-            profiles_data = []
-            for ec in founder_intelligence:
-                for profile in ec.profiles:
-                    profiles_data.append({
-                        'company_name': ec.company.name,
-                        'profile': profile
-                    })
-            
-            logger.info(f"📂 Stage 3.5: Extracted {len(profiles_data)} enriched founder profiles")
-            
-            # Stage 4: Founder Rankings
-            rankings = self.checkpoint_manager.load_checkpoint(job_id, 'rankings')
-            if rankings is None and profiles_data:
-                logger.info("🏆 Stage 4: Founder Rankings")
-                
-                # Profiles are already FounderProfile objects from founder intelligence stage
-                founder_profiles = [pd['profile'] for pd in profiles_data]
-                
-                # Rank founders with enhanced system
-                from ..core.ranking.ranking_service import FounderRankingService
-                ranking_service = FounderRankingService()
-                
-                rankings = await ranking_service.rank_founders_batch(
-                    founder_profiles, 
-                    batch_size=5,
-                    use_enhanced=True  # Use enhanced ranking with L-level validation
-                )
-                
-                self.checkpoint_manager.save_checkpoint(job_id, 'rankings', rankings)
-                
-                # Export founders CSV immediately after ranking
-                await self._export_founders_csv(founder_intelligence, job_id)
-                
-            else:
-                logger.info("📂 Stage 3: Loaded rankings from checkpoint")
-                # Check if founders CSV already exists, if not export it
-                from pathlib import Path
-                csv_path = Path("./output") / f"{job_id}_founders.csv"
-                if not csv_path.exists():
-                    await self._export_founders_csv(founder_intelligence, job_id)
-            
-            # Stage 4: Complete - Final result
+            result = await pipeline_service.run(
+                limit=params.get('limit', 50),
+                categories=params.get('categories'),
+                regions=params.get('regions'),
+                founded_after=params.get('founded_after'),
+                founded_before=params.get('founded_before'),
+                force_restart=force_restart
+            )
+
             final_result = {
                 'job_id': job_id,
-                'companies': founder_intelligence,
-                'profiles': profiles_data,
-                'rankings': rankings,
+                'companies': result,
+                'rankings': [],
                 'completed_at': datetime.now(),
                 'stats': {
-                    'total_companies': len(founder_intelligence),
-                    'total_founders': len(profiles_data),
-                    'ranked_founders': len(rankings) if rankings else 0,
-                    'high_confidence_founders': len([r for r in rankings if r.classification.confidence_score >= 0.75]) if rankings else 0
+                    'total_companies': len(result),
+                    'total_founders': sum(len(ec.profiles) for ec in result),
+                    'ranked_founders': 0,
+                    'high_confidence_founders': 0
                 }
             }
             

@@ -114,63 +114,23 @@ async def get_available_checkpoints():
 @app.post("/api/pipeline/resume/{checkpoint_id}", response_model=PipelineJobResponse)
 async def resume_pipeline_from_checkpoint(
     checkpoint_id: str,
-    pipeline_service: InitiationPipeline = Depends(get_pipeline_service),
     ranking_service: FounderRankingService = Depends(get_ranking_service),
 ):
     """Resume pipeline from a specific checkpoint."""
     try:
-        # Try to resume from the specified checkpoint
-        resume_data = checkpoint_manager.resume_pipeline(checkpoint_id)
+        pipeline_service = get_pipeline_service(job_id=checkpoint_id)
+        result = await pipeline_service.run(force_restart=False)
         
-        if resume_data is None:
-            raise HTTPException(status_code=404, detail=f"Checkpoint {checkpoint_id} not found or empty")
-        
-        if resume_data.get('stage') == 'complete':
-            # Pipeline already complete, just load results
-            result = resume_data['data']
-            enriched_companies = result.get('companies', [])
-            rankings = result.get('rankings', [])
-            
-            # Update latest results for API access
-            latest_results["companies"] = enriched_companies
-            latest_results["rankings"] = rankings
-            latest_results["last_job_id"] = checkpoint_id
-            
-            return PipelineJobResponse(
-                jobId=checkpoint_id,
-                status="completed",
-                companiesFound=len(enriched_companies),
-                foundersFound=len(rankings) if rankings else sum(len(ec.profiles) for ec in enriched_companies),
-                message="Pipeline already complete. Results loaded from checkpoint."
-            )
-        
-        # Resume from partial completion
-        stage = resume_data['stage']
-        logger.info(f"🔄 Resuming pipeline from checkpoint {checkpoint_id} at stage: {stage}")
-        
-        # Run remaining pipeline stages
-        result = await checkpointed_runner.resume_checkpointed_pipeline(
-            checkpoint_id=checkpoint_id,
-            pipeline_service=pipeline_service,
-            ranking_service=ranking_service,
-            resume_data=resume_data
-        )
-        
-        # Extract results
-        enriched_companies = result.get('companies', [])
-        rankings = result.get('rankings', [])
-        
-        # Update latest results for API access
-        latest_results["companies"] = enriched_companies
-        latest_results["rankings"] = rankings
+        latest_results["companies"] = result
+        latest_results["rankings"] = []
         latest_results["last_job_id"] = checkpoint_id
         
         return PipelineJobResponse(
             jobId=checkpoint_id,
             status="completed",
-            companiesFound=len(enriched_companies),
-            foundersFound=len(rankings) if rankings else sum(len(ec.profiles) for ec in enriched_companies),
-            message=f"Pipeline resumed from checkpoint and completed successfully."
+            companiesFound=len(result),
+            foundersFound=sum(len(ec.profiles) for ec in result),
+            message="Pipeline resumed from checkpoint and completed successfully."
         )
         
     except Exception as e:
@@ -180,46 +140,41 @@ async def resume_pipeline_from_checkpoint(
 @app.post("/api/pipeline/run", response_model=PipelineJobResponse)
 async def run_complete_pipeline(
     params: YearBasedRequest,
-    pipeline_service: InitiationPipeline = Depends(get_pipeline_service),
     ranking_service: FounderRankingService = Depends(get_ranking_service),
 ):
     """Year-based endpoint that runs the complete pipeline including ranking."""
     try:
-        # Convert to standard discovery request
         discovery_params = params.to_discovery_request()
         
-        # Convert to pipeline parameters
         pipeline_params = {
             'limit': discovery_params.limit,
             'categories': discovery_params.categories,
             'regions': discovery_params.regions,
-            'sources': discovery_params.sources,
             'founded_after': discovery_params.founded_after,
             'founded_before': discovery_params.founded_before
         }
         
-        # Run complete checkpointed pipeline including ranking
-        result = await checkpointed_runner.run_checkpointed_pipeline(
-            pipeline_service=pipeline_service,
-            ranking_service=ranking_service,
-            params=pipeline_params,
+        job_id = checkpoint_manager.create_job_id(pipeline_params)
+        pipeline_service = get_pipeline_service(job_id=job_id)
+        
+        result = await pipeline_service.run(
+            limit=discovery_params.limit,
+            categories=discovery_params.categories,
+            regions=discovery_params.regions,
+            founded_after=discovery_params.founded_after,
+            founded_before=discovery_params.founded_before,
             force_restart=False
         )
         
-        # Extract results
-        enriched_companies = result.get('companies', [])
-        rankings = result.get('rankings', [])
-        
-        # Update latest results for API access
-        latest_results["companies"] = enriched_companies
-        latest_results["rankings"] = rankings
-        latest_results["last_job_id"] = result['job_id']
+        latest_results["companies"] = result
+        latest_results["rankings"] = []
+        latest_results["last_job_id"] = job_id
         
         return PipelineJobResponse(
-            jobId=result['job_id'],
+            jobId=job_id,
             status="completed",
-            companiesFound=len(enriched_companies),
-            foundersFound=len(rankings) if rankings else sum(len(ec.profiles) for ec in enriched_companies),
+            companiesFound=len(result),
+            foundersFound=sum(len(ec.profiles) for ec in result),
             message="Complete pipeline with ranking finished successfully."
         )
     except Exception as e:
@@ -229,40 +184,37 @@ async def run_complete_pipeline(
 @app.post("/api/companies/discover", response_model=PipelineJobResponse)
 async def discover_companies_only(
     params: CompanyDiscoveryRequest,
-    pipeline_service: InitiationPipeline = Depends(get_pipeline_service),
 ):
     """Discover companies only (without ranking) using checkpointed pipeline."""
     try:
-        # Convert request to pipeline parameters
         pipeline_params = {
             'limit': params.limit,
             'categories': params.categories,
             'regions': params.regions,
-            'sources': params.sources,
             'founded_after': params.founded_after,
             'founded_before': params.founded_before
         }
         
-        # Run discovery-only pipeline
-        result = await checkpointed_runner.run_checkpointed_pipeline(
-            pipeline_service=pipeline_service,
-            ranking_service=None,  # Skip ranking for discovery-only
-            params=pipeline_params,
+        job_id = checkpoint_manager.create_job_id(pipeline_params)
+        pipeline_service = get_pipeline_service(job_id=job_id)
+        
+        result = await pipeline_service.run(
+            limit=params.limit,
+            categories=params.categories,
+            regions=params.regions,
+            founded_after=params.founded_after,
+            founded_before=params.founded_before,
             force_restart=False
         )
         
-        # Extract companies from result
-        enriched_companies = result.get('companies', [])
-        
-        # Update latest results for API access
-        latest_results["companies"] = enriched_companies
-        latest_results["last_job_id"] = result['job_id']
+        latest_results["companies"] = result
+        latest_results["last_job_id"] = job_id
         
         return PipelineJobResponse(
-            jobId=result['job_id'],
+            jobId=job_id,
             status="completed",
-            companiesFound=len(enriched_companies),
-            foundersFound=sum(len(ec.profiles) for ec in enriched_companies),
+            companiesFound=len(result),
+            foundersFound=sum(len(ec.profiles) for ec in result),
             message="Company discovery complete (ranking skipped)."
         )
     except Exception as e:

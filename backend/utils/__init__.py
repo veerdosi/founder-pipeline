@@ -7,7 +7,7 @@ from .data_processing import (
 )
 
 # Import centralized validation functions
-from ..validators import (
+from .validators import (
     validate_linkedin_url,
     validate_url as validate_url_v2,
     validate_email as validate_email_v2,

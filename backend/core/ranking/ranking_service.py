@@ -9,7 +9,7 @@ import anthropic
 
 
 from .models import FounderProfile, LevelClassification, ExperienceLevel
-from ..core import settings
+from .. import config
 from .prompts import RankingPrompts
 
 
@@ -21,7 +21,7 @@ class ClaudeSonnet4RankingService:
     """Claude Sonnet 4 ranking service for L1-L10 founder classification."""
     
     def __init__(self):
-        self.anthropic_client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+        self.anthropic_client = anthropic.AsyncAnthropic(api_key=config.settings.anthropic_api_key)
         self.perplexity_verifier = None  # Lazy load to avoid circular import
         
     async def rank_founder(

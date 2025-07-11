@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     serper_api_key: str = Field(..., env="SERPER_API_KEY")
     apify_api_key: str = Field(..., env="APIFY_API_KEY")
     perplexity_api_key: str = Field(..., env="PERPLEXITY_API_KEY")
-    anthropic_api_key: str = Field(..., env="ANTHROPIC_API_KEY")  # For Claude Sonnet 4
+    anthropic_api_key: str = Field(..., env="ANTHROPIC_API_KEY") 
     
     # Data Source APIs
     crunchbase_api_key: str = Field(..., env="CRUNCHBASE_API_KEY")
@@ -27,8 +27,8 @@ class Settings(BaseSettings):
     log_file: Optional[str] = Field(None, env="LOG_FILE")
     
     # Rate Limiting - increased for better performance
-    requests_per_minute: int = Field(60, env="REQUESTS_PER_MINUTE")  # Increased from 30
-    concurrent_requests: int = Field(5, env="CONCURRENT_REQUESTS")   # Increased from 3
+    requests_per_minute: int = Field(60, env="REQUESTS_PER_MINUTE")  
+    concurrent_requests: int = Field(5, env="CONCURRENT_REQUESTS")  
     
     # Output Settings
     default_output_dir: Path = Field(
