@@ -91,7 +91,7 @@ class PipelineCheckpointManager:
     
     def get_job_progress(self, job_id: str) -> Dict[str, Any]:
         """Get progress information for a job."""
-        stages = ['companies', 'enhanced_companies', 'profiles', 'founder_intelligence', 'rankings']
+        stages = ['companies', 'enhanced_companies', 'profiles', 'rankings']
         progress = {
             'job_id': job_id,
             'stages': {},
@@ -133,7 +133,7 @@ class PipelineCheckpointManager:
         latest_stage = None
         latest_data = None
         
-        for stage in ['rankings', 'founder_intelligence', 'profiles', 'enhanced_companies', 'companies']:
+        for stage in ['rankings', 'profiles', 'enhanced_companies', 'companies']:
             if progress['stages'].get(stage, {}).get('completed'):
                 latest_stage = stage
                 latest_data = self.load_checkpoint(job_id, stage)

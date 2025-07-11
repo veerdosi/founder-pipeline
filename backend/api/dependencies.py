@@ -4,7 +4,6 @@ from ..core.ranking import FounderRankingService
 from ..core.data import ExaCompanyDiscovery
 from ..core.pipeline import InitiationPipeline
 from ..core.data import LinkedInEnrichmentService
-from ..core.data import FounderDataPipeline
 
 
 def get_ranking_service() -> FounderRankingService:
@@ -20,9 +19,6 @@ def get_discovery_service() -> ExaCompanyDiscovery:
 def get_enrichment_service() -> LinkedInEnrichmentService:
     """Get founder enrichment service instance.""" 
     return LinkedInEnrichmentService()
-
-def get_founder_pipeline_service() -> FounderDataPipeline:
-    return FounderDataPipeline()
 
 def get_pipeline_service(job_id: str = None) -> InitiationPipeline:
     """Get complete pipeline service instance."""

@@ -55,14 +55,12 @@ class InitiationPipeline:
 
             enriched_companies = await self._enrich_profiles_checkpointed(enhanced_companies, force_restart)
 
-            enriched_companies_with_intelligence = await self._collect_founder_intelligence_checkpointed(enriched_companies, force_restart)
-
             execution_time = time.time() - start_time
-            stats = self._generate_stats_from_enriched(enriched_companies_with_intelligence, execution_time)
+            stats = self._generate_stats_from_enriched(enriched_companies, execution_time)
             self._print_summary(stats)
             
-            logger.info(f"🎉 Pipeline complete! Processed {len(enriched_companies_with_intelligence)} companies in {execution_time:.1f}s")
-            return enriched_companies_with_intelligence
+            logger.info(f"🎉 Pipeline complete! Processed {len(enriched_companies)} companies in {execution_time:.1f}s")
+            return enriched_companies
 
         except Exception as e:
             logger.error(f"❌ Pipeline error for job_id {self.job_id}: {e}")
@@ -138,31 +136,6 @@ class InitiationPipeline:
         checkpoint_manager.save_checkpoint(self.job_id, stage_name, enriched_companies)
         return enriched_companies
 
-    async def _collect_founder_intelligence_checkpointed(self, enriched_companies, force_restart):
-        stage_name = "founder_intelligence"
-        if not force_restart:
-            cached_data = checkpoint_manager.load_checkpoint(self.job_id, stage_name)
-            if cached_data:
-                return cached_data
-
-        console.print("🧠 Collecting founder intelligence...")
-        from .data.founder_pipeline import FounderDataPipeline
-        
-        async with FounderDataPipeline() as founder_pipeline:
-            for i, enriched in enumerate(enriched_companies):
-                if enriched.profiles:
-                    console.print(f"   🧠 [{i+1}/{len(enriched_companies)}] Collecting intelligence for {enriched.company.name}")
-                    try:
-                        company_founder_profiles = await founder_pipeline.collect_founder_intelligence_from_linkedin_profiles(
-                            enriched.profiles,
-                            enriched.company.name
-                        )
-                        enriched.profiles = company_founder_profiles
-                    except Exception as e:
-                        logger.error(f"Founder intelligence collection failed for {enriched.company.name}: {e}")
-
-        checkpoint_manager.save_checkpoint(self.job_id, stage_name, enriched_companies)
-        return enriched_companies
 
     def _generate_stats_from_enriched(
         self, 

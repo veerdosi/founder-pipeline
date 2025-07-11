@@ -468,93 +468,7 @@ class FounderRankingService:
             "linkedin_url": profile.linkedin_url
         }
         
-        # Add enhanced financial data if available
-        if profile.financial_profile and hasattr(profile.financial_profile, 'company_exits'):
-            financial_data = {
-                "total_exits": len(profile.financial_profile.company_exits),
-                "total_exit_value_usd": profile.financial_profile.total_exit_value_usd,
-                "companies_founded_count": len(profile.financial_profile.companies_founded),
-                "total_funding_raised_usd": profile.financial_profile.total_funding_raised_usd,
-                "number_of_investments": profile.financial_profile.number_of_investments,
-                "board_positions_count": len(profile.financial_profile.board_positions)
-            }
-            
-            # Add details about largest exit
-            if profile.financial_profile.company_exits:
-                largest_exit = max(profile.financial_profile.company_exits, 
-                                 key=lambda x: x.exit_value_usd or 0)
-                financial_data.update({
-                    "largest_exit_company": largest_exit.company_name,
-                    "largest_exit_value_usd": largest_exit.exit_value_usd,
-                    "largest_exit_type": largest_exit.exit_type.value
-                })
-            
-            # Add company founding details
-            if profile.financial_profile.companies_founded:
-                companies_summary = []
-                for company in profile.financial_profile.companies_founded[:3]:  # Top 3
-                    companies_summary.append({
-                        "name": company.company_name,
-                        "founding_date": company.founding_date.isoformat() if company.founding_date else None,
-                        "current_valuation_usd": company.current_valuation_usd,
-                        "is_current": company.is_current_company
-                    })
-                financial_data["companies_founded_details"] = companies_summary
-            
-            data["financial_profile"] = financial_data
-        
-        # Add enhanced media data if available
-        if profile.media_profile and hasattr(profile.media_profile, 'media_mentions'):
-            media_data = {
-                "media_mentions_count": len(profile.media_profile.media_mentions),
-                "awards_count": len(profile.media_profile.awards),
-                "thought_leadership_count": len(profile.media_profile.thought_leadership),
-                "thought_leader_score": profile.media_profile.thought_leader_score,
-                "public_profile_score": profile.media_profile.public_profile_score,
-                "positive_sentiment_ratio": profile.media_profile.positive_sentiment_ratio,
-                "twitter_followers": profile.media_profile.twitter_followers,
-                "linkedin_connections": profile.media_profile.linkedin_connections
-            }
-            
-            # Add top awards
-            if profile.media_profile.awards:
-                top_awards = []
-                for award in profile.media_profile.awards[:3]:  # Top 3 awards
-                    top_awards.append({
-                        "name": award.award_name,
-                        "organization": award.awarding_organization,
-                        "date": award.award_date.isoformat() if award.award_date else None
-                    })
-                media_data["top_awards"] = top_awards
-            
-            # Add high-impact media mentions
-            high_impact_mentions = [
-                mention for mention in profile.media_profile.media_mentions
-                if mention.importance_score > 0.7
-            ]
-            media_data["high_impact_mentions_count"] = len(high_impact_mentions)
-            
-            data["media_profile"] = media_data
-        
-        # Add web intelligence summary
-        if profile.web_search_data and hasattr(profile.web_search_data, 'verified_facts'):
-            web_data = {
-                "verified_facts_count": len(profile.web_search_data.verified_facts),
-                "data_quality_score": profile.web_search_data.overall_data_quality,
-                "searches_performed": profile.web_search_data.total_searches_performed,
-                "data_gaps_count": len(profile.web_search_data.data_gaps)
-            }
-            
-            # Add key verified facts
-            if profile.web_search_data.verified_facts:
-                web_data["key_verified_facts"] = profile.web_search_data.verified_facts[:5]
-            
-            data["web_intelligence"] = web_data
-        
-        # Add overall intelligence data indicators
-        data["has_intelligence_data"] = profile.has_intelligence_data()
-        data["has_financial_data"] = profile.has_financial_data()
-        data["has_media_presence"] = profile.has_media_presence()
+        # Add basic confidence score
         data["overall_confidence"] = profile.calculate_overall_confidence()
         
         return data
@@ -572,10 +486,8 @@ class FounderRankingService:
         except ValueError:
             level_enum = ExperienceLevel.INSUFFICIENT_DATA
         
-        # Boost confidence if intelligence data is available
+        # Use confidence score as-is for basic LinkedIn data
         confidence_score = analysis_result.confidence_score
-        if profile.has_intelligence_data():
-            confidence_score = min(confidence_score + 0.1, 1.0)
         
         return LevelClassification(
             level=level_enum,
@@ -624,56 +536,10 @@ class FounderRankingService:
             "ranking_timestamp": datetime.now().isoformat()
         }
         
-        # Add intelligence data using the profile's dict method
-        if hasattr(profile, 'to_dict'):
-            data_dict = profile.to_dict()
-            
-            # Add financial data
-            row.update({
-                "total_exits": data_dict.get("total_exits", 0),
-                "total_exit_value_usd": data_dict.get("total_exit_value_usd"),
-                "companies_founded_count": data_dict.get("companies_founded_count", 0),
-                "total_funding_raised_usd": data_dict.get("total_funding_raised_usd"),
-                "financial_confidence": data_dict.get("financial_confidence", 0.0)
-            })
-            
-            # Add media data
-            row.update({
-                "media_mentions_count": data_dict.get("media_mentions_count", 0),
-                "awards_count": data_dict.get("awards_count", 0),
-                "thought_leader_score": data_dict.get("thought_leader_score", 0.0),
-                "media_confidence": data_dict.get("media_confidence", 0.0)
-            })
-            
-            # Add web intelligence data
-            row.update({
-                "verified_facts_count": data_dict.get("verified_facts_count", 0),
-                "web_data_quality": data_dict.get("web_data_quality", 0.0),
-                "searches_performed": data_dict.get("searches_performed", 0)
-            })
-            
-            # Add overall metrics
-            row.update({
-                "data_collected": data_dict.get("data_collected", False),
-                "overall_confidence": data_dict.get("overall_confidence", 0.0)
-            })
-        else:
-            # Fallback for profiles without dict method
-            row.update({
-                "total_exits": 0,
-                "total_exit_value_usd": None,
-                "companies_founded_count": 0,
-                "total_funding_raised_usd": None,
-                "financial_confidence": 0.0,
-                "media_mentions_count": 0,
-                "awards_count": 0,
-                "thought_leader_score": 0.0,
-                "media_confidence": 0.0,
-                "verified_facts_count": 0,
-                "web_data_quality": 0.0,
-                "searches_performed": 0,
-                "data_collected": profile.data_collected,
-                "overall_confidence": 0.1
-            })
+        # Add basic metadata
+        row.update({
+            "data_collected": profile.data_collected,
+            "overall_confidence": profile.calculate_overall_confidence()
+        })
         
         return row
