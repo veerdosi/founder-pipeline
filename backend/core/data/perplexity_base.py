@@ -276,8 +276,3 @@ class PerplexityBaseService(ABC):
     async def collect_data(self, founder_name: str, current_company: str) -> Any:
         """Abstract method to be implemented by subclasses."""
         pass
-    
-    @abstractmethod
-    def get_query_templates(self) -> Dict[str, List[str]]:
-        """Abstract method to get query templates specific to the service."""
-        pass

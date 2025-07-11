@@ -14,7 +14,6 @@ from .profile_enrichment import LinkedInEnrichmentService
 from .company_discovery import ExaCompanyDiscovery
 from .financial_collector import FinancialDataCollector
 from .media_collector import MediaCollector
-from .intel_service import PerplexitySearchService
 from .founder_pipeline import FounderDataPipeline
 
 __all__ = [
@@ -23,7 +22,6 @@ __all__ = [
     "LinkedInEnrichmentService",
     "FinancialDataCollector",
     "MediaCollector",
-    "PerplexitySearchService", 
     "FounderDataPipeline",
     "ExaCompanyDiscovery"
 ]
