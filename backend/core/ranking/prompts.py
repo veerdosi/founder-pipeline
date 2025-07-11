@@ -1,7 +1,6 @@
 """Structured prompts for L1-L10 founder classification using Claude Sonnet 4."""
 
-from typing import Dict, Any
-from .models import FounderProfile
+from typing import Dict, Any, List
 class RankingPrompts:
     """Centralized prompt templates for founder ranking."""
     
@@ -159,32 +158,31 @@ Provide a structured JSON response with:
         
         return "\n".join(context_parts)
 
-    def create_founder_analysis_prompt(self, profile: FounderProfile, company_founding_year: int = None) -> str:
+    def create_founder_analysis_prompt(self, profile: Any, company_founding_year: int = None) -> str:
         """Create the main analysis prompt for a founder with year context."""
         
-        # Build experience summary
+        # Build experience summary from LinkedIn profile
         experiences = []
-        if profile.experience_1_title and profile.experience_1_company:
-            experiences.append(f"{profile.experience_1_title} at {profile.experience_1_company}")
-        if profile.experience_2_title and profile.experience_2_company:
-            experiences.append(f"{profile.experience_2_title} at {profile.experience_2_company}")
-        if profile.experience_3_title and profile.experience_3_company:
-            experiences.append(f"{profile.experience_3_title} at {profile.experience_3_company}")
+        experience_list = getattr(profile, 'experience', [])
+        for exp in experience_list[:3]:  # Take first 3 experiences
+            if exp.get('title') and exp.get('company'):
+                experiences.append(f"{exp['title']} at {exp['company']}")
         
         experience_text = "; ".join(experiences) if experiences else "No detailed experience listed"
         
-        # Build education summary
+        # Build education summary from LinkedIn profile
         education = []
-        if profile.education_1_school and profile.education_1_degree:
-            education.append(f"{profile.education_1_degree} from {profile.education_1_school}")
-        if profile.education_2_school and profile.education_2_degree:
-            education.append(f"{profile.education_2_degree} from {profile.education_2_school}")
+        education_list = getattr(profile, 'education', [])
+        for edu in education_list[:2]:  # Take first 2 educations
+            if edu.get('school'):
+                degree_text = f" - {edu.get('degree', '')}" if edu.get('degree') else ""
+                education.append(f"{edu['school']}{degree_text}")
         
         education_text = "; ".join(education) if education else "No education details listed"
         
-        # Build skills summary
-        skills = [skill for skill in [profile.skill_1, profile.skill_2, profile.skill_3] if skill]
-        skills_text = ", ".join(skills) if skills else "No skills listed"
+        # Build skills summary from LinkedIn profile
+        skills = getattr(profile, 'skills', [])
+        skills_text = ", ".join(skills[:5]) if skills else "No skills listed"  # Take first 5 skills
         
         # Add year context if available
         year_context = ""
@@ -248,41 +246,5 @@ Return your analysis as a valid JSON object with the exact structure:
     "evidence": ["Specific fact 1", "Specific fact 2", "Specific fact 3"],
     "verification_sources": ["LinkedIn profile verification", "Company funding data", "Exit records"]
 }}
-"""
-        return prompt
-
-    @staticmethod
-    def create_batch_analysis_prompt(profiles: list[FounderProfile]) -> str:
-        """Create prompt for analyzing multiple founders in batch."""
-        
-        founders_summary = []
-        for i, profile in enumerate(profiles, 1):
-            founders_summary.append(
-                f"FOUNDER {i}: {profile.name} - {profile.title} at {profile.company_name}"
-            )
-        
-        prompt = f"""
-BATCH FOUNDER ANALYSIS REQUEST
-
-Analyze these {len(profiles)} founders and classify each using the L1-L10 framework:
-
-FOUNDERS TO ANALYZE:
-{chr(10).join(founders_summary)}
-
-For each founder, provide the same detailed analysis as you would individually. 
-Return a JSON array where each object represents one founder's analysis.
-
-Expected format:
-[
-    {{
-        "founder_name": "Name",
-        "level": "L2",
-        "confidence_score": 0.75,
-        "reasoning": "...",
-        "evidence": ["..."],
-        "verification_sources": ["..."]
-    }},
-    ...
-]
 """
         return prompt

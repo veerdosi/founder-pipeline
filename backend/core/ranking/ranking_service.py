@@ -1,6 +1,6 @@
 """Pure ranking service that ONLY adds L-level classifications to founder datasets."""
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
 import pandas as pd
 import asyncio
@@ -8,7 +8,7 @@ import json
 import anthropic
 
 
-from .models import FounderProfile, LevelClassification, ExperienceLevel
+from .models import LevelClassification, ExperienceLevel
 from .. import config
 from .prompts import RankingPrompts
 
@@ -287,7 +287,7 @@ class FounderRankingService:
     
     async def rank_founders_batch(
         self,
-        founder_profiles: List[FounderProfile],
+        founder_profiles: List[Any],  # LinkedInProfile objects
         batch_size: int = 5,
         use_enhanced: bool = True
     ) -> List[Dict[str, Any]]:
@@ -357,126 +357,28 @@ class FounderRankingService:
         logger.info(f"✅ Ranked {len(rankings)} founders")
         return rankings
     
-    async def add_rankings_to_dataset(
-        self, 
-        enhanced_profiles: List[FounderProfile],
-        batch_size: int = 5
-    ) -> List[Dict[str, Any]]:
-        """Add L-level rankings to enhanced founder dataset."""
-        logger.info(f"🎯 Adding L-level rankings to {len(enhanced_profiles)} founder profiles")
-        
-        # Convert profiles to founder data for AI analysis
-        founders_data = [
-            self._profile_to_ai_dict(profile) 
-            for profile in enhanced_profiles
-        ]
-        
-        # Simplified batch AI analysis without verification
-        analysis_results = await self.claude_ranking_service.rank_founders_batch(
-            founders_data=founders_data,
-            batch_size=batch_size,
-            use_verification=False
-        )
-        
-        # Create final dataset with rankings added
-        ranked_dataset = []
-        for profile, analysis_result in zip(enhanced_profiles, analysis_results):
-            try:
-                # Convert AI result to L-level classification
-                classification = self._convert_to_classification(analysis_result, profile)
-                
-                # Create dataset row with ranking added
-                dataset_row = self._create_dataset_row(profile, classification)
-                ranked_dataset.append(dataset_row)
-                
-            except Exception as e:
-                logger.error(f"Error ranking {profile.name}: {e}")
-                # Add fallback ranking
-                fallback_classification = LevelClassification(
-                    level=ExperienceLevel.INSUFFICIENT_DATA,
-                    confidence_score=0.1,
-                    reasoning=f"Ranking failed: {str(e)}",
-                    evidence=[],
-                    verification_sources=[]
-                )
-                dataset_row = self._create_dataset_row(profile, fallback_classification)
-                ranked_dataset.append(dataset_row)
-        
-        logger.info(f"✅ Added L-level rankings to {len(ranked_dataset)} founders")
-        return ranked_dataset
-    
-    async def export_ranked_csv(
-        self,
-        enhanced_profiles: List[FounderProfile],
-        output_path: str
-    ) -> str:
-        """Export ranked dataset to CSV."""
-        logger.info(f"📊 Exporting ranked dataset to {output_path}")
-        
-        # Get ranked dataset
-        ranked_dataset = await self.add_rankings_to_dataset(enhanced_profiles)
-        
-        # Convert to DataFrame and export
-        df = pd.DataFrame(ranked_dataset)
-        
-        # Reorder columns: ranking first, then core info, then enhanced data
-        ranking_cols = ['l_level', 'confidence_score', 'reasoning']
-        core_cols = ['name', 'company_name', 'title', 'location']
-        
-        # Enhanced data columns
-        financial_cols = [col for col in df.columns if col.startswith(('total_exits', 'total_exit_value', 'companies_founded', 'total_funding', 'financial_'))]
-        media_cols = [col for col in df.columns if col.startswith(('media_mentions', 'awards_', 'thought_leader', 'media_confidence'))]
-        web_cols = [col for col in df.columns if col.startswith(('verified_facts', 'web_data', 'searches_'))]
-        confidence_cols = [col for col in df.columns if col.endswith('_confidence') or col == 'overall_confidence']
-                
-        # Other columns
-        other_cols = [col for col in df.columns 
-                     if col not in ranking_cols + core_cols + financial_cols + media_cols + web_cols + confidence_cols]
-        
-        column_order = ranking_cols + core_cols + financial_cols + media_cols + web_cols + confidence_cols + other_cols
-        
-        # Only include columns that exist in the dataframe
-        existing_columns = [col for col in column_order if col in df.columns]
-        df = df[existing_columns]
-        
-        # Export
-        df.to_csv(output_path, index=False)
-        
-        logger.info(f"✅ Exported {len(df)} ranked founders to {output_path}")
-        return output_path
-    
-    def _profile_to_ai_dict(self, profile: FounderProfile) -> Dict[str, Any]:
-        """Convert FounderProfile to dict for AI ranking (includes enhanced data if available)."""
-        # Ensure we only accept FounderProfile objects
-        if not isinstance(profile, FounderProfile):
-            raise TypeError(f"Expected FounderProfile, got {type(profile).__name__}. "
-                          f"LinkedInProfile objects should be converted to FounderProfile "
-                          f"in the founder intelligence stage before ranking.")
-        
-        # FounderProfile handling
+    def _profile_to_ai_dict(self, profile: Any) -> Dict[str, Any]:
+        """Convert LinkedInProfile to dict for AI ranking."""
+        # Convert LinkedInProfile to dict format
         data = {
-            "name": profile.name,
-            "company_name": profile.company_name,
-            "title": profile.title,
-            "about": profile.about,
-            "location": profile.location,
-            "estimated_age": profile.estimated_age,
-            "experience_1_title": profile.experience_1_title,
-            "experience_1_company": profile.experience_1_company,
-            "education_1_school": profile.education_1_school,
-            "education_1_degree": profile.education_1_degree,
-            "linkedin_url": profile.linkedin_url
+            "name": getattr(profile, 'name', ''),
+            "company_name": getattr(profile, 'company_name', ''),
+            "title": getattr(profile, 'title', ''),
+            "about": getattr(profile, 'about', ''),
+            "location": getattr(profile, 'location', ''),
+            "linkedin_url": getattr(profile, 'linkedin_url', ''),
+            "experience_1_title": getattr(profile, 'experience', [{}])[0].get('title', '') if getattr(profile, 'experience', []) else '',
+            "experience_1_company": getattr(profile, 'experience', [{}])[0].get('company', '') if getattr(profile, 'experience', []) else '',
+            "education_1_school": getattr(profile, 'education', [{}])[0].get('school', '') if getattr(profile, 'education', []) else '',
+            "education_1_degree": getattr(profile, 'education', [{}])[0].get('degree', '') if getattr(profile, 'education', []) else '',
+            "overall_confidence": 0.3 if getattr(profile, 'linkedin_url', '') else 0.1
         }
-        
-        # Add basic confidence score
-        data["overall_confidence"] = profile.calculate_overall_confidence()
-        
         return data
     
     def _convert_to_classification(
         self, 
         analysis_result: LevelClassification,
-        profile: FounderProfile
+        profile: Any
     ) -> LevelClassification:
         """Convert AI analysis to L-level classification."""
         
@@ -499,7 +401,7 @@ class FounderRankingService:
     
     def _create_dataset_row(
         self, 
-        profile: FounderProfile, 
+        profile: Any, 
         classification: LevelClassification
     ) -> Dict[str, Any]:
         """Create final dataset row with ranking + all enhanced data."""
@@ -512,34 +414,31 @@ class FounderRankingService:
             "reasoning": classification.reasoning,
             
             # Core founder info
-            "name": profile.name,
-            "company_name": profile.company_name,
-            "title": profile.title,
-            "location": profile.location,
-            "about": profile.about,
-            "linkedin_url": profile.linkedin_url,
+            "name": getattr(profile, 'name', ''),
+            "company_name": getattr(profile, 'company_name', ''),
+            "title": getattr(profile, 'title', ''),
+            "location": getattr(profile, 'location', ''),
+            "about": getattr(profile, 'about', ''),
+            "linkedin_url": getattr(profile, 'linkedin_url', ''),
             
-            # Basic profile data
-            "estimated_age": profile.estimated_age,
-            "experience_1_title": profile.experience_1_title,
-            "experience_1_company": profile.experience_1_company,
-            "experience_2_title": profile.experience_2_title,
-            "experience_2_company": profile.experience_2_company,
-            "education_1_school": profile.education_1_school,
-            "education_1_degree": profile.education_1_degree,
-            "education_2_school": profile.education_2_school,
-            "education_2_degree": profile.education_2_degree,
-            "skill_1": profile.skill_1,
-            "skill_2": profile.skill_2,
-            "skill_3": profile.skill_3,
+            # Basic profile data from LinkedInProfile
+            "experience_1_title": getattr(profile, 'experience', [{}])[0].get('title', '') if getattr(profile, 'experience', []) else '',
+            "experience_1_company": getattr(profile, 'experience', [{}])[0].get('company', '') if getattr(profile, 'experience', []) else '',
+            "experience_2_title": getattr(profile, 'experience', [{}])[1].get('title', '') if len(getattr(profile, 'experience', [])) > 1 else '',
+            "experience_2_company": getattr(profile, 'experience', [{}])[1].get('company', '') if len(getattr(profile, 'experience', [])) > 1 else '',
+            "education_1_school": getattr(profile, 'education', [{}])[0].get('school', '') if getattr(profile, 'education', []) else '',
+            "education_1_degree": getattr(profile, 'education', [{}])[0].get('degree', '') if getattr(profile, 'education', []) else '',
+            "education_2_school": getattr(profile, 'education', [{}])[1].get('school', '') if len(getattr(profile, 'education', [])) > 1 else '',
+            "education_2_degree": getattr(profile, 'education', [{}])[1].get('degree', '') if len(getattr(profile, 'education', [])) > 1 else '',
+            "skills": '|'.join(getattr(profile, 'skills', [])),
             
             "ranking_timestamp": datetime.now().isoformat()
         }
         
         # Add basic metadata
         row.update({
-            "data_collected": profile.data_collected,
-            "overall_confidence": profile.calculate_overall_confidence()
+            "data_collected": True,
+            "overall_confidence": 0.3 if getattr(profile, 'linkedin_url', '') else 0.1
         })
         
         return row

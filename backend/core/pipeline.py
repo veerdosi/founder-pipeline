@@ -11,6 +11,7 @@ from .data.company_discovery import ExaCompanyDiscovery
 from .data.profile_enrichment import LinkedInEnrichmentService
 from .analysis.market_analysis import PerplexityMarketAnalysis
 from .data.data_fusion import DataFusionService, FusedCompanyData
+from .ranking.ranking_service import FounderRankingService
 
 import logging
 from rich.console import Console
@@ -27,6 +28,7 @@ class InitiationPipeline:
         self.profile_enrichment = LinkedInEnrichmentService()
         self.market_analysis = PerplexityMarketAnalysis()
         self.data_fusion = DataFusionService()
+        self.ranking_service = FounderRankingService()
         self.job_id = job_id
         self.runner = CheckpointedPipelineRunner(checkpoint_manager)
 
@@ -55,12 +57,14 @@ class InitiationPipeline:
 
             enriched_companies = await self._enrich_profiles_checkpointed(enhanced_companies, force_restart)
 
+            ranked_companies = await self._rank_founders_checkpointed(enriched_companies, force_restart)
+
             execution_time = time.time() - start_time
-            stats = self._generate_stats_from_enriched(enriched_companies, execution_time)
+            stats = self._generate_stats_from_enriched(ranked_companies, execution_time)
             self._print_summary(stats)
             
-            logger.info(f"🎉 Pipeline complete! Processed {len(enriched_companies)} companies in {execution_time:.1f}s")
-            return enriched_companies
+            logger.info(f"🎉 Pipeline complete! Processed {len(ranked_companies)} companies in {execution_time:.1f}s")
+            return ranked_companies
 
         except Exception as e:
             logger.error(f"❌ Pipeline error for job_id {self.job_id}: {e}")
@@ -133,6 +137,26 @@ class InitiationPipeline:
                 logger.error(f"Error enriching {company.name}: {e}")
                 enriched_companies.append(EnrichedCompany(company=company, profiles=[]))
         
+        checkpoint_manager.save_checkpoint(self.job_id, stage_name, enriched_companies)
+        return enriched_companies
+
+    async def _rank_founders_checkpointed(self, enriched_companies, force_restart):
+        stage_name = "rankings"
+        if not force_restart:
+            cached_data = checkpoint_manager.load_checkpoint(self.job_id, stage_name)
+            if cached_data:
+                return cached_data
+
+        console.print("🏆 Ranking founders...")
+        for i, enriched in enumerate(enriched_companies):
+            if enriched.profiles:
+                console.print(f"   🏆 [{i+1}/{len(enriched_companies)}] Ranking founders for {enriched.company.name}")
+                try:
+                    ranked_profiles = await self.ranking_service.rank_founders_batch(enriched.profiles)
+                    enriched.profiles = ranked_profiles
+                except Exception as e:
+                    logger.error(f"Ranking failed for {enriched.company.name}: {e}")
+
         checkpoint_manager.save_checkpoint(self.job_id, stage_name, enriched_companies)
         return enriched_companies
 

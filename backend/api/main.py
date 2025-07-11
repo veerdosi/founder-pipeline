@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .models import CompanyDiscoveryRequest, PipelineJobResponse, YearBasedRequest
 from .dependencies import get_pipeline_service, get_ranking_service
 from ..core.ranking import FounderRankingService
-from ..core.ranking.models import FounderProfile
+from ..models import LinkedInProfile
 from ..core.analysis.market_analysis import PerplexityMarketAnalysis
 from ..utils.checkpoint_manager import checkpointed_runner, checkpoint_manager
 from ..core.config import settings
@@ -340,7 +340,7 @@ async def rank_founders_from_file(
         decoded_content = contents.decode('utf-8')
         csv_reader = csv.DictReader(io.StringIO(decoded_content))
         
-        founder_profiles = [FounderProfile.from_csv_row(row) for row in csv_reader]
+        founder_profiles = [LinkedInProfile.from_csv_row(row) for row in csv_reader]
         
         if not founder_profiles:
             raise HTTPException(status_code=400, detail="CSV file is empty or in the wrong format.")

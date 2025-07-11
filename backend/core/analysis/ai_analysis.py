@@ -4,7 +4,7 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from ...core import settings
 from ..ranking.ranking_service import FounderRankingService
-from ..ranking.models import FounderProfile
+from ...models import LinkedInProfile
 
 import logging
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ class AIAnalysisService:
     ) -> List[FounderAnalysisResult]:
         """Rank multiple founders in batches."""
         
-        founder_profiles = [FounderProfile.from_csv_row(data) for data in founders_data]
+        founder_profiles = [LinkedInProfile.from_csv_row(data) for data in founders_data]
 
         results = await self.ranking_service.rank_founders_batch(
             founder_profiles=founder_profiles,

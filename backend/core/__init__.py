@@ -6,7 +6,7 @@ from .interfaces import (
     ProfileEnrichmentService,
     MarketAnalysisService,
     SearchProvider,
-    LLMProvider
+    LLMProvider,
 )
 
 __all__ = [
@@ -15,5 +15,5 @@ __all__ = [
     "ProfileEnrichmentService", 
     "MarketAnalysisService",
     "SearchProvider",
-    "LLMProvider"
+    "LLMProvider",
 ]
