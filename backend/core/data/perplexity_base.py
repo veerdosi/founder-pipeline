@@ -24,10 +24,10 @@ class PerplexityBaseService(ABC):
         self.session: Optional[aiohttp.ClientSession] = None
         
         # Common configuration for all Perplexity requests
-        self.default_model = "sonar-pro"
+        self.default_model = "sonar"
         self.default_temperature = 0.1
         self.default_max_tokens = 1500
-        self.default_timeout = 60
+        self.default_timeout = 180
         
         # High-quality domains for search filtering (max 10 for Perplexity API)
         self.trusted_domains = [

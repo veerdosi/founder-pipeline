@@ -22,113 +22,45 @@ class FinancialDataCollector(PerplexityBaseService):
     def __init__(self):
         super().__init__()
         
-        # Enhanced query templates for financial data
+        # Condensed but comprehensive query templates for financial data
         self.query_templates = {
             'company_founding': [
-                """What companies has {founder_name} founded, co-founded, or started? For each company, provide:
-                - Company name
-                - Founding year
+                """What companies has {founder_name} founded, co-founded, or launched? For each, provide:
+                - Company name and founding year
                 - {founder_name}'s role (founder, co-founder, CEO, etc.)
                 - Current status (active, acquired, closed, etc.)
                 - Industry or sector
-                - Any initial funding or valuation information
-                Include both successful and unsuccessful ventures.""",
-                
-                """What startups and businesses has {founder_name} created or launched throughout their career?
-                Please include:
-                - Complete company names
-                - Exact founding dates when available
-                - {founder_name}'s specific founding role
-                - Current company status and operations
-                - Any notable achievements or milestones""",
-                
-                """List all entrepreneurial ventures where {founder_name} was a founding member or key early employee with equity.
-                Include:
-                - Company names and founding years
-                - {founder_name}'s founding role and equity stake if known
-                - Business model and industry
-                - Current status and any exit information"""
+                - Any known initial funding, valuation, or equity stake
+                - Notable achievements or milestones
+                Include both successful and unsuccessful ventures."""
             ],
             
             'company_exits': [
-                """What are all the company exits, acquisitions, IPOs, or major liquidity events involving companies that {founder_name} founded or had significant equity in?
-                For each exit, provide:
+                """List all exits (IPOs, acquisitions, mergers, etc.) involving companies that {founder_name} founded or held significant equity in. For each exit, provide:
                 - Company name
-                - Type of exit (IPO, acquisition, merger, etc.)
-                - Exit date (month and year)
+                - Type and date of exit
                 - Exit value or transaction amount
-                - Acquiring company (if applicable)
-                - {founder_name}'s estimated proceeds or stake
-                - Current status of the acquired company""",
-                
-                """Has {founder_name} had any successful exits through IPOs, acquisitions, or sales of companies they founded?
-                Include:
-                - Specific company names and exit details
-                - Transaction values and dates
-                - {founder_name}'s role and ownership percentage
-                - Financial outcomes and proceeds
-                - Impact on their net worth""",
-                
-                """What major business sales, acquisitions, or public offerings has {founder_name} been involved in as a founder or significant equity holder?
-                Provide:
-                - Complete transaction details
-                - Financial terms and valuations
-                - Timeline of events
-                - {founder_name}'s financial outcome"""
+                - Acquirer name (if applicable)
+                - {founder_name}'s ownership stake and estimated proceeds
+                - Current status of the acquired company"""
             ],
             
             'investments': [
-                """What investments has {founder_name} made as an angel investor, venture capitalist, or private investor?
-                For each investment, include:
-                - Company name and industry
-                - Investment amount (if known)
-                - Investment date or timeframe
-                - Type of investment (angel, seed, Series A, etc.)
-                - Current status of the investment
-                - Any notable returns or outcomes
-                - {founder_name}'s involvement beyond capital""",
-                
-                """Is {founder_name} an active angel investor or venture capitalist? What is their investment portfolio?
-                Include:
-                - Investment firm affiliations (if any)
-                - Portfolio companies and investment amounts
-                - Investment thesis and preferred sectors
-                - Notable successful investments and returns
-                - Co-investors and investment partnerships""",
-                
-                """What startups, companies, or funds has {founder_name} invested in or provided funding to?
-                Provide:
-                - Detailed investment history
-                - Investment amounts and ownership stakes
-                - Investment performance and outcomes
-                - {founder_name}'s involvement in portfolio companies"""
+                """What investments has {founder_name} made as an angel investor, venture capitalist, or private investor? For each, include:
+                - Company name, industry, and date
+                - Investment round and amount (if available)
+                - Role (e.g. active investor, silent partner)
+                - Current status and performance
+                - Affiliated firms, co-investors, and notable returns"""
             ],
             
             'board_positions': [
-                """What board positions, directorships, or advisory roles does {founder_name} currently hold or has held?
-                For each position, include:
-                - Company or organization name
-                - Position title (board member, director, advisor, etc.)
+                """What board, director, or advisory positions has {founder_name} held? Include:
+                - Organization name and industry
+                - Title and role (board member, advisor, etc.)
                 - Start date and current status
-                - Type of organization (public company, private company, nonprofit, etc.)
-                - Any compensation or equity arrangements
-                - Key responsibilities and contributions""",
-                
-                """Is {founder_name} a board member, director, or advisor for any companies or organizations?
-                Include:
-                - Current and past board positions
-                - Advisory roles and consulting arrangements
-                - Board committee memberships
-                - Governance responsibilities
-                - Any notable board decisions or contributions""",
-                
-                """What corporate governance roles has {founder_name} taken on outside of their own companies?
-                Provide:
-                - Board seats and advisory positions
-                - Duration of service
-                - Company types and industries
-                - Leadership roles within boards
-                - Any notable governance initiatives or decisions"""
+                - Compensation or equity details (if known)
+                - Key responsibilities, governance roles, and notable contributions"""
             ]
         }
     

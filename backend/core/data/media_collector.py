@@ -46,123 +46,49 @@ class MediaCollector(PerplexityBaseService):
         # Enhanced query templates for media data
         self.query_templates = {
             'media_coverage': [
-                """What major media coverage, interviews, and press mentions has {founder_name} received in major publications?
-                For each media appearance, include:
-                - Publication name and date
-                - Type of coverage (interview, feature article, news mention, etc.)
-                - Article title and main topic
-                - URL or source reference
-                - Key quotes or highlights from {founder_name}
-                - Context and reason for the coverage
-                Focus on coverage from reputable sources like Forbes, Bloomberg, TechCrunch, WSJ, etc.""",
-                
-                """What interviews, podcasts, and media appearances has {founder_name} participated in?
-                Include:
-                - Interview/podcast names and hosts
-                - Publication dates and platforms
-                - Main topics discussed
-                - Key insights or announcements made
-                - Audience reach and impact
-                - Links to content where available""",
-                
-                """What press releases, company announcements, or news stories has {founder_name} been featured in?
-                Provide:
-                - News outlet and publication details
-                - Announcement or story topic
-                - {founder_name}'s role in the story
-                - Impact and industry reaction
-                - Follow-up coverage or commentary"""
+                """What major media appearances, interviews, and press coverage has {founder_name} received?
+                For each instance, include:
+                - Media type (e.g., interview, article, podcast, press release)
+                - Publication/platform name and date
+                - Title, topic, and context of the appearance
+                - {founder_name}'s role and key quotes or insights shared
+                - Links to content (if available)
+                - Industry impact or significance of the coverage
+                Focus on reputable sources like Forbes, Bloomberg, TechCrunch, WSJ, and widely known podcasts or outlets."""
             ],
             
             'awards_recognition': [
-                """What awards, honors, and professional recognitions has {founder_name} received throughout their career?
-                For each award, include:
-                - Award name and category
-                - Awarding organization or institution
-                - Year received
-                - Criteria or reason for recognition
-                - Significance within the industry
-                - Other notable recipients (if relevant)
-                Include both industry-specific and general business awards.""",
-                
-                """Has {founder_name} been included in any prestigious lists or rankings (like Forbes 30 Under 30, Fortune 40 Under 40, etc.)?
-                Include:
-                - List name and publishing organization
-                - Year of inclusion
-                - Category or classification
-                - Selection criteria
-                - Other notable individuals in the same list
-                - Media coverage of the recognition""",
-                
-                """What entrepreneurial awards, innovation prizes, or industry honors has {founder_name} won?
-                Provide:
-                - Specific award details and monetary value (if applicable)
-                - Competition or selection process
-                - Judging criteria and panel
-                - Impact on {founder_name}'s career
-                - Press coverage of the award"""
+                """What awards, honors, and prestigious recognitions has {founder_name} received?
+                For each recognition, include:
+                - Award or list name, category, and year
+                - Issuing organization or publication
+                - Criteria or reason for selection
+                - Notable peers or recipients (if applicable)
+                - Industry significance and media coverage
+                Include both general and industry-specific honors (e.g., Forbes 30 Under 30, innovation prizes, entrepreneurial awards)."""
             ],
             
             'thought_leadership': [
-                """What speaking engagements, conferences, and keynote presentations has {founder_name} delivered?
-                For each engagement, include:
-                - Event name and organizer
-                - Date and location
-                - Presentation topic and key themes
-                - Audience size and composition
-                - Notable quotes or insights shared
-                - Media coverage or follow-up content
-                - Video or transcript availability""",
-                
-                """What articles, blog posts, or thought leadership content has {founder_name} authored or published?
+                """What thought leadership contributions has {founder_name} made through speaking, publishing, and media?
                 Include:
-                - Publication platform and date
-                - Article title and main themes
-                - Key insights or perspectives shared
-                - Audience engagement and reach
-                - Industry impact or discussion generated
-                - Links to published content""",
-                
-                """What books, whitepapers, or significant publications has {founder_name} authored or co-authored?
-                Provide:
-                - Publication title and publisher
-                - Publication date and format
-                - Main topic and target audience
-                - Sales figures or distribution (if available)
-                - Critical reception and reviews
-                - Impact on industry or field""",
-                
-                """What podcast appearances, panel discussions, or expert commentary has {founder_name} provided?
-                Include:
-                - Podcast/show name and host
-                - Episode title and air date
-                - Topics covered and expertise shared
-                - Audience reach and listener feedback
-                - Notable quotes or insights
-                - Links to episodes or transcripts"""
+                - Conferences, keynote talks, or panels (event, topic, date, audience)
+                - Authored articles, blog posts, or whitepapers (title, platform, date, main themes)
+                - Books or publications (title, publisher, topic, impact)
+                - Podcasts or expert commentary (platform, host, topics discussed)
+                For each, highlight audience reach, key insights, and available links or transcripts."""
             ],
             
             'social_media_presence': [
-                """What is {founder_name}'s social media presence and thought leadership online?
+                """What is {founder_name}'s digital and social media presence?
                 Include:
-                - Twitter/X follower count and engagement
-                - LinkedIn connections and activity
-                - Instagram presence (if relevant)
-                - YouTube channel or video content
-                - Blog or personal website traffic
-                - Social media influence metrics
-                - Notable posts or viral content""",
-                
-                """What online communities, forums, or platforms does {founder_name} actively participate in?
-                Provide:
-                - Platform names and roles
-                - Contribution frequency and type
-                - Community size and influence
-                - Notable discussions or contributions
-                - Recognition within communities
-                - Cross-platform presence and consistency"""
+                - Activity and influence on Twitter/X, LinkedIn, Instagram, YouTube, etc.
+                - Follower count, engagement metrics, and notable posts or content
+                - Personal website or blog traffic and reach
+                - Participation in online communities or forums (platforms, roles, recognition)
+                Focus on thought leadership, content quality, and public influence."""
             ]
         }
+
     
     async def collect_data(self, founder_name: str, current_company: str) -> FounderMediaProfile:
         """Collect comprehensive media profile for a founder using Perplexity AI."""

@@ -339,7 +339,6 @@ class FounderProfile:
     # Comprehensive founder intelligence data
     financial_profile: Optional[FounderFinancialProfile] = None
     media_profile: Optional[FounderMediaProfile] = None
-    web_search_data: Optional[FounderWebSearchData] = None
     
     # Data collection metadata
     data_collection_timestamp: Optional[datetime] = None
