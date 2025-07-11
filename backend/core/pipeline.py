@@ -75,7 +75,6 @@ class InitiationPipeline:
         if not force_restart:
             cached_data = checkpoint_manager.load_checkpoint(self.job_id, stage_name)
             if cached_data:
-                console.print(f"📂 Loaded {len(cached_data)} companies from checkpoint")
                 return cached_data
 
         console.print("🔍 Discovering companies...")
@@ -111,7 +110,6 @@ class InitiationPipeline:
         if not force_restart:
             cached_data = checkpoint_manager.load_checkpoint(self.job_id, stage_name)
             if cached_data:
-                console.print(f"📂 Loaded {len(cached_data)} enhanced companies from checkpoint")
                 return cached_data
 
         console.print("🔄 Enhancing companies with Crunchbase data fusion...")
@@ -124,7 +122,6 @@ class InitiationPipeline:
         if not force_restart:
             cached_data = checkpoint_manager.load_checkpoint(self.job_id, stage_name)
             if cached_data:
-                console.print(f"📂 Loaded {len(cached_data)} companies with profiles from checkpoint")
                 return cached_data
 
         console.print("👤 Finding LinkedIn profiles...")
@@ -146,7 +143,6 @@ class InitiationPipeline:
         if not force_restart:
             cached_data = checkpoint_manager.load_checkpoint(self.job_id, stage_name)
             if cached_data:
-                console.print(f"📂 Loaded {len(cached_data)} companies with founder intelligence from checkpoint")
                 return cached_data
 
         console.print("🧠 Collecting founder intelligence...")

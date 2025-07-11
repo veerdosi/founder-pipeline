@@ -83,7 +83,6 @@ class PipelineCheckpointManager:
                 logger.warning(f"⚠️ Checkpoint expired (age: {age}): {checkpoint_file}")
                 return None
             
-            logger.info(f"📂 Loaded checkpoint: {job_id}_{stage}")
             return checkpoint['data']
             
         except Exception as e:
