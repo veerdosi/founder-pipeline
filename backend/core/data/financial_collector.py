@@ -22,7 +22,7 @@ class FinancialDataCollector:
     """Service for collecting comprehensive founder financial data."""
     
     def __init__(self):
-        self.rate_limiter = RateLimiter(max_requests=10, time_window=60)
+        self.rate_limiter = RateLimiter(max_requests=4, time_window=1)  # 4 requests per second to stay under Serper's 5/sec limit
         self.session: Optional[aiohttp.ClientSession] = None
         
         # API endpoints for different data sources
@@ -50,6 +50,7 @@ class FinancialDataCollector:
     ) -> FounderFinancialProfile:
         """Collect comprehensive financial data for a founder."""
         logger.info(f"🔍 Collecting financial data for {founder_name}")
+        logger.debug(f"📋 Parameters: company={current_company}, linkedin_url={linkedin_url}")
         
         profile = FounderFinancialProfile(
             founder_name=founder_name,
@@ -58,6 +59,7 @@ class FinancialDataCollector:
         
         try:
             # Collect data from multiple sources in parallel
+            logger.debug(f"🚀 Starting parallel data collection tasks for {founder_name}")
             tasks = [
                 self._collect_company_founding_data(founder_name, current_company),
                 self._collect_exit_data(founder_name),
@@ -69,19 +71,24 @@ class FinancialDataCollector:
             
             # Process results
             companies_founded, exits, investments, board_positions = [], [], [], []
+            task_names = ["founding", "exits", "investments", "board_positions"]
             
             for i, result in enumerate(results):
                 if not isinstance(result, Exception):
                     if i == 0:  # Company founding data
                         companies_founded = result
+                        logger.debug(f"✅ {task_names[i]} data: {len(companies_founded)} companies found")
                     elif i == 1:  # Exit data
                         exits = result
+                        logger.debug(f"✅ {task_names[i]} data: {len(exits)} exits found")
                     elif i == 2:  # Investment data
                         investments = result
+                        logger.debug(f"✅ {task_names[i]} data: {len(investments)} investments found")
                     elif i == 3:  # Board positions
                         board_positions = result
+                        logger.debug(f"✅ {task_names[i]} data: {len(board_positions)} positions found")
                 else:
-                    logger.warning(f"Task {i} failed for {founder_name}: {result}")
+                    logger.error(f"❌ Task {task_names[i]} failed for {founder_name}: {result}")
             
             # Update profile
             profile.companies_founded = companies_founded
@@ -90,6 +97,7 @@ class FinancialDataCollector:
             profile.board_positions = board_positions
             
             # Calculate derived metrics
+            logger.debug(f"📊 Calculating metrics for {founder_name}")
             profile.calculate_metrics()
             
             # Set data sources and confidence
@@ -97,10 +105,12 @@ class FinancialDataCollector:
             profile.confidence_score = self._calculate_financial_confidence(profile)
             
             logger.info(f"✅ Financial data collected for {founder_name}: "
-                       f"{len(exits)} exits, {len(companies_founded)} companies founded")
+                       f"{len(exits)} exits, {len(companies_founded)} companies founded, "
+                       f"{len(investments)} investments, {len(board_positions)} board positions, "
+                       f"confidence: {profile.confidence_score:.2f}")
             
         except Exception as e:
-            logger.error(f"Error collecting financial data for {founder_name}: {e}")
+            logger.error(f"❌ Error collecting financial data for {founder_name}: {e}", exc_info=True)
             profile.confidence_score = 0.1
         
         return profile
@@ -125,8 +135,8 @@ class FinancialDataCollector:
                 results = await self._search_web_for_financial_data(query, "founding")
                 companies.extend(await self._extract_founding_data(results, founder_name))
                 
-                # Rate limiting
-                await asyncio.sleep(1)
+                # Rate limiting - increased delay to prevent 429 errors
+                await asyncio.sleep(0.5)
             
             # Add current company
             current_company_data = CompanyFounding(
@@ -234,6 +244,8 @@ class FinancialDataCollector:
         """Search web for financial data using available search APIs."""
         await self.rate_limiter.acquire()
         
+        logger.debug(f"🔍 Searching for {data_type} data with query: {query}")
+        
         try:
             # Use Serper API for web search
             url = "https://google.serper.dev/search"
@@ -249,19 +261,28 @@ class FinancialDataCollector:
                 "hl": "en"
             }
             
+            logger.debug(f"📡 Making API request to {url} with payload: {payload}")
+            
             if not self.session:
                 self.session = aiohttp.ClientSession()
             
             async with self.session.post(url, json=payload, headers=headers) as response:
+                logger.debug(f"📡 API response status: {response.status}")
                 if response.status == 200:
                     data = await response.json()
-                    return data.get("organic", [])
+                    results = data.get("organic", [])
+                    logger.debug(f"✅ Found {len(results)} search results for {data_type} query")
+                    return results
                 else:
-                    logger.warning(f"Search API error {response.status} for query: {query}")
+                    response_text = await response.text()
+                    logger.error(f"❌ Search API error {response.status} for query: {query}. Response: {response_text}")
                     return []
                     
+        except aiohttp.ClientError as e:
+            logger.error(f"❌ HTTP client error searching for {data_type} data: {e}")
+            return []
         except Exception as e:
-            logger.error(f"Error searching for {data_type} data: {e}")
+            logger.error(f"❌ Unexpected error searching for {data_type} data: {e}", exc_info=True)
             return []
     
     async def _extract_founding_data(

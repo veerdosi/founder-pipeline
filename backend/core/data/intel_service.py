@@ -20,7 +20,7 @@ class PerplexitySearchService:
     def __init__(self):
         self.api_key = getattr(settings, 'perplexity_api_key', None)
         self.base_url = "https://api.perplexity.ai"
-        self.rate_limiter = RateLimiter(max_requests=20, time_window=60)  # Perplexity limits
+        self.rate_limiter = RateLimiter(max_requests=4, time_window=1)  # 4 requests per second to stay under Serper's 5/sec limit for fallback search
         self.session: Optional[aiohttp.ClientSession] = None
         
         # Search query templates for different data types
@@ -62,6 +62,7 @@ class PerplexitySearchService:
     ) -> FounderWebSearchData:
         """Collect comprehensive web intelligence for a founder using Perplexity."""
         logger.info(f"🔍 Collecting web intelligence for {founder_name} using Perplexity")
+        logger.debug(f"📝 Parameters: company={current_company}, api_key_available={bool(self.api_key)}")
         
         web_data = FounderWebSearchData(
             founder_name=founder_name,
@@ -72,6 +73,7 @@ class PerplexitySearchService:
             # Collect data from different categories
             if self.api_key:
                 # Use Perplexity API if available
+                logger.debug(f"🚀 Starting Perplexity search tasks for {founder_name}")
                 tasks = [
                     self._search_perplexity_category(founder_name, current_company, 'financial'),
                     self._search_perplexity_category(founder_name, current_company, 'media'),
@@ -80,32 +82,37 @@ class PerplexitySearchService:
                 
                 results = await asyncio.gather(*tasks, return_exceptions=True)
                 
+                categories = ['financial', 'media', 'biographical']
                 for i, result in enumerate(results):
                     if not isinstance(result, Exception):
-                        category = ['financial', 'media', 'biographical'][i]
+                        category = categories[i]
+                        logger.debug(f"✅ {category} search: {len(result)} results found")
                         for search_result in result:
                             search_result.data_type = category
                             web_data.add_search_result(search_result)
                     else:
-                        logger.warning(f"Perplexity search failed for category {i}: {result}")
+                        logger.error(f"❌ Perplexity search failed for category {categories[i]}: {result}")
             else:
-                logger.warning("Perplexity API key not available, using fallback search")
+                logger.warning("⚠️ Perplexity API key not available, using fallback search")
                 # Fallback to web search without Perplexity
                 fallback_results = await self._fallback_web_search(founder_name, current_company)
+                logger.debug(f"🔄 Fallback search returned {len(fallback_results)} results")
                 for result in fallback_results:
                     web_data.add_search_result(result)
             
             # Extract insights from all search results
+            logger.debug(f"📊 Processing search results for {founder_name}")
             web_data.verified_facts = await self._extract_verified_facts(web_data)
             web_data.data_gaps = self._identify_data_gaps(web_data)
             web_data.overall_data_quality = self._calculate_data_quality(web_data)
             
             logger.info(f"✅ Web intelligence collected for {founder_name}: "
                        f"{web_data.total_searches_performed} searches, "
-                       f"{len(web_data.verified_facts)} facts verified")
+                       f"{len(web_data.verified_facts)} facts verified, "
+                       f"quality: {web_data.overall_data_quality:.2f}")
             
         except Exception as e:
-            logger.error(f"Error collecting web intelligence for {founder_name}: {e}")
+            logger.error(f"❌ Error collecting web intelligence for {founder_name}: {e}", exc_info=True)
             web_data.overall_data_quality = 0.1
         
         return web_data
@@ -140,7 +147,7 @@ class PerplexitySearchService:
                         results.append(search_result)
                 
                 # Small delay between queries
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.5)
                 
         except Exception as e:
             logger.error(f"Error in Perplexity search for {category}: {e}")
@@ -149,6 +156,8 @@ class PerplexitySearchService:
     
     async def _call_perplexity_api(self, query: str) -> Optional[Dict[str, Any]]:
         """Make API call to Perplexity."""
+        logger.debug(f"🔍 Making Perplexity API call for query: {query[:100]}...")
+        
         if not self.session:
             self.session = aiohttp.ClientSession()
         
@@ -181,6 +190,8 @@ class PerplexitySearchService:
             "frequency_penalty": 1
         }
         
+        logger.debug(f"📡 Making API request to {self.base_url}/chat/completions")
+        
         try:
             async with self.session.post(
                 f"{self.base_url}/chat/completions",
@@ -188,23 +199,30 @@ class PerplexitySearchService:
                 json=payload,
                 timeout=30
             ) as response:
+                logger.debug(f"📡 Perplexity API response status: {response.status}")
                 if response.status == 200:
                     try:
                         response_data = await response.json()
-                        logger.debug(f"Perplexity API response type: {type(response_data)}")
+                        logger.debug(f"✅ Perplexity API response received, type: {type(response_data)}")
                         return response_data
                     except json.JSONDecodeError as e:
-                        logger.error(f"Failed to parse Perplexity JSON response: {e}")
+                        logger.error(f"❌ Failed to parse Perplexity JSON response: {e}")
                         response_text = await response.text()
-                        logger.error(f"Raw response: {response_text[:500]}...")
+                        logger.error(f"❌ Raw response: {response_text[:500]}...")
                         return None
                 else:
                     error_text = await response.text()
-                    logger.error(f"Perplexity API error {response.status}: {error_text}")
+                    logger.error(f"❌ Perplexity API error {response.status}: {error_text}")
                     return None
                     
+        except asyncio.TimeoutError:
+            logger.error(f"❌ Perplexity API timeout after 30 seconds for query: {query[:100]}...")
+            return None
+        except aiohttp.ClientError as e:
+            logger.error(f"❌ HTTP client error calling Perplexity API: {e}")
+            return None
         except Exception as e:
-            logger.error(f"Error calling Perplexity API: {e}")
+            logger.error(f"❌ Unexpected error calling Perplexity API: {e}", exc_info=True)
             return None
     
     async def _convert_perplexity_response(
@@ -290,66 +308,32 @@ class PerplexitySearchService:
         facts = []
         
         try:
-            # Use simple patterns to extract facts based on category
-            if category == 'financial':
-                # Look for financial facts
-                import re
-                
-                # Company founding patterns
-                founding_matches = re.findall(
-                    r'(?:founded|co-founded)\s+([A-Z][a-zA-Z\s&]+?)\s+(?:in\s+)?(\d{4})?',
-                    content, re.IGNORECASE
-                )
-                for match in founding_matches:
-                    company, year = match
-                    fact = f"Founded {company.strip()}"
-                    if year:
-                        fact += f" in {year}"
-                    facts.append(fact)
-                
-                # Exit patterns
-                exit_matches = re.findall(
-                    r'([A-Z][a-zA-Z\s&]+?)\s+(?:acquired|sold|IPO).*?\$?([\d\.]+)\s*(billion|million)',
-                    content, re.IGNORECASE
-                )
-                for match in exit_matches:
-                    company, amount, unit = match
-                    facts.append(f"{company.strip()} exit: ${amount} {unit}")
-                    
-            elif category == 'media':
-                # Look for media mentions
-                import re
-                award_matches = re.findall(
-                    r'(?:awarded|received|won)\s+([A-Z][a-zA-Z\s&]+?)\s+(?:award|recognition)',
-                    content, re.IGNORECASE
-                )
-                for match in award_matches:
-                    facts.append(f"Received {match.strip()}")
-                    
-            elif category == 'biographical':
-                # Look for education and career facts
-                import re
-                edu_matches = re.findall(
-                    r'(?:graduated|degree)\s+(?:from\s+)?([A-Z][a-zA-Z\s&]+?)(?:\s+University|\s+College)',
-                    content, re.IGNORECASE
-                )
-                for match in edu_matches:
-                    facts.append(f"Educated at {match.strip()}")
+            # Truncate content to prevent regex timeouts
+            content = content[:2000]  # Limit content length to prevent regex issues
             
-            # General fact extraction
+            # Simple keyword-based fact extraction instead of complex regex
             sentences = content.split('.')
-            for sentence in sentences[:10]:  # Limit to first 10 sentences
+            for sentence in sentences[:15]:  # Limit to first 15 sentences
                 sentence = sentence.strip()
                 if len(sentence) > 20 and len(sentence) < 200:
-                    # Filter for sentences that seem factual
-                    if any(keyword in sentence.lower() for keyword in 
-                          ['founded', 'graduated', 'worked', 'served', 'received', 'awarded', 'invested']):
-                        facts.append(sentence)
+                    # Filter for sentences that seem factual based on category
+                    if category == 'financial':
+                        if any(keyword in sentence.lower() for keyword in 
+                              ['founded', 'co-founded', 'acquired', 'sold', 'ipo', 'exit', 'investment']):
+                            facts.append(sentence)
+                    elif category == 'media':
+                        if any(keyword in sentence.lower() for keyword in 
+                              ['awarded', 'received', 'won', 'recognition', 'honor', 'interview']):
+                            facts.append(sentence)
+                    elif category == 'biographical':
+                        if any(keyword in sentence.lower() for keyword in 
+                              ['graduated', 'degree', 'university', 'college', 'worked', 'served']):
+                            facts.append(sentence)
             
         except Exception as e:
             logger.warning(f"Error extracting facts: {e}")
         
-        return facts[:10]  # Limit to 10 most relevant facts
+        return facts[:8]  # Limit to 8 most relevant facts
     
     async def _fallback_web_search(
         self, 
@@ -387,7 +371,7 @@ class PerplexitySearchService:
                     )
                     results.append(web_result)
                 
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.5)
             
         except Exception as e:
             logger.error(f"Error in fallback web search: {e}")
@@ -396,6 +380,8 @@ class PerplexitySearchService:
     
     async def _search_web_fallback(self, query: str) -> List[Dict[str, Any]]:
         """Fallback web search using Serper."""
+        logger.debug(f"🔄 Fallback web search for query: {query}")
+        
         try:
             if not self.session:
                 self.session = aiohttp.ClientSession()
@@ -413,15 +399,25 @@ class PerplexitySearchService:
                 "hl": "en"
             }
             
+            logger.debug(f"📡 Making fallback API request to {url}")
+            
             async with self.session.post(url, json=payload, headers=headers) as response:
+                logger.debug(f"📡 Fallback API response status: {response.status}")
                 if response.status == 200:
                     data = await response.json()
-                    return data.get("organic", [])
+                    results = data.get("organic", [])
+                    logger.debug(f"✅ Fallback search returned {len(results)} results")
+                    return results
                 else:
+                    response_text = await response.text()
+                    logger.error(f"❌ Fallback search API error {response.status}: {response_text}")
                     return []
                     
+        except aiohttp.ClientError as e:
+            logger.error(f"❌ HTTP client error in fallback search: {e}")
+            return []
         except Exception as e:
-            logger.error(f"Error in fallback search: {e}")
+            logger.error(f"❌ Unexpected error in fallback search: {e}", exc_info=True)
             return []
     
     async def _extract_verified_facts(self, web_data: FounderWebSearchData) -> List[str]:

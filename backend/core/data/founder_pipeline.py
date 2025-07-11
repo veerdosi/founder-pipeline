@@ -222,7 +222,7 @@ class FounderDataPipeline:
                 self.financial_collector.collect_founder_financial_data(
                     founder_name, company_name, linkedin_url
                 ),
-                timeout=60  # 1 minute timeout for financial data
+                timeout=120  # 2 minutes timeout for financial data to account for rate limiting
             )
         except asyncio.TimeoutError:
             logger.error(f"Financial data collection timeout for {founder_name}")
@@ -238,7 +238,7 @@ class FounderDataPipeline:
                 self.media_collector.collect_founder_media_profile(
                     founder_name, company_name
                 ),
-                timeout=60  # 1 minute timeout for media data
+                timeout=120  # 2 minutes timeout for media data to account for rate limiting
             )
         except asyncio.TimeoutError:
             logger.error(f"Media data collection timeout for {founder_name}")
@@ -254,7 +254,7 @@ class FounderDataPipeline:
                 self.perplexity_service.collect_founder_web_intelligence(
                     founder_name, company_name
                 ),
-                timeout=60  # 1 minute timeout for web intelligence
+                timeout=120  # 2 minutes timeout for web intelligence to account for rate limiting
             )
         except asyncio.TimeoutError:
             logger.error(f"Web intelligence collection timeout for {founder_name}")

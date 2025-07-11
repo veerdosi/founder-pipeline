@@ -22,7 +22,7 @@ class MediaCollector:
     """Service for collecting comprehensive media coverage and public presence data."""
     
     def __init__(self):
-        self.rate_limiter = RateLimiter(max_requests=15, time_window=60)
+        self.rate_limiter = RateLimiter(max_requests=4, time_window=1)  # 4 requests per second to stay under Serper's 5/sec limit
         self.session: Optional[aiohttp.ClientSession] = None
         
         # Media source priorities for determining importance
@@ -85,6 +85,7 @@ class MediaCollector:
     ) -> FounderMediaProfile:
         """Collect comprehensive media profile for a founder."""
         logger.info(f"📰 Collecting media profile for {founder_name}")
+        logger.debug(f"📝 Parameters: company={current_company}")
         
         profile = FounderMediaProfile(
             founder_name=founder_name,
@@ -93,6 +94,7 @@ class MediaCollector:
         
         try:
             # Collect different types of media data in parallel
+            logger.debug(f"🚀 Starting parallel media collection tasks for {founder_name}")
             tasks = [
                 self._collect_media_mentions(founder_name, current_company),
                 self._collect_awards_recognition(founder_name),
@@ -103,22 +105,30 @@ class MediaCollector:
             results = await asyncio.gather(*tasks, return_exceptions=True)
             
             # Process results
+            task_names = ["media_mentions", "awards", "thought_leadership", "social_metrics"]
             for i, result in enumerate(results):
                 if not isinstance(result, Exception):
                     if i == 0:  # Media mentions
                         profile.media_mentions = result
+                        logger.debug(f"✅ {task_names[i]} data: {len(result)} mentions found")
                     elif i == 1:  # Awards
                         profile.awards = result
+                        logger.debug(f"✅ {task_names[i]} data: {len(result)} awards found")
                     elif i == 2:  # Thought leadership
                         profile.thought_leadership = result
+                        logger.debug(f"✅ {task_names[i]} data: {len(result)} activities found")
                     elif i == 3:  # Social media metrics
                         if result:
                             profile.twitter_followers = result.get('twitter_followers')
                             profile.linkedin_connections = result.get('linkedin_connections')
+                            logger.debug(f"✅ {task_names[i]} data: Twitter: {profile.twitter_followers}, LinkedIn: {profile.linkedin_connections}")
+                        else:
+                            logger.debug(f"✅ {task_names[i]} data: No social metrics found")
                 else:
-                    logger.warning(f"Media collection task {i} failed for {founder_name}: {result}")
+                    logger.error(f"❌ Task {task_names[i]} failed for {founder_name}: {result}")
             
             # Calculate derived metrics
+            logger.debug(f"📊 Calculating media metrics for {founder_name}")
             profile.calculate_metrics()
             
             # Set data sources and confidence
@@ -128,10 +138,11 @@ class MediaCollector:
             logger.info(f"✅ Media profile collected for {founder_name}: "
                        f"{len(profile.media_mentions)} mentions, "
                        f"{len(profile.awards)} awards, "
-                       f"{len(profile.thought_leadership)} thought leadership activities")
+                       f"{len(profile.thought_leadership)} thought leadership activities, "
+                       f"confidence: {profile.confidence_score:.2f}")
             
         except Exception as e:
-            logger.error(f"Error collecting media profile for {founder_name}: {e}")
+            logger.error(f"❌ Error collecting media profile for {founder_name}: {e}", exc_info=True)
             profile.confidence_score = 0.1
         
         return profile
@@ -158,7 +169,7 @@ class MediaCollector:
                     if mention:
                         mentions.append(mention)
                 
-                await asyncio.sleep(1)  # Rate limiting
+                await asyncio.sleep(0.5)  # Rate limiting - reduced delay but using rate limiter
             
             # Deduplicate mentions by URL
             unique_mentions = self._deduplicate_mentions(mentions)
@@ -192,7 +203,7 @@ class MediaCollector:
                     if award:
                         awards.append(award)
                 
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.5)
             
             # Deduplicate awards
             unique_awards = self._deduplicate_awards(awards)
@@ -219,7 +230,7 @@ class MediaCollector:
                     if activity:
                         activities.append(activity)
                 
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.5)
             
             return activities
             
@@ -274,6 +285,8 @@ class MediaCollector:
         """Search media sources using web search API."""
         await self.rate_limiter.acquire()
         
+        logger.debug(f"📰 Searching media sources with query: {query}")
+        
         try:
             if not self.session:
                 self.session = aiohttp.ClientSession()
@@ -292,16 +305,25 @@ class MediaCollector:
                 "type": "search"
             }
             
+            logger.debug(f"📡 Making API request to {url} with payload: {payload}")
+            
             async with self.session.post(url, json=payload, headers=headers) as response:
+                logger.debug(f"📡 API response status: {response.status}")
                 if response.status == 200:
                     data = await response.json()
-                    return data.get("organic", [])
+                    results = data.get("organic", [])
+                    logger.debug(f"✅ Found {len(results)} search results for media query")
+                    return results
                 else:
-                    logger.warning(f"Search API error {response.status} for query: {query}")
+                    response_text = await response.text()
+                    logger.error(f"❌ Search API error {response.status} for query: {query}. Response: {response_text}")
                     return []
                     
+        except aiohttp.ClientError as e:
+            logger.error(f"❌ HTTP client error searching media sources: {e}")
+            return []
         except Exception as e:
-            logger.error(f"Error searching media sources: {e}")
+            logger.error(f"❌ Unexpected error searching media sources: {e}", exc_info=True)
             return []
     
     async def _parse_media_mention(
