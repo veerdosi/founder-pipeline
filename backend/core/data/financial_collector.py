@@ -169,24 +169,19 @@ class FinancialDataCollector(PerplexityBaseService):
             
             # Process results
             companies_founded, exits, investments, board_positions = [], [], [], []
-            task_names = ["founding", "exits", "investments", "board_positions"]
             
             for i, result in enumerate(results):
                 if not isinstance(result, Exception):
                     if i == 0:  # Company founding data
                         companies_founded = result
-                        logger.debug(f"✅ {task_names[i]} data: {len(companies_founded)} companies found")
                     elif i == 1:  # Exit data
                         exits = result
-                        logger.debug(f"✅ {task_names[i]} data: {len(exits)} exits found")
                     elif i == 2:  # Investment data
                         investments = result
-                        logger.debug(f"✅ {task_names[i]} data: {len(investments)} investments found")
                     elif i == 3:  # Board positions
                         board_positions = result
-                        logger.debug(f"✅ {task_names[i]} data: {len(board_positions)} positions found")
                 else:
-                    logger.error(f"❌ Task {task_names[i]} failed for {founder_name}: {result}")
+                    logger.warning(f"Task {i} failed for {founder_name}: {result}")
             
             # Update profile
             profile.companies_founded = companies_founded
@@ -195,7 +190,6 @@ class FinancialDataCollector(PerplexityBaseService):
             profile.board_positions = board_positions
             
             # Calculate derived metrics
-            logger.debug(f"📊 Calculating metrics for {founder_name}")
             profile.calculate_metrics()
             
             # Set data sources and confidence
@@ -203,12 +197,10 @@ class FinancialDataCollector(PerplexityBaseService):
             profile.confidence_score = self._calculate_financial_confidence(profile)
             
             logger.info(f"✅ Financial data collected for {founder_name}: "
-                       f"{len(exits)} exits, {len(companies_founded)} companies founded, "
-                       f"{len(investments)} investments, {len(board_positions)} board positions, "
-                       f"confidence: {profile.confidence_score:.2f}")
+                       f"{len(exits)} exits, {len(companies_founded)} companies founded")
             
         except Exception as e:
-            logger.error(f"❌ Error collecting financial data for {founder_name}: {e}", exc_info=True)
+            logger.error(f"Error collecting financial data for {founder_name}: {e}")
             profile.confidence_score = 0.1
         
         return profile

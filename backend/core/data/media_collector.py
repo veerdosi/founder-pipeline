@@ -199,30 +199,22 @@ class MediaCollector(PerplexityBaseService):
             results = await asyncio.gather(*tasks, return_exceptions=True)
             
             # Process results
-            task_names = ["media_mentions", "awards", "thought_leadership", "social_metrics"]
             for i, result in enumerate(results):
                 if not isinstance(result, Exception):
                     if i == 0:  # Media mentions
                         profile.media_mentions = result
-                        logger.debug(f"✅ {task_names[i]} data: {len(result)} mentions found")
                     elif i == 1:  # Awards
                         profile.awards = result
-                        logger.debug(f"✅ {task_names[i]} data: {len(result)} awards found")
                     elif i == 2:  # Thought leadership
                         profile.thought_leadership = result
-                        logger.debug(f"✅ {task_names[i]} data: {len(result)} activities found")
                     elif i == 3:  # Social media metrics
                         if result:
                             profile.twitter_followers = result.get('twitter_followers')
                             profile.linkedin_connections = result.get('linkedin_connections')
-                            logger.debug(f"✅ {task_names[i]} data: Twitter: {profile.twitter_followers}, LinkedIn: {profile.linkedin_connections}")
-                        else:
-                            logger.debug(f"✅ {task_names[i]} data: No social metrics found")
                 else:
-                    logger.error(f"❌ Task {task_names[i]} failed for {founder_name}: {result}")
+                    logger.warning(f"Media collection task {i} failed for {founder_name}: {result}")
             
             # Calculate derived metrics
-            logger.debug(f"📊 Calculating media metrics for {founder_name}")
             profile.calculate_metrics()
             
             # Set data sources and confidence
@@ -232,11 +224,10 @@ class MediaCollector(PerplexityBaseService):
             logger.info(f"✅ Media profile collected for {founder_name}: "
                        f"{len(profile.media_mentions)} mentions, "
                        f"{len(profile.awards)} awards, "
-                       f"{len(profile.thought_leadership)} thought leadership activities, "
-                       f"confidence: {profile.confidence_score:.2f}")
+                       f"{len(profile.thought_leadership)} thought leadership activities")
             
         except Exception as e:
-            logger.error(f"❌ Error collecting media profile for {founder_name}: {e}", exc_info=True)
+            logger.error(f"Error collecting media profile for {founder_name}: {e}")
             profile.confidence_score = 0.1
         
         return profile
@@ -268,6 +259,7 @@ class MediaCollector(PerplexityBaseService):
                     if content:
                         mentions.extend(self._parse_media_mentions(content, founder_name))
                 
+                await asyncio.sleep(1)  # Rate limiting
                 await asyncio.sleep(1)  # Rate limiting
             
             # Deduplicate mentions by URL and title
@@ -310,6 +302,7 @@ class MediaCollector(PerplexityBaseService):
                         awards.extend(self._parse_awards(content, founder_name))
                 
                 await asyncio.sleep(1)
+                await asyncio.sleep(1)
             
             # Deduplicate awards
             unique_awards = self._deduplicate_awards(awards)
@@ -343,6 +336,7 @@ class MediaCollector(PerplexityBaseService):
                     if content:
                         activities.extend(self._parse_thought_leadership(content, founder_name))
                 
+                await asyncio.sleep(1)
                 await asyncio.sleep(1)
             
             logger.debug(f"📊 Found {len(activities)} thought leadership activities for {founder_name}")

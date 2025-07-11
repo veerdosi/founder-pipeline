@@ -111,7 +111,6 @@ class PerplexitySearchService(PerplexityBaseService):
     ) -> FounderWebSearchData:
         """Collect comprehensive web intelligence for a founder using Perplexity."""
         logger.info(f"🔍 Collecting web intelligence for {founder_name} using Perplexity")
-        logger.debug(f"📝 Parameters: company={current_company}, api_key_available={bool(self.api_key)}")
         
         web_data = FounderWebSearchData(
             founder_name=founder_name,
@@ -122,7 +121,6 @@ class PerplexitySearchService(PerplexityBaseService):
             # Collect data from different categories
             if self.api_key:
                 # Use Perplexity API if available
-                logger.debug(f"🚀 Starting Perplexity search tasks for {founder_name}")
                 tasks = [
                     self._search_perplexity_category(founder_name, current_company, 'financial'),
                     self._search_perplexity_category(founder_name, current_company, 'media'),
@@ -131,37 +129,32 @@ class PerplexitySearchService(PerplexityBaseService):
                 
                 results = await asyncio.gather(*tasks, return_exceptions=True)
                 
-                categories = ['financial', 'media', 'biographical']
                 for i, result in enumerate(results):
                     if not isinstance(result, Exception):
-                        category = categories[i]
-                        logger.debug(f"✅ {category} search: {len(result)} results found")
+                        category = ['financial', 'media', 'biographical'][i]
                         for search_result in result:
                             search_result.data_type = category
                             web_data.add_search_result(search_result)
                     else:
-                        logger.error(f"❌ Perplexity search failed for category {categories[i]}: {result}")
+                        logger.warning(f"Perplexity search failed for category {i}: {result}")
             else:
-                logger.warning("⚠️ Perplexity API key not available, using fallback search")
+                logger.warning("Perplexity API key not available, using fallback search")
                 # Fallback to web search without Perplexity
                 fallback_results = await self._fallback_web_search(founder_name, current_company)
-                logger.debug(f"🔄 Fallback search returned {len(fallback_results)} results")
                 for result in fallback_results:
                     web_data.add_search_result(result)
             
             # Extract insights from all search results
-            logger.debug(f"📊 Processing search results for {founder_name}")
             web_data.verified_facts = await self._extract_verified_facts(web_data)
             web_data.data_gaps = self._identify_data_gaps(web_data)
             web_data.overall_data_quality = self._calculate_data_quality(web_data)
             
             logger.info(f"✅ Web intelligence collected for {founder_name}: "
                        f"{web_data.total_searches_performed} searches, "
-                       f"{len(web_data.verified_facts)} facts verified, "
-                       f"quality: {web_data.overall_data_quality:.2f}")
+                       f"{len(web_data.verified_facts)} facts verified")
             
         except Exception as e:
-            logger.error(f"❌ Error collecting web intelligence for {founder_name}: {e}", exc_info=True)
+            logger.error(f"Error collecting web intelligence for {founder_name}: {e}")
             web_data.overall_data_quality = 0.1
         
         return web_data
@@ -201,6 +194,7 @@ class PerplexitySearchService(PerplexityBaseService):
                         results.append(search_result)
                 
                 # Small delay between queries
+                await asyncio.sleep(1)
                 await asyncio.sleep(1)
                 
         except Exception as e:
@@ -286,7 +280,7 @@ class PerplexitySearchService(PerplexityBaseService):
                     )
                     results.append(web_result)
                 
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(1)
             
         except Exception as e:
             logger.error(f"Error in fallback web search: {e}")
@@ -295,8 +289,6 @@ class PerplexitySearchService(PerplexityBaseService):
     
     async def _search_web_fallback(self, query: str) -> List[Dict[str, Any]]:
         """Fallback web search using Serper."""
-        logger.debug(f"🔄 Fallback web search for query: {query}")
-        
         try:
             if not self.session:
                 self.session = aiohttp.ClientSession()
@@ -314,25 +306,15 @@ class PerplexitySearchService(PerplexityBaseService):
                 "hl": "en"
             }
             
-            logger.debug(f"📡 Making fallback API request to {url}")
-            
             async with self.session.post(url, json=payload, headers=headers) as response:
-                logger.debug(f"📡 Fallback API response status: {response.status}")
                 if response.status == 200:
                     data = await response.json()
-                    results = data.get("organic", [])
-                    logger.debug(f"✅ Fallback search returned {len(results)} results")
-                    return results
+                    return data.get("organic", [])
                 else:
-                    response_text = await response.text()
-                    logger.error(f"❌ Fallback search API error {response.status}: {response_text}")
                     return []
                     
-        except aiohttp.ClientError as e:
-            logger.error(f"❌ HTTP client error in fallback search: {e}")
-            return []
         except Exception as e:
-            logger.error(f"❌ Unexpected error in fallback search: {e}", exc_info=True)
+            logger.error(f"Error in fallback search: {e}")
             return []
     
     async def _extract_verified_facts(self, web_data: FounderWebSearchData) -> List[str]:
