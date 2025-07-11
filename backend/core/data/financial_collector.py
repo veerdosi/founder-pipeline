@@ -1,46 +1,144 @@
-"""Financial data collection service for comprehensive founder financial intelligence."""
+"""Financial data collection service for comprehensive founder financial intelligence using Perplexity AI."""
 
 import asyncio
-import re
 from datetime import datetime, date
-from typing import List, Optional, Dict, Any, Tuple
-import aiohttp
-from urllib.parse import quote_plus
+from typing import List, Optional, Dict, Any
 import logging
+import json
+import re
 
 from ..ranking.models import (
     FounderFinancialProfile, CompanyExit, CompanyFounding, Investment, 
     BoardPosition, ExitType, InvestmentType
 )
-from ..config import settings
-from ...utils.rate_limiter import RateLimiter
+from .perplexity_base import PerplexityBaseService
 
 logger = logging.getLogger(__name__)
 
 
-class FinancialDataCollector:
-    """Service for collecting comprehensive founder financial data."""
+class FinancialDataCollector(PerplexityBaseService):
+    """Service for collecting comprehensive founder financial data using Perplexity AI."""
     
     def __init__(self):
-        self.rate_limiter = RateLimiter(max_requests=4, time_window=1)  # 4 requests per second to stay under Serper's 5/sec limit
-        self.session: Optional[aiohttp.ClientSession] = None
+        super().__init__()
         
-        # API endpoints for different data sources
-        self.endpoints = {
-            'crunchbase': 'https://api.crunchbase.com/api/v4',
-            'sec': 'https://data.sec.gov/api',
-            'pitchbook': 'https://api.pitchbook.com',  # If available
+        # Enhanced query templates for financial data
+        self.query_templates = {
+            'company_founding': [
+                """What companies has {founder_name} founded, co-founded, or started? For each company, provide:
+                - Company name
+                - Founding year
+                - {founder_name}'s role (founder, co-founder, CEO, etc.)
+                - Current status (active, acquired, closed, etc.)
+                - Industry or sector
+                - Any initial funding or valuation information
+                Include both successful and unsuccessful ventures.""",
+                
+                """What startups and businesses has {founder_name} created or launched throughout their career?
+                Please include:
+                - Complete company names
+                - Exact founding dates when available
+                - {founder_name}'s specific founding role
+                - Current company status and operations
+                - Any notable achievements or milestones""",
+                
+                """List all entrepreneurial ventures where {founder_name} was a founding member or key early employee with equity.
+                Include:
+                - Company names and founding years
+                - {founder_name}'s founding role and equity stake if known
+                - Business model and industry
+                - Current status and any exit information"""
+            ],
+            
+            'company_exits': [
+                """What are all the company exits, acquisitions, IPOs, or major liquidity events involving companies that {founder_name} founded or had significant equity in?
+                For each exit, provide:
+                - Company name
+                - Type of exit (IPO, acquisition, merger, etc.)
+                - Exit date (month and year)
+                - Exit value or transaction amount
+                - Acquiring company (if applicable)
+                - {founder_name}'s estimated proceeds or stake
+                - Current status of the acquired company""",
+                
+                """Has {founder_name} had any successful exits through IPOs, acquisitions, or sales of companies they founded?
+                Include:
+                - Specific company names and exit details
+                - Transaction values and dates
+                - {founder_name}'s role and ownership percentage
+                - Financial outcomes and proceeds
+                - Impact on their net worth""",
+                
+                """What major business sales, acquisitions, or public offerings has {founder_name} been involved in as a founder or significant equity holder?
+                Provide:
+                - Complete transaction details
+                - Financial terms and valuations
+                - Timeline of events
+                - {founder_name}'s financial outcome"""
+            ],
+            
+            'investments': [
+                """What investments has {founder_name} made as an angel investor, venture capitalist, or private investor?
+                For each investment, include:
+                - Company name and industry
+                - Investment amount (if known)
+                - Investment date or timeframe
+                - Type of investment (angel, seed, Series A, etc.)
+                - Current status of the investment
+                - Any notable returns or outcomes
+                - {founder_name}'s involvement beyond capital""",
+                
+                """Is {founder_name} an active angel investor or venture capitalist? What is their investment portfolio?
+                Include:
+                - Investment firm affiliations (if any)
+                - Portfolio companies and investment amounts
+                - Investment thesis and preferred sectors
+                - Notable successful investments and returns
+                - Co-investors and investment partnerships""",
+                
+                """What startups, companies, or funds has {founder_name} invested in or provided funding to?
+                Provide:
+                - Detailed investment history
+                - Investment amounts and ownership stakes
+                - Investment performance and outcomes
+                - {founder_name}'s involvement in portfolio companies"""
+            ],
+            
+            'board_positions': [
+                """What board positions, directorships, or advisory roles does {founder_name} currently hold or has held?
+                For each position, include:
+                - Company or organization name
+                - Position title (board member, director, advisor, etc.)
+                - Start date and current status
+                - Type of organization (public company, private company, nonprofit, etc.)
+                - Any compensation or equity arrangements
+                - Key responsibilities and contributions""",
+                
+                """Is {founder_name} a board member, director, or advisor for any companies or organizations?
+                Include:
+                - Current and past board positions
+                - Advisory roles and consulting arrangements
+                - Board committee memberships
+                - Governance responsibilities
+                - Any notable board decisions or contributions""",
+                
+                """What corporate governance roles has {founder_name} taken on outside of their own companies?
+                Provide:
+                - Board seats and advisory positions
+                - Duration of service
+                - Company types and industries
+                - Leadership roles within boards
+                - Any notable governance initiatives or decisions"""
+            ]
         }
     
-    async def __aenter__(self):
-        """Async context manager entry."""
-        self.session = aiohttp.ClientSession()
-        return self
+    async def collect_data(self, founder_name: str, current_company: str) -> FounderFinancialProfile:
+        """Collect comprehensive financial data for a founder using Perplexity AI."""
+        return await self.collect_founder_financial_data(founder_name, current_company)
     
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Async context manager exit."""
-        if self.session:
-            await self.session.close()
+    def get_query_templates(self) -> Dict[str, List[str]]:
+        """Get query templates for financial data collection."""
+        return self.query_templates
     
     async def collect_founder_financial_data(
         self, 
@@ -48,8 +146,8 @@ class FinancialDataCollector:
         current_company: str,
         linkedin_url: Optional[str] = None
     ) -> FounderFinancialProfile:
-        """Collect comprehensive financial data for a founder."""
-        logger.info(f"🔍 Collecting financial data for {founder_name}")
+        """Collect comprehensive financial data for a founder using Perplexity AI."""
+        logger.info(f"🔍 Collecting financial data for {founder_name} using Perplexity AI")
         logger.debug(f"📋 Parameters: company={current_company}, linkedin_url={linkedin_url}")
         
         profile = FounderFinancialProfile(
@@ -58,8 +156,8 @@ class FinancialDataCollector:
         )
         
         try:
-            # Collect data from multiple sources in parallel
-            logger.debug(f"🚀 Starting parallel data collection tasks for {founder_name}")
+            # Collect data from multiple categories using Perplexity
+            logger.debug(f"🚀 Starting Perplexity financial data collection for {founder_name}")
             tasks = [
                 self._collect_company_founding_data(founder_name, current_company),
                 self._collect_exit_data(founder_name),
@@ -101,7 +199,7 @@ class FinancialDataCollector:
             profile.calculate_metrics()
             
             # Set data sources and confidence
-            profile.data_sources = ['web_search', 'sec_filings', 'crunchbase']
+            profile.data_sources = ['perplexity_ai', 'web_search', 'financial_databases']
             profile.confidence_score = self._calculate_financial_confidence(profile)
             
             logger.info(f"✅ Financial data collected for {founder_name}: "
@@ -120,72 +218,82 @@ class FinancialDataCollector:
         founder_name: str, 
         current_company: str
     ) -> List[CompanyFounding]:
-        """Collect data about companies founded by the founder."""
+        """Collect data about companies founded by the founder using Perplexity."""
         companies = []
         
         try:
-            # Search for companies founded by this person
-            search_queries = [
-                f'"{founder_name}" founder "{current_company}"',
-                f'"{founder_name}" co-founder companies founded',
-                f'"{founder_name}" CEO founder startup'
-            ]
+            system_prompt = """You are a business intelligence specialist focused on company founding information.
+            Provide comprehensive, accurate information about companies founded by entrepreneurs.
+            Include specific dates, roles, and current status. Be thorough but factual."""
             
-            for query in search_queries:
-                results = await self._search_web_for_financial_data(query, "founding")
-                companies.extend(await self._extract_founding_data(results, founder_name))
+            for query_template in self.query_templates['company_founding']:
+                query = query_template.format(founder_name=founder_name)
                 
-                # Rate limiting - increased delay to prevent 429 errors
-                await asyncio.sleep(0.5)
+                response = await self.query_perplexity(
+                    query=query,
+                    system_prompt=system_prompt,
+                    max_tokens=2000
+                )
+                
+                if response:
+                    content = self.extract_content_from_response(response)
+                    if content:
+                        companies.extend(self._parse_company_founding_data(content, founder_name))
+                
+                # Rate limiting delay
+                await asyncio.sleep(1)
             
-            # Add current company
-            current_company_data = CompanyFounding(
-                company_name=current_company,
-                founder_role="Founder/CEO",
-                is_current_company=True,
-                verification_sources=["linkedin_profile"]
-            )
-            companies.append(current_company_data)
+            # Add current company if not already included
+            if current_company:
+                existing_companies = [c.company_name.lower() for c in companies]
+                if current_company.lower() not in existing_companies:
+                    current_company_data = CompanyFounding(
+                        company_name=current_company,
+                        founder_role="Founder/CEO",
+                        is_current_company=True,
+                        verification_sources=["linkedin_profile", "company_website"]
+                    )
+                    companies.append(current_company_data)
             
-            # Deduplicate by company name
-            unique_companies = {}
-            for company in companies:
-                if company.company_name not in unique_companies:
-                    unique_companies[company.company_name] = company
-                else:
-                    # Merge data from multiple sources
-                    existing = unique_companies[company.company_name]
-                    if company.founding_date and not existing.founding_date:
-                        existing.founding_date = company.founding_date
-                    if company.current_valuation_usd and not existing.current_valuation_usd:
-                        existing.current_valuation_usd = company.current_valuation_usd
-                    existing.verification_sources.extend(company.verification_sources)
+            # Deduplicate companies
+            unique_companies = self._deduplicate_companies(companies)
+            logger.debug(f"📊 Found {len(unique_companies)} unique companies founded by {founder_name}")
             
-            return list(unique_companies.values())
+            return unique_companies
             
         except Exception as e:
             logger.error(f"Error collecting founding data for {founder_name}: {e}")
             return []
     
     async def _collect_exit_data(self, founder_name: str) -> List[CompanyExit]:
-        """Collect data about company exits."""
+        """Collect data about company exits using Perplexity."""
         exits = []
         
         try:
-            # Search for exits
-            search_queries = [
-                f'"{founder_name}" IPO exit acquisition',
-                f'"{founder_name}" company sold acquired',
-                f'"{founder_name}" founder exit billion million'
-            ]
+            system_prompt = """You are a financial intelligence specialist focused on company exits and liquidity events.
+            Provide detailed information about IPOs, acquisitions, and other exit events.
+            Include specific financial details, dates, and transaction terms when available."""
             
-            for query in search_queries:
-                results = await self._search_web_for_financial_data(query, "exit")
-                exits.extend(await self._extract_exit_data(results, founder_name))
+            for query_template in self.query_templates['company_exits']:
+                query = query_template.format(founder_name=founder_name)
+                
+                response = await self.query_perplexity(
+                    query=query,
+                    system_prompt=system_prompt,
+                    max_tokens=2000
+                )
+                
+                if response:
+                    content = self.extract_content_from_response(response)
+                    if content:
+                        exits.extend(self._parse_exit_data(content, founder_name))
+                
                 await asyncio.sleep(1)
             
-            # Deduplicate and validate
+            # Deduplicate and validate exits
             unique_exits = self._deduplicate_exits(exits)
+            logger.debug(f"📊 Found {len(unique_exits)} unique exits for {founder_name}")
+            
             return unique_exits
             
         except Exception as e:
@@ -193,21 +301,31 @@ class FinancialDataCollector:
             return []
     
     async def _collect_investment_data(self, founder_name: str) -> List[Investment]:
-        """Collect data about investments made by founder."""
+        """Collect data about investments made by founder using Perplexity."""
         investments = []
         
         try:
-            search_queries = [
-                f'"{founder_name}" angel investor investments',
-                f'"{founder_name}" venture capital portfolio',
-                f'"{founder_name}" invested companies'
-            ]
+            system_prompt = """You are an investment intelligence specialist focused on angel investing and venture capital.
+            Provide detailed information about investments made by entrepreneurs and business leaders.
+            Include investment amounts, dates, company details, and outcomes when available."""
             
-            for query in search_queries:
-                results = await self._search_web_for_financial_data(query, "investment")
-                investments.extend(await self._extract_investment_data(results, founder_name))
+            for query_template in self.query_templates['investments']:
+                query = query_template.format(founder_name=founder_name)
+                
+                response = await self.query_perplexity(
+                    query=query,
+                    system_prompt=system_prompt,
+                    max_tokens=2000
+                )
+                
+                if response:
+                    content = self.extract_content_from_response(response)
+                    if content:
+                        investments.extend(self._parse_investment_data(content, founder_name))
+                
                 await asyncio.sleep(1)
             
+            logger.debug(f"📊 Found {len(investments)} investments made by {founder_name}")
             return investments
             
         except Exception as e:
@@ -215,289 +333,375 @@ class FinancialDataCollector:
             return []
     
     async def _collect_board_positions(self, founder_name: str) -> List[BoardPosition]:
-        """Collect data about board positions."""
+        """Collect data about board positions using Perplexity."""
         positions = []
         
         try:
-            search_queries = [
-                f'"{founder_name}" board member director',
-                f'"{founder_name}" advisory board',
-                f'"{founder_name}" chairman board'
-            ]
+            system_prompt = """You are a corporate governance specialist focused on board positions and advisory roles.
+            Provide detailed information about board memberships, directorships, and advisory positions.
+            Include position titles, organization details, and duration of service."""
             
-            for query in search_queries:
-                results = await self._search_web_for_financial_data(query, "board")
-                positions.extend(await self._extract_board_data(results, founder_name))
+            for query_template in self.query_templates['board_positions']:
+                query = query_template.format(founder_name=founder_name)
+                
+                response = await self.query_perplexity(
+                    query=query,
+                    system_prompt=system_prompt,
+                    max_tokens=2000
+                )
+                
+                if response:
+                    content = self.extract_content_from_response(response)
+                    if content:
+                        positions.extend(self._parse_board_data(content, founder_name))
+                
                 await asyncio.sleep(1)
             
+            logger.debug(f"📊 Found {len(positions)} board positions for {founder_name}")
             return positions
             
         except Exception as e:
             logger.error(f"Error collecting board data for {founder_name}: {e}")
             return []
     
-    async def _search_web_for_financial_data(
-        self, 
-        query: str, 
-        data_type: str
-    ) -> List[Dict[str, Any]]:
-        """Search web for financial data using available search APIs."""
-        await self.rate_limiter.acquire()
-        
-        logger.debug(f"🔍 Searching for {data_type} data with query: {query}")
-        
-        try:
-            # Use Serper API for web search
-            url = "https://google.serper.dev/search"
-            headers = {
-                "X-API-KEY": settings.serper_api_key,
-                "Content-Type": "application/json"
-            }
-            
-            payload = {
-                "q": query,
-                "num": 10,
-                "gl": "us",
-                "hl": "en"
-            }
-            
-            logger.debug(f"📡 Making API request to {url} with payload: {payload}")
-            
-            if not self.session:
-                self.session = aiohttp.ClientSession()
-            
-            async with self.session.post(url, json=payload, headers=headers) as response:
-                logger.debug(f"📡 API response status: {response.status}")
-                if response.status == 200:
-                    data = await response.json()
-                    results = data.get("organic", [])
-                    logger.debug(f"✅ Found {len(results)} search results for {data_type} query")
-                    return results
-                else:
-                    response_text = await response.text()
-                    logger.error(f"❌ Search API error {response.status} for query: {query}. Response: {response_text}")
-                    return []
-                    
-        except aiohttp.ClientError as e:
-            logger.error(f"❌ HTTP client error searching for {data_type} data: {e}")
-            return []
-        except Exception as e:
-            logger.error(f"❌ Unexpected error searching for {data_type} data: {e}", exc_info=True)
-            return []
-    
-    async def _extract_founding_data(
-        self, 
-        search_results: List[Dict[str, Any]], 
-        founder_name: str
-    ) -> List[CompanyFounding]:
-        """Extract company founding data from search results."""
+    def _parse_company_founding_data(self, content: str, founder_name: str) -> List[CompanyFounding]:
+        """Parse company founding data from Perplexity response."""
         companies = []
         
-        for result in search_results:
-            try:
-                title = result.get("title", "")
-                snippet = result.get("snippet", "")
-                url = result.get("link", "")
+        try:
+            # Split content into sentences and look for company mentions
+            sentences = content.split('.')
+            
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if len(sentence) < 20:
+                    continue
                 
-                # Look for founding patterns
-                text = f"{title} {snippet}".lower()
-                
-                # Extract company names and founding information
-                founding_patterns = [
-                    r'(?:co-)?founded?\s+([A-Z][a-zA-Z\s&]+?)(?:\s+in\s+(\d{4}))?',
-                    r'([A-Z][a-zA-Z\s&]+?)\s+(?:co-)?founder',
-                    r'(?:CEO|founder)\s+(?:of\s+)?([A-Z][a-zA-Z\s&]+?)'
-                ]
-                
-                for pattern in founding_patterns:
-                    matches = re.finditer(pattern, title + " " + snippet, re.IGNORECASE)
-                    for match in matches:
-                        company_name = match.group(1).strip()
-                        founding_year = match.group(2) if len(match.groups()) > 1 else None
-                        
-                        if len(company_name) > 2 and company_name not in [founder_name]:
-                            founding_date = None
-                            if founding_year:
-                                try:
-                                    founding_date = date(int(founding_year), 1, 1)
-                                except ValueError:
-                                    pass
-                            
-                            company = CompanyFounding(
-                                company_name=company_name,
-                                founding_date=founding_date,
-                                founder_role="Founder",
-                                verification_sources=[url]
-                            )
-                            companies.append(company)
-                            
-            except Exception as e:
-                logger.warning(f"Error extracting founding data from result: {e}")
-                continue
+                # Look for founding keywords
+                if any(keyword in sentence.lower() for keyword in ['founded', 'co-founded', 'started', 'created', 'launched']):
+                    company_data = self._extract_company_from_sentence(sentence, founder_name)
+                    if company_data:
+                        companies.append(company_data)
+            
+            # Also look for structured information patterns
+            companies.extend(self._extract_structured_companies(content, founder_name))
+            
+        except Exception as e:
+            logger.warning(f"Error parsing company founding data: {e}")
         
         return companies
     
-    async def _extract_exit_data(
-        self, 
-        search_results: List[Dict[str, Any]], 
-        founder_name: str
-    ) -> List[CompanyExit]:
-        """Extract exit data from search results."""
+    def _parse_exit_data(self, content: str, founder_name: str) -> List[CompanyExit]:
+        """Parse exit data from Perplexity response."""
         exits = []
         
-        for result in search_results:
-            try:
-                title = result.get("title", "")
-                snippet = result.get("snippet", "")
-                url = result.get("link", "")
+        try:
+            sentences = content.split('.')
+            
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if len(sentence) < 20:
+                    continue
                 
-                text = f"{title} {snippet}".lower()
-                
-                # Look for exit patterns
-                exit_patterns = [
-                    r'([A-Z][a-zA-Z\s&]+?)\s+(?:acquired|bought)\s+(?:by\s+)?([A-Z][a-zA-Z\s&]+?)\s+(?:for\s+)?\$?([\d\.]+)\s*(billion|million)',
-                    r'([A-Z][a-zA-Z\s&]+?)\s+IPO.*?\$?([\d\.]+)\s*(billion|million)',
-                    r'\$?([\d\.]+)\s*(billion|million).*?(?:acquisition|exit|sale).*?([A-Z][a-zA-Z\s&]+?)'
-                ]
-                
-                for pattern in exit_patterns:
-                    matches = re.finditer(pattern, title + " " + snippet, re.IGNORECASE)
-                    for match in matches:
-                        groups = match.groups()
-                        
-                        # Extract exit information
-                        if "ipo" in text:
-                            exit_type = ExitType.IPO
-                            company_name = groups[0] if len(groups) > 2 else "Unknown"
-                            value_str = groups[1] if len(groups) > 2 else groups[0]
-                            unit = groups[2] if len(groups) > 2 else groups[1]
-                        else:
-                            exit_type = ExitType.ACQUISITION
-                            company_name = groups[0] if groups else "Unknown"
-                            acquiring_company = groups[1] if len(groups) > 3 else None
-                            value_str = groups[2] if len(groups) > 3 else groups[1] if len(groups) > 1 else groups[0]
-                            unit = groups[3] if len(groups) > 3 else groups[2] if len(groups) > 2 else groups[1]
-                        
-                        # Convert value to USD
-                        try:
-                            value = float(value_str.replace(',', ''))
-                            if unit.lower() == 'billion':
-                                value *= 1_000_000_000
-                            elif unit.lower() == 'million':
-                                value *= 1_000_000
-                        except (ValueError, AttributeError):
-                            value = None
-                        
-                        exit = CompanyExit(
-                            company_name=company_name.strip(),
-                            exit_type=exit_type,
-                            exit_value_usd=value,
-                            acquiring_company=acquiring_company.strip() if acquiring_company else None,
-                            verification_sources=[url]
-                        )
-                        exits.append(exit)
-                        
-            except Exception as e:
-                logger.warning(f"Error extracting exit data from result: {e}")
-                continue
+                # Look for exit keywords
+                if any(keyword in sentence.lower() for keyword in ['acquired', 'ipo', 'sold', 'exit', 'acquisition', 'merger']):
+                    exit_data = self._extract_exit_from_sentence(sentence, founder_name)
+                    if exit_data:
+                        exits.append(exit_data)
+            
+            # Extract structured exit information
+            exits.extend(self._extract_structured_exits(content, founder_name))
+            
+        except Exception as e:
+            logger.warning(f"Error parsing exit data: {e}")
         
         return exits
     
-    async def _extract_investment_data(
-        self, 
-        search_results: List[Dict[str, Any]], 
-        founder_name: str
-    ) -> List[Investment]:
-        """Extract investment data from search results."""
+    def _parse_investment_data(self, content: str, founder_name: str) -> List[Investment]:
+        """Parse investment data from Perplexity response."""
         investments = []
         
-        for result in search_results:
-            try:
-                title = result.get("title", "")
-                snippet = result.get("snippet", "")
-                url = result.get("link", "")
+        try:
+            sentences = content.split('.')
+            
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if len(sentence) < 20:
+                    continue
                 
-                # Look for investment patterns
-                investment_patterns = [
-                    r'(?:invested|angel|funding).*?([A-Z][a-zA-Z\s&]+?).*?\$?([\d\.]+)\s*(million|thousand)',
-                    r'([A-Z][a-zA-Z\s&]+?).*?(?:angel investor|investment).*?\$?([\d\.]+)\s*(million|thousand)',
-                ]
-                
-                for pattern in investment_patterns:
-                    matches = re.finditer(pattern, title + " " + snippet, re.IGNORECASE)
-                    for match in matches:
-                        company_name = match.group(1).strip()
-                        value_str = match.group(2)
-                        unit = match.group(3)
-                        
-                        # Convert value to USD
-                        try:
-                            value = float(value_str.replace(',', ''))
-                            if unit.lower() == 'million':
-                                value *= 1_000_000
-                            elif unit.lower() == 'thousand':
-                                value *= 1_000
-                        except ValueError:
-                            value = None
-                        
-                        investment = Investment(
-                            company_name=company_name,
-                            investment_type=InvestmentType.ANGEL,
-                            investment_amount_usd=value,
-                            verification_sources=[url]
-                        )
-                        investments.append(investment)
-                        
-            except Exception as e:
-                logger.warning(f"Error extracting investment data: {e}")
-                continue
+                # Look for investment keywords
+                if any(keyword in sentence.lower() for keyword in ['invested', 'angel', 'funding', 'venture', 'portfolio']):
+                    investment_data = self._extract_investment_from_sentence(sentence, founder_name)
+                    if investment_data:
+                        investments.append(investment_data)
+            
+        except Exception as e:
+            logger.warning(f"Error parsing investment data: {e}")
         
         return investments
     
-    async def _extract_board_data(
-        self, 
-        search_results: List[Dict[str, Any]], 
-        founder_name: str
-    ) -> List[BoardPosition]:
-        """Extract board position data from search results."""
+    def _parse_board_data(self, content: str, founder_name: str) -> List[BoardPosition]:
+        """Parse board position data from Perplexity response."""
         positions = []
         
-        for result in search_results:
-            try:
-                title = result.get("title", "")
-                snippet = result.get("snippet", "")
-                url = result.get("link", "")
+        try:
+            sentences = content.split('.')
+            
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if len(sentence) < 20:
+                    continue
                 
-                # Look for board position patterns
-                board_patterns = [
-                    r'board\s+(?:member|director).*?(?:at\s+)?([A-Z][a-zA-Z\s&]+?)(?:\s|,|\.)',
-                    r'([A-Z][a-zA-Z\s&]+?).*?board\s+(?:member|director)',
-                    r'(?:chairman|chair).*?(?:of\s+)?([A-Z][a-zA-Z\s&]+?)'
-                ]
-                
-                for pattern in board_patterns:
-                    matches = re.finditer(pattern, title + " " + snippet, re.IGNORECASE)
-                    for match in matches:
-                        company_name = match.group(1).strip()
-                        
-                        position_title = "Board Member"
-                        if "chairman" in (title + snippet).lower():
-                            position_title = "Chairman"
-                        elif "advisory" in (title + snippet).lower():
-                            position_title = "Advisory Board Member"
-                        
-                        position = BoardPosition(
-                            company_name=company_name,
-                            position_title=position_title,
-                            verification_sources=[url]
-                        )
-                        positions.append(position)
-                        
-            except Exception as e:
-                logger.warning(f"Error extracting board data: {e}")
-                continue
+                # Look for board keywords
+                if any(keyword in sentence.lower() for keyword in ['board', 'director', 'advisor', 'advisory']):
+                    board_data = self._extract_board_from_sentence(sentence, founder_name)
+                    if board_data:
+                        positions.append(board_data)
+            
+        except Exception as e:
+            logger.warning(f"Error parsing board data: {e}")
         
         return positions
+    
+    def _extract_company_from_sentence(self, sentence: str, founder_name: str) -> Optional[CompanyFounding]:
+        """Extract company founding information from a sentence."""
+        try:
+            # Simple pattern matching for company names (can be enhanced)
+            # Look for capitalized words that might be company names
+            words = sentence.split()
+            potential_companies = []
+            
+            for i, word in enumerate(words):
+                if word[0].isupper() and len(word) > 2:
+                    # Check if it's likely a company name
+                    if i < len(words) - 1 and words[i+1][0].isupper():
+                        potential_companies.append(f"{word} {words[i+1]}")
+                    else:
+                        potential_companies.append(word)
+            
+            if potential_companies:
+                # Take the first potential company name
+                company_name = potential_companies[0]
+                
+                # Extract year if present
+                year_match = re.search(r'\b(19|20)\d{2}\b', sentence)
+                founding_date = None
+                if year_match:
+                    try:
+                        founding_date = date(int(year_match.group()), 1, 1)
+                    except ValueError:
+                        pass
+                
+                # Determine role
+                role = "Founder"
+                if "co-founded" in sentence.lower():
+                    role = "Co-Founder"
+                elif "ceo" in sentence.lower():
+                    role = "Founder/CEO"
+                
+                return CompanyFounding(
+                    company_name=company_name,
+                    founding_date=founding_date,
+                    founder_role=role,
+                    verification_sources=["perplexity_ai"]
+                )
+        
+        except Exception as e:
+            logger.warning(f"Error extracting company from sentence: {e}")
+        
+        return None
+    
+    def _extract_exit_from_sentence(self, sentence: str, founder_name: str) -> Optional[CompanyExit]:
+        """Extract exit information from a sentence."""
+        try:
+            # Extract company name (simplified)
+            words = sentence.split()
+            company_name = "Unknown"
+            
+            # Look for capitalized words that might be company names
+            for word in words:
+                if word[0].isupper() and len(word) > 2 and word not in ['IPO', 'CEO', 'The', 'In', 'By']:
+                    company_name = word
+                    break
+            
+            # Determine exit type
+            exit_type = ExitType.ACQUISITION
+            if "ipo" in sentence.lower():
+                exit_type = ExitType.IPO
+            elif "merger" in sentence.lower():
+                exit_type = ExitType.MERGER
+            
+            # Extract financial amount
+            amount_match = re.search(r'\$?([\d,]+(?:\.\d+)?)\s*(million|billion|M|B)', sentence, re.IGNORECASE)
+            exit_value = None
+            if amount_match:
+                try:
+                    value = float(amount_match.group(1).replace(',', ''))
+                    unit = amount_match.group(2).lower()
+                    if unit in ['billion', 'b']:
+                        exit_value = value * 1_000_000_000
+                    elif unit in ['million', 'm']:
+                        exit_value = value * 1_000_000
+                except ValueError:
+                    pass
+            
+            # Extract year
+            year_match = re.search(r'\b(19|20)\d{2}\b', sentence)
+            exit_date = None
+            if year_match:
+                try:
+                    exit_date = date(int(year_match.group()), 1, 1)
+                except ValueError:
+                    pass
+            
+            return CompanyExit(
+                company_name=company_name,
+                exit_type=exit_type,
+                exit_value_usd=exit_value,
+                exit_date=exit_date,
+                verification_sources=["perplexity_ai"]
+            )
+        
+        except Exception as e:
+            logger.warning(f"Error extracting exit from sentence: {e}")
+        
+        return None
+    
+    def _extract_investment_from_sentence(self, sentence: str, founder_name: str) -> Optional[Investment]:
+        """Extract investment information from a sentence."""
+        try:
+            # Extract company name (simplified)
+            words = sentence.split()
+            company_name = "Unknown"
+            
+            for word in words:
+                if word[0].isupper() and len(word) > 2:
+                    company_name = word
+                    break
+            
+            # Extract investment amount
+            amount_match = re.search(r'\$?([\d,]+(?:\.\d+)?)\s*(million|thousand|M|K)', sentence, re.IGNORECASE)
+            investment_amount = None
+            if amount_match:
+                try:
+                    value = float(amount_match.group(1).replace(',', ''))
+                    unit = amount_match.group(2).lower()
+                    if unit in ['million', 'm']:
+                        investment_amount = value * 1_000_000
+                    elif unit in ['thousand', 'k']:
+                        investment_amount = value * 1_000
+                except ValueError:
+                    pass
+            
+            # Determine investment type
+            investment_type = InvestmentType.ANGEL
+            if "seed" in sentence.lower():
+                investment_type = InvestmentType.SEED
+            elif "series a" in sentence.lower():
+                investment_type = InvestmentType.SERIES_A
+            elif "venture" in sentence.lower():
+                investment_type = InvestmentType.VENTURE
+            
+            return Investment(
+                company_name=company_name,
+                investment_type=investment_type,
+                investment_amount_usd=investment_amount,
+                verification_sources=["perplexity_ai"]
+            )
+        
+        except Exception as e:
+            logger.warning(f"Error extracting investment from sentence: {e}")
+        
+        return None
+    
+    def _extract_board_from_sentence(self, sentence: str, founder_name: str) -> Optional[BoardPosition]:
+        """Extract board position information from a sentence."""
+        try:
+            # Extract company name (simplified)
+            words = sentence.split()
+            company_name = "Unknown"
+            
+            for word in words:
+                if word[0].isupper() and len(word) > 2:
+                    company_name = word
+                    break
+            
+            # Determine position title
+            position_title = "Board Member"
+            if "director" in sentence.lower():
+                position_title = "Board Director"
+            elif "chairman" in sentence.lower():
+                position_title = "Chairman"
+            elif "advisory" in sentence.lower():
+                position_title = "Advisory Board Member"
+            
+            return BoardPosition(
+                company_name=company_name,
+                position_title=position_title,
+                verification_sources=["perplexity_ai"]
+            )
+        
+        except Exception as e:
+            logger.warning(f"Error extracting board position from sentence: {e}")
+        
+        return None
+    
+    def _extract_structured_companies(self, content: str, founder_name: str) -> List[CompanyFounding]:
+        """Extract structured company information from content."""
+        companies = []
+        
+        try:
+            # Look for structured lists or bullet points
+            lines = content.split('\n')
+            for line in lines:
+                line = line.strip()
+                if line and ('•' in line or '-' in line or line.startswith(('1.', '2.', '3.'))):
+                    company_data = self._extract_company_from_sentence(line, founder_name)
+                    if company_data:
+                        companies.append(company_data)
+        
+        except Exception as e:
+            logger.warning(f"Error extracting structured companies: {e}")
+        
+        return companies
+    
+    def _extract_structured_exits(self, content: str, founder_name: str) -> List[CompanyExit]:
+        """Extract structured exit information from content."""
+        exits = []
+        
+        try:
+            # Look for structured lists or bullet points
+            lines = content.split('\n')
+            for line in lines:
+                line = line.strip()
+                if line and ('•' in line or '-' in line or line.startswith(('1.', '2.', '3.'))):
+                    exit_data = self._extract_exit_from_sentence(line, founder_name)
+                    if exit_data:
+                        exits.append(exit_data)
+        
+        except Exception as e:
+            logger.warning(f"Error extracting structured exits: {e}")
+        
+        return exits
+    
+    def _deduplicate_companies(self, companies: List[CompanyFounding]) -> List[CompanyFounding]:
+        """Remove duplicate companies and merge information."""
+        unique_companies = {}
+        
+        for company in companies:
+            key = company.company_name.lower().strip()
+            if key not in unique_companies:
+                unique_companies[key] = company
+            else:
+                # Merge information
+                existing = unique_companies[key]
+                if company.founding_date and not existing.founding_date:
+                    existing.founding_date = company.founding_date
+                if company.current_valuation_usd and not existing.current_valuation_usd:
+                    existing.current_valuation_usd = company.current_valuation_usd
+                existing.verification_sources.extend(company.verification_sources)
+        
+        return list(unique_companies.values())
     
     def _deduplicate_exits(self, exits: List[CompanyExit]) -> List[CompanyExit]:
         """Remove duplicate exits and merge similar ones."""
@@ -524,18 +728,14 @@ class FinancialDataCollector:
         """Calculate confidence score for financial profile."""
         score = 0.0
         
-        # Base score for data sources
-        if 'crunchbase' in profile.data_sources:
-            score += 0.3
-        if 'sec_filings' in profile.data_sources:
+        # Base score for using Perplexity (higher quality source)
+        if 'perplexity_ai' in profile.data_sources:
             score += 0.4
-        if 'web_search' in profile.data_sources:
-            score += 0.2
         
         # Boost for verified exits
         verified_exits = sum(1 for exit in profile.company_exits 
-                           if len(exit.verification_sources) > 1)
-        score += min(verified_exits * 0.1, 0.3)
+                           if len(exit.verification_sources) > 0)
+        score += min(verified_exits * 0.15, 0.3)
         
         # Boost for multiple companies
         if len(profile.companies_founded) > 1:
@@ -544,5 +744,9 @@ class FinancialDataCollector:
         # Boost for financial data availability
         if profile.total_exit_value_usd:
             score += 0.2
+        
+        # Boost for investment activity
+        if len(profile.investments_made) > 0:
+            score += 0.1
         
         return min(score, 1.0)

@@ -1,59 +1,108 @@
 """Perplexity AI search service for comprehensive founder web intelligence."""
 
 import asyncio
-import aiohttp
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 import json
 import logging
 
 from ..ranking.models import FounderWebSearchData, WebSearchResult
-from ..config import settings
-from ...utils.rate_limiter import RateLimiter
+from .perplexity_base import PerplexityBaseService
 
 logger = logging.getLogger(__name__)
 
 
-class PerplexitySearchService:
+class PerplexitySearchService(PerplexityBaseService):
     """Service for conducting intelligent web searches using Perplexity AI."""
     
     def __init__(self):
-        self.api_key = getattr(settings, 'perplexity_api_key', None)
-        self.base_url = "https://api.perplexity.ai"
-        self.rate_limiter = RateLimiter(max_requests=4, time_window=1)  # 4 requests per second to stay under Serper's 5/sec limit for fallback search
-        self.session: Optional[aiohttp.ClientSession] = None
+        super().__init__()
         
-        # Search query templates for different data types
+        # Enhanced query templates for web intelligence
         self.query_templates = {
             'financial': [
-                "What companies has {founder_name} founded or co-founded? Include founding dates, exit values, and current status.",
-                "What are {founder_name}'s major business exits, IPOs, or acquisitions? Include financial details and dates.",
-                "What investments has {founder_name} made as an angel investor or venture capitalist?",
-                "What board positions does {founder_name} currently hold or has held in the past?"
+                """What companies has {founder_name} founded, co-founded, or started? For each company, provide:
+                - Company name and founding year
+                - {founder_name}'s role and equity stake
+                - Current status and valuation
+                - Exit details if applicable (IPO, acquisition, etc.)
+                - Financial outcomes and transaction values""",
+                
+                """What are {founder_name}'s major business exits, IPOs, or acquisitions?
+                Include:
+                - Company names and exit dates
+                - Exit values and transaction details
+                - Type of exit (IPO, acquisition, merger)
+                - {founder_name}'s financial outcome
+                - Acquiring companies or market performance""",
+                
+                """What investments has {founder_name} made as an angel investor or venture capitalist?
+                Provide:
+                - Portfolio company names and investment amounts
+                - Investment dates and rounds participated
+                - Current status of investments
+                - Notable returns or successful exits
+                - Investment thesis and focus areas"""
             ],
             'media': [
-                "What major media coverage, interviews, and press mentions has {founder_name} received in the last 5 years?",
-                "What awards, recognitions, or industry honors has {founder_name} received?",
-                "What speaking engagements, conferences, or thought leadership activities has {founder_name} participated in?",
-                "What books, articles, or significant publications has {founder_name} authored or been featured in?"
+                """What major media coverage, interviews, and press mentions has {founder_name} received in the last 5 years?
+                Include:
+                - Publication names and dates
+                - Types of coverage (interviews, features, news)
+                - Key topics and themes discussed
+                - Media reach and impact
+                - Quotes and key insights shared""",
+                
+                """What awards, recognitions, or industry honors has {founder_name} received?
+                Provide:
+                - Award names and awarding organizations
+                - Years received and criteria
+                - Significance within the industry
+                - Associated media coverage
+                - Impact on reputation and credibility""",
+                
+                """What speaking engagements, conferences, or thought leadership activities has {founder_name} participated in?
+                Include:
+                - Event names and organizers
+                - Dates and locations
+                - Topics presented
+                - Audience size and composition
+                - Key insights shared"""
             ],
             'biographical': [
-                "What is {founder_name}'s educational background, including degrees and institutions?",
-                "What is {founder_name}'s professional work history before founding companies?",
-                "What notable achievements or career milestones has {founder_name} accomplished?",
-                "What is {founder_name}'s current role and recent business activities?"
+                """What is {founder_name}'s educational background and early career?
+                Include:
+                - Universities attended and degrees earned
+                - Graduation years and academic achievements
+                - Early career positions and companies
+                - Notable mentors or influences
+                - Skills and expertise developed""",
+                
+                """What is {founder_name}'s professional work history before founding companies?
+                Provide:
+                - Company names and positions held
+                - Employment dates and responsibilities
+                - Key achievements and contributions
+                - Industries and sectors worked in
+                - Skills and experience gained""",
+                
+                """What notable achievements or career milestones has {founder_name} accomplished?
+                Include:
+                - Major professional accomplishments
+                - Industry recognition and impact
+                - Innovation and breakthrough contributions
+                - Leadership roles and responsibilities
+                - Personal and professional growth milestones"""
             ]
         }
     
-    async def __aenter__(self):
-        """Async context manager entry."""
-        self.session = aiohttp.ClientSession()
-        return self
+    async def collect_data(self, founder_name: str, current_company: str) -> FounderWebSearchData:
+        """Collect comprehensive web intelligence for a founder using Perplexity AI."""
+        return await self.collect_founder_web_intelligence(founder_name, current_company)
     
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Async context manager exit."""
-        if self.session:
-            await self.session.close()
+    def get_query_templates(self) -> Dict[str, List[str]]:
+        """Get query templates for web intelligence collection."""
+        return self.query_templates
     
     async def collect_founder_web_intelligence(
         self, 
@@ -129,14 +178,19 @@ class PerplexitySearchService:
         try:
             templates = self.query_templates.get(category, [])
             
+            system_prompt = f"""You are a comprehensive business intelligence specialist focused on {category} information.
+            Provide detailed, accurate information with specific dates, numbers, and sources.
+            Be thorough and factual, focusing on verifiable information about business leaders and entrepreneurs."""
+            
             for template in templates:
                 query = template.format(founder_name=founder_name)
                 
-                # Rate limiting
-                await self.rate_limiter.acquire()
-                
-                # Make Perplexity API call
-                response_data = await self._call_perplexity_api(query)
+                # Use base class method for Perplexity API call
+                response_data = await self.query_perplexity(
+                    query=query,
+                    system_prompt=system_prompt,
+                    max_tokens=1500
+                )
                 
                 if response_data:
                     # Convert Perplexity response to WebSearchResult
@@ -147,83 +201,13 @@ class PerplexitySearchService:
                         results.append(search_result)
                 
                 # Small delay between queries
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(1)
                 
         except Exception as e:
             logger.error(f"Error in Perplexity search for {category}: {e}")
         
         return results
     
-    async def _call_perplexity_api(self, query: str) -> Optional[Dict[str, Any]]:
-        """Make API call to Perplexity."""
-        logger.debug(f"🔍 Making Perplexity API call for query: {query[:100]}...")
-        
-        if not self.session:
-            self.session = aiohttp.ClientSession()
-        
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
-        
-        payload = {
-            "model": "sonar-pro",
-            "messages": [
-                {
-                    "role": "system",
-                    "content": "You are a helpful assistant that provides accurate, factual information with sources. Be specific about dates, numbers, and verifiable details."
-                },
-                {
-                    "role": "user", 
-                    "content": query
-                }
-            ],
-            "max_tokens": 1000,
-            "temperature": 0.1,
-            "top_p": 0.9,
-            "search_domain_filter": ["techcrunch.com", "forbes.com", "bloomberg.com", "crunchbase.com", "linkedin.com"],
-            "return_citations": True,
-            "search_recency_filter": "month",  # Focus on recent information
-            "top_k": 0,
-            "stream": False,
-            "presence_penalty": 0,
-            "frequency_penalty": 1
-        }
-        
-        logger.debug(f"📡 Making API request to {self.base_url}/chat/completions")
-        
-        try:
-            async with self.session.post(
-                f"{self.base_url}/chat/completions",
-                headers=headers,
-                json=payload,
-                timeout=30
-            ) as response:
-                logger.debug(f"📡 Perplexity API response status: {response.status}")
-                if response.status == 200:
-                    try:
-                        response_data = await response.json()
-                        logger.debug(f"✅ Perplexity API response received, type: {type(response_data)}")
-                        return response_data
-                    except json.JSONDecodeError as e:
-                        logger.error(f"❌ Failed to parse Perplexity JSON response: {e}")
-                        response_text = await response.text()
-                        logger.error(f"❌ Raw response: {response_text[:500]}...")
-                        return None
-                else:
-                    error_text = await response.text()
-                    logger.error(f"❌ Perplexity API error {response.status}: {error_text}")
-                    return None
-                    
-        except asyncio.TimeoutError:
-            logger.error(f"❌ Perplexity API timeout after 30 seconds for query: {query[:100]}...")
-            return None
-        except aiohttp.ClientError as e:
-            logger.error(f"❌ HTTP client error calling Perplexity API: {e}")
-            return None
-        except Exception as e:
-            logger.error(f"❌ Unexpected error calling Perplexity API: {e}", exc_info=True)
-            return None
     
     async def _convert_perplexity_response(
         self, 
@@ -233,51 +217,17 @@ class PerplexitySearchService:
     ) -> Optional[WebSearchResult]:
         """Convert Perplexity API response to WebSearchResult."""
         try:
-            # Debug: log the response data type and structure
-            logger.debug(f"Perplexity response type: {type(response_data)}")
-            logger.debug(f"Perplexity response: {str(response_data)[:200]}...")
-            
-            # Handle case where response_data might be a string
-            if isinstance(response_data, str):
-                logger.error(f"Perplexity response is a string, not a dict: {response_data[:200]}...")
+            # Use base class method to extract content
+            content = self.extract_content_from_response(response_data)
+            if not content:
                 return None
             
-            # Ensure response_data is a dictionary
-            if not isinstance(response_data, dict):
-                logger.error(f"Perplexity response is not a dict: {type(response_data)}")
-                return None
+            # Extract citations using base class method
+            citations = self.extract_citations_from_response(response_data)
             
-            # Check for required structure
-            if 'choices' not in response_data or not response_data['choices']:
-                logger.warning(f"No choices in Perplexity response: {response_data.keys()}")
-                return None
-            
-            choice = response_data['choices'][0]
-            if not isinstance(choice, dict):
-                logger.error(f"Choice is not a dict: {type(choice)}")
-                return None
-                
-            message = choice.get('message', {})
-            if not isinstance(message, dict):
-                logger.error(f"Message is not a dict: {type(message)}")
-                return None
-                
-            content = message.get('content', '')
-            if not isinstance(content, str):
-                logger.error(f"Content is not a string: {type(content)}")
-                content = str(content)
-            
-            # Extract citations if available
-            citations = []
-            if 'citations' in response_data and isinstance(response_data['citations'], list):
-                citations = [
-                    citation.get('url', '') 
-                    for citation in response_data['citations']
-                    if isinstance(citation, dict) and citation.get('url')
-                ]
-            
-            # Extract facts from content
-            extracted_facts = await self._extract_facts_from_content(content, category)
+            # Use base class method to parse structured data
+            structured_data = self.parse_structured_data(content, category)
+            extracted_facts = [item.get('content', '') for item in structured_data if item.get('content')]
             
             search_result = WebSearchResult(
                 query=query,
@@ -299,41 +249,6 @@ class PerplexitySearchService:
             logger.error(f"Response data: {str(response_data)[:500]}...")
             return None
     
-    async def _extract_facts_from_content(
-        self, 
-        content: str, 
-        category: str
-    ) -> List[str]:
-        """Extract structured facts from Perplexity content."""
-        facts = []
-        
-        try:
-            # Truncate content to prevent regex timeouts
-            content = content[:2000]  # Limit content length to prevent regex issues
-            
-            # Simple keyword-based fact extraction instead of complex regex
-            sentences = content.split('.')
-            for sentence in sentences[:15]:  # Limit to first 15 sentences
-                sentence = sentence.strip()
-                if len(sentence) > 20 and len(sentence) < 200:
-                    # Filter for sentences that seem factual based on category
-                    if category == 'financial':
-                        if any(keyword in sentence.lower() for keyword in 
-                              ['founded', 'co-founded', 'acquired', 'sold', 'ipo', 'exit', 'investment']):
-                            facts.append(sentence)
-                    elif category == 'media':
-                        if any(keyword in sentence.lower() for keyword in 
-                              ['awarded', 'received', 'won', 'recognition', 'honor', 'interview']):
-                            facts.append(sentence)
-                    elif category == 'biographical':
-                        if any(keyword in sentence.lower() for keyword in 
-                              ['graduated', 'degree', 'university', 'college', 'worked', 'served']):
-                            facts.append(sentence)
-            
-        except Exception as e:
-            logger.warning(f"Error extracting facts: {e}")
-        
-        return facts[:8]  # Limit to 8 most relevant facts
     
     async def _fallback_web_search(
         self, 

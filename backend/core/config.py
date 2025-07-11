@@ -14,7 +14,6 @@ class Settings(BaseSettings):
     # Core API Keys
     exa_api_key: str = Field(..., env="EXA_API_KEY")
     openai_api_key: str = Field(..., env="OPENAI_API_KEY")
-    serper_api_key: str = Field(..., env="SERPER_API_KEY")
     apify_api_key: str = Field(..., env="APIFY_API_KEY")
     perplexity_api_key: str = Field(..., env="PERPLEXITY_API_KEY")
     anthropic_api_key: str = Field(..., env="ANTHROPIC_API_KEY") 

@@ -1,31 +1,28 @@
-"""Media report and coverage collection service for founder reputation analysis."""
+"""Media report and coverage collection service for founder reputation analysis using Perplexity AI."""
 
 import asyncio
-import aiohttp
-import re
 from datetime import datetime, date
 from typing import List, Optional, Dict, Any
 import logging
+import re
 from urllib.parse import urlparse
 
 from ..ranking.models import (
     FounderMediaProfile, MediaMention, Award, ThoughtLeadership, 
     MediaType
 )
-from ..config import settings
-from ...utils.rate_limiter import RateLimiter
+from .perplexity_base import PerplexityBaseService
 
 logger = logging.getLogger(__name__)
 
 
-class MediaCollector:
+class MediaCollector(PerplexityBaseService):
     """Service for collecting comprehensive media coverage and public presence data."""
     
     def __init__(self):
-        self.rate_limiter = RateLimiter(max_requests=4, time_window=1)  # 4 requests per second to stay under Serper's 5/sec limit
-        self.session: Optional[aiohttp.ClientSession] = None
+        super().__init__()
         
-        # Media source priorities for determining importance
+        # Media source weights for determining importance
         self.media_source_weights = {
             'techcrunch.com': 0.9,
             'forbes.com': 0.95,
@@ -46,45 +43,142 @@ class MediaCollector:
             'twitter.com': 0.3
         }
         
-        # Search patterns for different types of media coverage
-        self.search_patterns = {
-            'news_coverage': [
-                '"{founder_name}" interview',
-                '"{founder_name}" CEO founder news',
-                '"{founder_name}" startup entrepreneur',
-                '"{founder_name}" company funding'
+        # Enhanced query templates for media data
+        self.query_templates = {
+            'media_coverage': [
+                """What major media coverage, interviews, and press mentions has {founder_name} received in major publications?
+                For each media appearance, include:
+                - Publication name and date
+                - Type of coverage (interview, feature article, news mention, etc.)
+                - Article title and main topic
+                - URL or source reference
+                - Key quotes or highlights from {founder_name}
+                - Context and reason for the coverage
+                Focus on coverage from reputable sources like Forbes, Bloomberg, TechCrunch, WSJ, etc.""",
+                
+                """What interviews, podcasts, and media appearances has {founder_name} participated in?
+                Include:
+                - Interview/podcast names and hosts
+                - Publication dates and platforms
+                - Main topics discussed
+                - Key insights or announcements made
+                - Audience reach and impact
+                - Links to content where available""",
+                
+                """What press releases, company announcements, or news stories has {founder_name} been featured in?
+                Provide:
+                - News outlet and publication details
+                - Announcement or story topic
+                - {founder_name}'s role in the story
+                - Impact and industry reaction
+                - Follow-up coverage or commentary"""
             ],
-            'awards': [
-                '"{founder_name}" award recognition honor',
-                '"{founder_name}" entrepreneur of the year',
-                '"{founder_name}" 40 under 40',
-                '"{founder_name}" Forbes 30 under 30'
+            
+            'awards_recognition': [
+                """What awards, honors, and professional recognitions has {founder_name} received throughout their career?
+                For each award, include:
+                - Award name and category
+                - Awarding organization or institution
+                - Year received
+                - Criteria or reason for recognition
+                - Significance within the industry
+                - Other notable recipients (if relevant)
+                Include both industry-specific and general business awards.""",
+                
+                """Has {founder_name} been included in any prestigious lists or rankings (like Forbes 30 Under 30, Fortune 40 Under 40, etc.)?
+                Include:
+                - List name and publishing organization
+                - Year of inclusion
+                - Category or classification
+                - Selection criteria
+                - Other notable individuals in the same list
+                - Media coverage of the recognition""",
+                
+                """What entrepreneurial awards, innovation prizes, or industry honors has {founder_name} won?
+                Provide:
+                - Specific award details and monetary value (if applicable)
+                - Competition or selection process
+                - Judging criteria and panel
+                - Impact on {founder_name}'s career
+                - Press coverage of the award"""
             ],
+            
             'thought_leadership': [
-                '"{founder_name}" speaker conference keynote',
-                '"{founder_name}" authored book article',
-                '"{founder_name}" podcast guest',
-                '"{founder_name}" TED talk presentation'
+                """What speaking engagements, conferences, and keynote presentations has {founder_name} delivered?
+                For each engagement, include:
+                - Event name and organizer
+                - Date and location
+                - Presentation topic and key themes
+                - Audience size and composition
+                - Notable quotes or insights shared
+                - Media coverage or follow-up content
+                - Video or transcript availability""",
+                
+                """What articles, blog posts, or thought leadership content has {founder_name} authored or published?
+                Include:
+                - Publication platform and date
+                - Article title and main themes
+                - Key insights or perspectives shared
+                - Audience engagement and reach
+                - Industry impact or discussion generated
+                - Links to published content""",
+                
+                """What books, whitepapers, or significant publications has {founder_name} authored or co-authored?
+                Provide:
+                - Publication title and publisher
+                - Publication date and format
+                - Main topic and target audience
+                - Sales figures or distribution (if available)
+                - Critical reception and reviews
+                - Impact on industry or field""",
+                
+                """What podcast appearances, panel discussions, or expert commentary has {founder_name} provided?
+                Include:
+                - Podcast/show name and host
+                - Episode title and air date
+                - Topics covered and expertise shared
+                - Audience reach and listener feedback
+                - Notable quotes or insights
+                - Links to episodes or transcripts"""
+            ],
+            
+            'social_media_presence': [
+                """What is {founder_name}'s social media presence and thought leadership online?
+                Include:
+                - Twitter/X follower count and engagement
+                - LinkedIn connections and activity
+                - Instagram presence (if relevant)
+                - YouTube channel or video content
+                - Blog or personal website traffic
+                - Social media influence metrics
+                - Notable posts or viral content""",
+                
+                """What online communities, forums, or platforms does {founder_name} actively participate in?
+                Provide:
+                - Platform names and roles
+                - Contribution frequency and type
+                - Community size and influence
+                - Notable discussions or contributions
+                - Recognition within communities
+                - Cross-platform presence and consistency"""
             ]
         }
     
-    async def __aenter__(self):
-        """Async context manager entry."""
-        self.session = aiohttp.ClientSession()
-        return self
+    async def collect_data(self, founder_name: str, current_company: str) -> FounderMediaProfile:
+        """Collect comprehensive media profile for a founder using Perplexity AI."""
+        return await self.collect_founder_media_profile(founder_name, current_company)
     
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Async context manager exit."""
-        if self.session:
-            await self.session.close()
+    def get_query_templates(self) -> Dict[str, List[str]]:
+        """Get query templates for media data collection."""
+        return self.query_templates
     
     async def collect_founder_media_profile(
         self, 
         founder_name: str,
         current_company: str
     ) -> FounderMediaProfile:
-        """Collect comprehensive media profile for a founder."""
-        logger.info(f"📰 Collecting media profile for {founder_name}")
+        """Collect comprehensive media profile for a founder using Perplexity AI."""
+        logger.info(f"📰 Collecting media profile for {founder_name} using Perplexity AI")
         logger.debug(f"📝 Parameters: company={current_company}")
         
         profile = FounderMediaProfile(
@@ -93,8 +187,8 @@ class MediaCollector:
         )
         
         try:
-            # Collect different types of media data in parallel
-            logger.debug(f"🚀 Starting parallel media collection tasks for {founder_name}")
+            # Collect different types of media data using Perplexity
+            logger.debug(f"🚀 Starting Perplexity media collection tasks for {founder_name}")
             tasks = [
                 self._collect_media_mentions(founder_name, current_company),
                 self._collect_awards_recognition(founder_name),
@@ -132,7 +226,7 @@ class MediaCollector:
             profile.calculate_metrics()
             
             # Set data sources and confidence
-            profile.data_sources = ['web_search', 'social_media_apis', 'news_apis']
+            profile.data_sources = ['perplexity_ai', 'web_search', 'media_databases']
             profile.confidence_score = self._calculate_media_confidence(profile)
             
             logger.info(f"✅ Media profile collected for {founder_name}: "
@@ -152,26 +246,31 @@ class MediaCollector:
         founder_name: str, 
         current_company: str
     ) -> List[MediaMention]:
-        """Collect media mentions and news coverage."""
+        """Collect media mentions and news coverage using Perplexity."""
         mentions = []
         
         try:
-            search_queries = self.search_patterns['news_coverage']
+            system_prompt = """You are a media intelligence specialist focused on tracking press coverage and media mentions.
+            Provide comprehensive information about media appearances, interviews, and news coverage.
+            Include publication details, dates, and context for each mention."""
             
-            for query_template in search_queries:
+            for query_template in self.query_templates['media_coverage']:
                 query = query_template.format(founder_name=founder_name)
                 
-                # Search for media coverage
-                search_results = await self._search_media_sources(query)
+                response = await self.query_perplexity(
+                    query=query,
+                    system_prompt=system_prompt,
+                    max_tokens=2000
+                )
                 
-                for result in search_results:
-                    mention = await self._parse_media_mention(result, founder_name)
-                    if mention:
-                        mentions.append(mention)
+                if response:
+                    content = self.extract_content_from_response(response)
+                    if content:
+                        mentions.extend(self._parse_media_mentions(content, founder_name))
                 
-                await asyncio.sleep(0.5)  # Rate limiting - reduced delay but using rate limiter
+                await asyncio.sleep(1)  # Rate limiting
             
-            # Deduplicate mentions by URL
+            # Deduplicate mentions by URL and title
             unique_mentions = self._deduplicate_mentions(mentions)
             
             # Sort by importance and recency
@@ -180,6 +279,7 @@ class MediaCollector:
                 reverse=True
             )
             
+            logger.debug(f"📊 Found {len(unique_mentions)} unique media mentions for {founder_name}")
             return unique_mentions[:50]  # Limit to top 50 mentions
             
         except Exception as e:
@@ -187,26 +287,33 @@ class MediaCollector:
             return []
     
     async def _collect_awards_recognition(self, founder_name: str) -> List[Award]:
-        """Collect awards and recognition."""
+        """Collect awards and recognition using Perplexity."""
         awards = []
         
         try:
-            search_queries = self.search_patterns['awards']
+            system_prompt = """You are an awards and recognition specialist focused on tracking professional honors and achievements.
+            Provide detailed information about awards, recognitions, and honors received by business leaders.
+            Include award names, organizations, dates, and significance."""
             
-            for query_template in search_queries:
+            for query_template in self.query_templates['awards_recognition']:
                 query = query_template.format(founder_name=founder_name)
                 
-                search_results = await self._search_media_sources(query)
+                response = await self.query_perplexity(
+                    query=query,
+                    system_prompt=system_prompt,
+                    max_tokens=2000
+                )
                 
-                for result in search_results:
-                    award = await self._parse_award(result, founder_name)
-                    if award:
-                        awards.append(award)
+                if response:
+                    content = self.extract_content_from_response(response)
+                    if content:
+                        awards.extend(self._parse_awards(content, founder_name))
                 
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(1)
             
             # Deduplicate awards
             unique_awards = self._deduplicate_awards(awards)
+            logger.debug(f"📊 Found {len(unique_awards)} unique awards for {founder_name}")
             return unique_awards
             
         except Exception as e:
@@ -214,24 +321,31 @@ class MediaCollector:
             return []
     
     async def _collect_thought_leadership(self, founder_name: str) -> List[ThoughtLeadership]:
-        """Collect thought leadership activities."""
+        """Collect thought leadership activities using Perplexity."""
         activities = []
         
         try:
-            search_queries = self.search_patterns['thought_leadership']
+            system_prompt = """You are a thought leadership specialist focused on tracking speaking engagements, publications, and expert commentary.
+            Provide comprehensive information about thought leadership activities including conferences, articles, books, and expert opinions.
+            Include event details, publication information, and impact metrics."""
             
-            for query_template in search_queries:
+            for query_template in self.query_templates['thought_leadership']:
                 query = query_template.format(founder_name=founder_name)
                 
-                search_results = await self._search_media_sources(query)
+                response = await self.query_perplexity(
+                    query=query,
+                    system_prompt=system_prompt,
+                    max_tokens=2000
+                )
                 
-                for result in search_results:
-                    activity = await self._parse_thought_leadership(result, founder_name)
-                    if activity:
-                        activities.append(activity)
+                if response:
+                    content = self.extract_content_from_response(response)
+                    if content:
+                        activities.extend(self._parse_thought_leadership(content, founder_name))
                 
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(1)
             
+            logger.debug(f"📊 Found {len(activities)} thought leadership activities for {founder_name}")
             return activities
             
         except Exception as e:
@@ -239,333 +353,396 @@ class MediaCollector:
             return []
     
     async def _collect_social_media_metrics(self, founder_name: str) -> Optional[Dict[str, int]]:
-        """Collect social media follower counts and metrics."""
+        """Collect social media follower counts and metrics using Perplexity."""
         try:
-            # This would integrate with Twitter API, LinkedIn API, etc.
-            # For now, we'll use web scraping approximations
+            system_prompt = """You are a social media intelligence specialist focused on tracking online presence and influence.
+            Provide specific follower counts, engagement metrics, and social media presence information.
+            Include platform-specific metrics and influence indicators."""
             
-            metrics = {}
-            
-            # Search for social media profile information
-            social_query = f'"{founder_name}" twitter linkedin followers'
-            search_results = await self._search_media_sources(social_query)
-            
-            for result in search_results:
-                snippet = result.get('snippet', '').lower()
-                title = result.get('title', '').lower()
-                text = f"{title} {snippet}"
+            for query_template in self.query_templates['social_media_presence']:
+                query = query_template.format(founder_name=founder_name)
                 
-                # Extract follower counts using regex
-                twitter_matches = re.findall(r'(\d+(?:,\d+)?)\s*(?:twitter\s*)?followers', text)
-                linkedin_matches = re.findall(r'(\d+(?:,\d+)?)\s*(?:linkedin\s*)?connections', text)
+                response = await self.query_perplexity(
+                    query=query,
+                    system_prompt=system_prompt,
+                    max_tokens=1500
+                )
                 
-                if twitter_matches:
-                    try:
-                        count = int(twitter_matches[0].replace(',', ''))
-                        if 'twitter_followers' not in metrics or count > metrics['twitter_followers']:
-                            metrics['twitter_followers'] = count
-                    except ValueError:
-                        pass
+                if response:
+                    content = self.extract_content_from_response(response)
+                    if content:
+                        metrics = self._parse_social_media_metrics(content, founder_name)
+                        if metrics:
+                            return metrics
                 
-                if linkedin_matches:
-                    try:
-                        count = int(linkedin_matches[0].replace(',', ''))
-                        if 'linkedin_connections' not in metrics or count > metrics['linkedin_connections']:
-                            metrics['linkedin_connections'] = count
-                    except ValueError:
-                        pass
+                await asyncio.sleep(1)
             
-            return metrics if metrics else None
+            return None
             
         except Exception as e:
             logger.error(f"Error collecting social media metrics for {founder_name}: {e}")
             return None
     
-    async def _search_media_sources(self, query: str) -> List[Dict[str, Any]]:
-        """Search media sources using web search API."""
-        await self.rate_limiter.acquire()
-        
-        logger.debug(f"📰 Searching media sources with query: {query}")
+    def _parse_media_mentions(self, content: str, founder_name: str) -> List[MediaMention]:
+        """Parse media mentions from Perplexity response."""
+        mentions = []
         
         try:
-            if not self.session:
-                self.session = aiohttp.ClientSession()
+            # Split content into sentences and paragraphs
+            sentences = content.split('.')
             
-            url = "https://google.serper.dev/search"
-            headers = {
-                "X-API-KEY": settings.serper_api_key,
-                "Content-Type": "application/json"
-            }
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if len(sentence) < 30:
+                    continue
+                
+                # Look for media mention indicators
+                if any(keyword in sentence.lower() for keyword in [
+                    'interviewed', 'featured', 'appeared', 'spoke', 'discussed',
+                    'published', 'article', 'interview', 'coverage', 'mentioned'
+                ]):
+                    mention = self._extract_media_mention_from_sentence(sentence, founder_name)
+                    if mention:
+                        mentions.append(mention)
             
-            payload = {
-                "q": query,
-                "num": 10,
-                "gl": "us",
-                "hl": "en",
-                "type": "search"
-            }
+            # Also look for structured information
+            mentions.extend(self._extract_structured_mentions(content, founder_name))
             
-            logger.debug(f"📡 Making API request to {url} with payload: {payload}")
-            
-            async with self.session.post(url, json=payload, headers=headers) as response:
-                logger.debug(f"📡 API response status: {response.status}")
-                if response.status == 200:
-                    data = await response.json()
-                    results = data.get("organic", [])
-                    logger.debug(f"✅ Found {len(results)} search results for media query")
-                    return results
-                else:
-                    response_text = await response.text()
-                    logger.error(f"❌ Search API error {response.status} for query: {query}. Response: {response_text}")
-                    return []
-                    
-        except aiohttp.ClientError as e:
-            logger.error(f"❌ HTTP client error searching media sources: {e}")
-            return []
         except Exception as e:
-            logger.error(f"❌ Unexpected error searching media sources: {e}", exc_info=True)
-            return []
+            logger.warning(f"Error parsing media mentions: {e}")
+        
+        return mentions
     
-    async def _parse_media_mention(
-        self, 
-        search_result: Dict[str, Any], 
-        founder_name: str
-    ) -> Optional[MediaMention]:
-        """Parse a search result into a MediaMention."""
+    def _parse_awards(self, content: str, founder_name: str) -> List[Award]:
+        """Parse awards from Perplexity response."""
+        awards = []
+        
         try:
-            title = search_result.get('title', '')
-            url = search_result.get('link', '')
-            snippet = search_result.get('snippet', '')
+            sentences = content.split('.')
             
-            # Extract publication name from URL
-            domain = urlparse(url).netloc.lower().replace('www.', '')
-            publication = domain.split('.')[0].title() if domain else "Unknown"
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if len(sentence) < 25:
+                    continue
+                
+                # Look for award indicators
+                if any(keyword in sentence.lower() for keyword in [
+                    'awarded', 'won', 'received', 'honored', 'recognized',
+                    'named', 'selected', 'chosen', 'recipient'
+                ]):
+                    award = self._extract_award_from_sentence(sentence, founder_name)
+                    if award:
+                        awards.append(award)
+            
+            # Extract structured awards
+            awards.extend(self._extract_structured_awards(content, founder_name))
+            
+        except Exception as e:
+            logger.warning(f"Error parsing awards: {e}")
+        
+        return awards
+    
+    def _parse_thought_leadership(self, content: str, founder_name: str) -> List[ThoughtLeadership]:
+        """Parse thought leadership activities from Perplexity response."""
+        activities = []
+        
+        try:
+            sentences = content.split('.')
+            
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if len(sentence) < 25:
+                    continue
+                
+                # Look for thought leadership indicators
+                if any(keyword in sentence.lower() for keyword in [
+                    'spoke', 'keynote', 'presented', 'authored', 'wrote',
+                    'published', 'conference', 'panel', 'podcast', 'guest'
+                ]):
+                    activity = self._extract_thought_leadership_from_sentence(sentence, founder_name)
+                    if activity:
+                        activities.append(activity)
+            
+            # Extract structured activities
+            activities.extend(self._extract_structured_thought_leadership(content, founder_name))
+            
+        except Exception as e:
+            logger.warning(f"Error parsing thought leadership: {e}")
+        
+        return activities
+    
+    def _parse_social_media_metrics(self, content: str, founder_name: str) -> Optional[Dict[str, int]]:
+        """Parse social media metrics from Perplexity response."""
+        metrics = {}
+        
+        try:
+            # Extract follower counts using regex
+            twitter_patterns = [
+                r'(\d+(?:,\d+)*)\s*(?:twitter|x)\s*followers',
+                r'twitter.*?(\d+(?:,\d+)*)\s*followers',
+                r'(\d+(?:,\d+)*)\s*followers.*?twitter'
+            ]
+            
+            linkedin_patterns = [
+                r'(\d+(?:,\d+)*)\s*linkedin\s*connections',
+                r'linkedin.*?(\d+(?:,\d+)*)\s*connections',
+                r'(\d+(?:,\d+)*)\s*connections.*?linkedin'
+            ]
+            
+            content_lower = content.lower()
+            
+            for pattern in twitter_patterns:
+                match = re.search(pattern, content_lower)
+                if match:
+                    try:
+                        count = int(match.group(1).replace(',', ''))
+                        metrics['twitter_followers'] = count
+                        break
+                    except ValueError:
+                        continue
+            
+            for pattern in linkedin_patterns:
+                match = re.search(pattern, content_lower)
+                if match:
+                    try:
+                        count = int(match.group(1).replace(',', ''))
+                        metrics['linkedin_connections'] = count
+                        break
+                    except ValueError:
+                        continue
+            
+            return metrics if metrics else None
+            
+        except Exception as e:
+            logger.warning(f"Error parsing social media metrics: {e}")
+            return None
+    
+    def _extract_media_mention_from_sentence(self, sentence: str, founder_name: str) -> Optional[MediaMention]:
+        """Extract media mention from a sentence."""
+        try:
+            # Extract publication name (simplified)
+            words = sentence.split()
+            publication = "Unknown"
+            
+            # Look for known publications
+            for word in words:
+                word_lower = word.lower().strip('.,')
+                if word_lower in ['forbes', 'bloomberg', 'techcrunch', 'reuters', 'wsj', 'cnbc']:
+                    publication = word_lower.title()
+                    break
             
             # Determine media type
-            media_type = self._classify_media_type(title, snippet, url)
+            media_type = MediaType.NEWS_ARTICLE
+            if 'interview' in sentence.lower():
+                media_type = MediaType.INTERVIEW
+            elif 'podcast' in sentence.lower():
+                media_type = MediaType.PODCAST
+            elif 'speaker' in sentence.lower() or 'keynote' in sentence.lower():
+                media_type = MediaType.SPEAKING_ENGAGEMENT
             
-            # Extract publication date if possible
-            pub_date = self._extract_date_from_text(snippet)
+            # Extract date if present
+            year_match = re.search(r'\b(20\d{2})\b', sentence)
+            pub_date = None
+            if year_match:
+                try:
+                    pub_date = date(int(year_match.group()), 1, 1)
+                except ValueError:
+                    pass
             
-            # Calculate importance score based on source
-            importance_score = self.media_source_weights.get(domain, 0.3)
+            # Calculate importance score
+            importance_score = self.media_source_weights.get(publication.lower() + '.com', 0.3)
             
-            # Determine sentiment (basic keyword analysis)
-            sentiment = self._analyze_sentiment(title, snippet)
+            # Basic sentiment analysis
+            sentiment = self._analyze_sentiment(sentence)
             
-            mention = MediaMention(
-                title=title,
+            return MediaMention(
+                title=sentence[:100] + "..." if len(sentence) > 100 else sentence,
                 publication=publication,
                 media_type=media_type,
                 publication_date=pub_date,
-                url=url,
-                summary=snippet,
+                url=f"perplexity://mention/{hash(sentence)}",
+                summary=sentence,
                 sentiment=sentiment,
                 importance_score=importance_score,
-                verification_sources=[url]
+                verification_sources=["perplexity_ai"]
             )
             
-            return mention
-            
         except Exception as e:
-            logger.warning(f"Error parsing media mention: {e}")
+            logger.warning(f"Error extracting media mention: {e}")
             return None
     
-    async def _parse_award(
-        self, 
-        search_result: Dict[str, Any], 
-        founder_name: str
-    ) -> Optional[Award]:
-        """Parse a search result into an Award."""
+    def _extract_award_from_sentence(self, sentence: str, founder_name: str) -> Optional[Award]:
+        """Extract award information from a sentence."""
         try:
-            title = search_result.get('title', '')
-            snippet = search_result.get('snippet', '')
-            url = search_result.get('link', '')
+            # Extract award name (simplified)
+            award_name = "Unknown Award"
             
-            # Extract award information using patterns
-            text = f"{title} {snippet}"
-            
+            # Look for common award patterns
             award_patterns = [
-                r'(?:won|received|awarded|named)\s+([^.]+?(?:award|recognition|honor))',
-                r'([^.]+?(?:entrepreneur|leader|innovator|award))\s+(?:of\s+the\s+year|award)',
-                r'(Forbes\s+30\s+Under\s+30|40\s+Under\s+40|Time\s+100)',
+                r'(Forbes\s+30\s+Under\s+30)',
+                r'(40\s+Under\s+40)',
+                r'(Entrepreneur\s+of\s+the\s+Year)',
+                r'(Innovation\s+Award)',
+                r'([A-Z][a-zA-Z\s]+Award)',
+                r'(EY\s+Entrepreneur\s+of\s+the\s+Year)'
             ]
             
-            award_name = None
             for pattern in award_patterns:
-                match = re.search(pattern, text, re.IGNORECASE)
+                match = re.search(pattern, sentence, re.IGNORECASE)
                 if match:
-                    award_name = match.group(1).strip()
+                    award_name = match.group(1)
                     break
-            
-            if not award_name:
-                return None
             
             # Extract awarding organization
             org_patterns = [
                 r'(?:by|from)\s+([A-Z][a-zA-Z\s&]+?)(?:\s|,|\.)',
-                r'(Forbes|Time|Fortune|Inc|TechCrunch|Bloomberg)',
+                r'(Forbes|Fortune|Inc|Ernst\s+&\s+Young|EY)',
             ]
             
             awarding_org = "Unknown"
             for pattern in org_patterns:
-                match = re.search(pattern, text, re.IGNORECASE)
+                match = re.search(pattern, sentence, re.IGNORECASE)
                 if match:
                     awarding_org = match.group(1).strip()
                     break
             
-            # Extract date
-            award_date = self._extract_date_from_text(text)
+            # Extract year
+            year_match = re.search(r'\b(20\d{2})\b', sentence)
+            award_date = None
+            if year_match:
+                try:
+                    award_date = date(int(year_match.group()), 1, 1)
+                except ValueError:
+                    pass
             
-            award = Award(
+            return Award(
                 award_name=award_name,
                 awarding_organization=awarding_org,
                 award_date=award_date,
-                description=snippet,
-                verification_sources=[url]
+                description=sentence,
+                verification_sources=["perplexity_ai"]
             )
             
-            return award
-            
         except Exception as e:
-            logger.warning(f"Error parsing award: {e}")
+            logger.warning(f"Error extracting award: {e}")
             return None
     
-    async def _parse_thought_leadership(
-        self, 
-        search_result: Dict[str, Any], 
-        founder_name: str
-    ) -> Optional[ThoughtLeadership]:
-        """Parse a search result into ThoughtLeadership."""
+    def _extract_thought_leadership_from_sentence(self, sentence: str, founder_name: str) -> Optional[ThoughtLeadership]:
+        """Extract thought leadership activity from a sentence."""
         try:
-            title = search_result.get('title', '')
-            snippet = search_result.get('snippet', '')
-            url = search_result.get('link', '')
-            
-            text = f"{title} {snippet}".lower()
-            
             # Determine activity type
             activity_type = "speaking"
-            if any(keyword in text for keyword in ['book', 'authored', 'published']):
+            if any(keyword in sentence.lower() for keyword in ['book', 'authored', 'published', 'wrote']):
                 activity_type = "book"
-            elif any(keyword in text for keyword in ['article', 'blog', 'post']):
-                activity_type = "blog"
-            elif any(keyword in text for keyword in ['podcast', 'interview']):
+            elif any(keyword in sentence.lower() for keyword in ['article', 'blog', 'post']):
+                activity_type = "article"
+            elif any(keyword in sentence.lower() for keyword in ['podcast', 'interview']):
                 activity_type = "podcast"
-            elif any(keyword in text for keyword in ['keynote', 'speaker', 'conference']):
+            elif any(keyword in sentence.lower() for keyword in ['keynote', 'speaker', 'conference']):
                 activity_type = "keynote"
-            elif any(keyword in text for keyword in ['panel', 'discussion']):
+            elif any(keyword in sentence.lower() for keyword in ['panel', 'discussion']):
                 activity_type = "panel"
             
             # Extract venue or publication
+            venue = "Unknown"
             venue_patterns = [
                 r'(?:at|on)\s+([A-Z][a-zA-Z\s&]+?)(?:\s+conference|\s+summit|\s+event)',
-                r'(?:in|on)\s+(Forbes|TechCrunch|Harvard Business Review|Medium)',
+                r'(?:in|on)\s+(Forbes|TechCrunch|Harvard\s+Business\s+Review|Medium)',
             ]
             
-            venue = "Unknown"
             for pattern in venue_patterns:
-                match = re.search(pattern, title + " " + snippet, re.IGNORECASE)
+                match = re.search(pattern, sentence, re.IGNORECASE)
                 if match:
                     venue = match.group(1).strip()
                     break
             
             # Extract date
-            activity_date = self._extract_date_from_text(snippet)
+            year_match = re.search(r'\b(20\d{2})\b', sentence)
+            activity_date = None
+            if year_match:
+                try:
+                    activity_date = date(int(year_match.group()), 1, 1)
+                except ValueError:
+                    pass
             
-            leadership = ThoughtLeadership(
+            return ThoughtLeadership(
                 activity_type=activity_type,
-                title=title,
+                title=sentence[:100] + "..." if len(sentence) > 100 else sentence,
                 venue_or_publication=venue,
                 date=activity_date,
-                url=url,
-                verification_sources=[url]
+                url=f"perplexity://thought-leadership/{hash(sentence)}",
+                verification_sources=["perplexity_ai"]
             )
             
-            return leadership
-            
         except Exception as e:
-            logger.warning(f"Error parsing thought leadership: {e}")
+            logger.warning(f"Error extracting thought leadership: {e}")
             return None
     
-    def _classify_media_type(self, title: str, snippet: str, url: str) -> MediaType:
-        """Classify the type of media mention."""
-        text = f"{title} {snippet}".lower()
+    def _extract_structured_mentions(self, content: str, founder_name: str) -> List[MediaMention]:
+        """Extract structured media mentions from content."""
+        mentions = []
         
-        if any(keyword in text for keyword in ['interview', 'speaks with', 'sits down']):
-            return MediaType.INTERVIEW
-        elif any(keyword in text for keyword in ['podcast', 'show', 'episode']):
-            return MediaType.PODCAST
-        elif any(keyword in text for keyword in ['award', 'honor', 'recognition']):
-            return MediaType.AWARD
-        elif any(keyword in text for keyword in ['speaker', 'keynote', 'conference']):
-            return MediaType.SPEAKING_ENGAGEMENT
-        elif any(keyword in text for keyword in ['opinion', 'analysis', 'perspective']):
-            return MediaType.THOUGHT_LEADERSHIP
-        else:
-            return MediaType.NEWS_ARTICLE
-    
-    def _extract_date_from_text(self, text: str) -> Optional[date]:
-        """Extract date from text using various patterns."""
         try:
-            import re
-            from datetime import datetime
-            
-            # Common date patterns
-            date_patterns = [
-                r'(\d{4})-(\d{1,2})-(\d{1,2})',  # YYYY-MM-DD
-                r'(\d{1,2})/(\d{1,2})/(\d{4})',  # MM/DD/YYYY
-                r'(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(\d{4})',
-                r'(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})'
-            ]
-            
-            for pattern in date_patterns:
-                match = re.search(pattern, text, re.IGNORECASE)
-                if match:
-                    groups = match.groups()
-                    try:
-                        if len(groups) == 3:
-                            if groups[0].isdigit() and groups[1].isdigit() and groups[2].isdigit():
-                                # Numeric date
-                                year, month, day = int(groups[2]), int(groups[0]), int(groups[1])
-                                if year < 100:
-                                    year += 2000
-                                return date(year, month, day)
-                            else:
-                                # Month name format
-                                month_names = {
-                                    'january': 1, 'february': 2, 'march': 3, 'april': 4,
-                                    'may': 5, 'june': 6, 'july': 7, 'august': 8,
-                                    'september': 9, 'october': 10, 'november': 11, 'december': 12
-                                }
-                                if groups[0].lower() in month_names:
-                                    month = month_names[groups[0].lower()]
-                                    day = int(groups[1])
-                                    year = int(groups[2])
-                                else:
-                                    day = int(groups[0])
-                                    month = month_names[groups[1].lower()]
-                                    year = int(groups[2])
-                                return date(year, month, day)
-                    except (ValueError, KeyError):
-                        continue
-            
-            return None
-            
-        except Exception:
-            return None
+            lines = content.split('\n')
+            for line in lines:
+                line = line.strip()
+                if line and ('•' in line or '-' in line or line.startswith(('1.', '2.', '3.'))):
+                    mention = self._extract_media_mention_from_sentence(line, founder_name)
+                    if mention:
+                        mentions.append(mention)
+        
+        except Exception as e:
+            logger.warning(f"Error extracting structured mentions: {e}")
+        
+        return mentions
     
-    def _analyze_sentiment(self, title: str, snippet: str) -> str:
-        """Basic sentiment analysis of media mention."""
-        text = f"{title} {snippet}".lower()
+    def _extract_structured_awards(self, content: str, founder_name: str) -> List[Award]:
+        """Extract structured awards from content."""
+        awards = []
+        
+        try:
+            lines = content.split('\n')
+            for line in lines:
+                line = line.strip()
+                if line and ('•' in line or '-' in line or line.startswith(('1.', '2.', '3.'))):
+                    award = self._extract_award_from_sentence(line, founder_name)
+                    if award:
+                        awards.append(award)
+        
+        except Exception as e:
+            logger.warning(f"Error extracting structured awards: {e}")
+        
+        return awards
+    
+    def _extract_structured_thought_leadership(self, content: str, founder_name: str) -> List[ThoughtLeadership]:
+        """Extract structured thought leadership from content."""
+        activities = []
+        
+        try:
+            lines = content.split('\n')
+            for line in lines:
+                line = line.strip()
+                if line and ('•' in line or '-' in line or line.startswith(('1.', '2.', '3.'))):
+                    activity = self._extract_thought_leadership_from_sentence(line, founder_name)
+                    if activity:
+                        activities.append(activity)
+        
+        except Exception as e:
+            logger.warning(f"Error extracting structured thought leadership: {e}")
+        
+        return activities
+    
+    def _analyze_sentiment(self, text: str) -> str:
+        """Basic sentiment analysis of text."""
+        text_lower = text.lower()
         
         positive_words = ['success', 'achievement', 'winner', 'award', 'breakthrough', 
                          'innovation', 'leader', 'excellence', 'outstanding', 'praised']
         negative_words = ['controversy', 'criticism', 'scandal', 'failure', 'problem', 
                          'lawsuit', 'decline', 'loss', 'crisis', 'criticized']
         
-        positive_count = sum(1 for word in positive_words if word in text)
-        negative_count = sum(1 for word in negative_words if word in text)
+        positive_count = sum(1 for word in positive_words if word in text_lower)
+        negative_count = sum(1 for word in negative_words if word in text_lower)
         
         if positive_count > negative_count:
             return "positive"
@@ -579,8 +756,8 @@ class MediaCollector:
         unique_mentions = {}
         
         for mention in mentions:
-            # Use URL as primary key for deduplication
-            key = mention.url or f"{mention.title}_{mention.publication}"
+            # Use title as primary key for deduplication
+            key = mention.title[:50].lower().strip()
             if key not in unique_mentions:
                 unique_mentions[key] = mention
             else:
@@ -609,11 +786,19 @@ class MediaCollector:
         """Calculate confidence score for media profile."""
         score = 0.0
         
-        # Base score for having data
+        # Base score for using Perplexity (higher quality source)
+        if 'perplexity_ai' in profile.data_sources:
+            score += 0.4
+        
+        # Boost for media mentions
         if profile.media_mentions:
             score += 0.3
+        
+        # Boost for awards
         if profile.awards:
             score += 0.2
+        
+        # Boost for thought leadership
         if profile.thought_leadership:
             score += 0.2
         
@@ -622,7 +807,7 @@ class MediaCollector:
             1 for mention in profile.media_mentions 
             if mention.importance_score > 0.7
         )
-        score += min(high_quality_mentions * 0.05, 0.2)
+        score += min(high_quality_mentions * 0.05, 0.15)
         
         # Boost for positive sentiment
         if profile.positive_sentiment_ratio > 0.7:
@@ -630,6 +815,6 @@ class MediaCollector:
         
         # Boost for social media presence
         if profile.twitter_followers and profile.twitter_followers > 1000:
-            score += 0.1
+            score += 0.05
         
         return min(score, 1.0)
