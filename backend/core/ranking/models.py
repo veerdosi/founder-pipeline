@@ -66,6 +66,7 @@ class CompanyFounding:
     total_funding_raised_usd: Optional[float] = None
     current_status: Optional[str] = None  # "active", "acquired", "closed"
     is_current_company: bool = False
+    industry: Optional[str] = None
     verification_sources: List[str] = field(default_factory=list)
 
 
@@ -78,6 +79,7 @@ class Investment:
     investment_date: Optional[date] = None
     current_value_usd: Optional[float] = None
     return_multiple: Optional[float] = None
+    current_status: Optional[str] = None
     verification_sources: List[str] = field(default_factory=list)
 
 
@@ -90,6 +92,7 @@ class BoardPosition:
     end_date: Optional[date] = None
     is_current: bool = True
     company_valuation_usd: Optional[float] = None
+    company_industry: Optional[str] = None
     verification_sources: List[str] = field(default_factory=list)
 
 
