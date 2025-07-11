@@ -58,6 +58,7 @@ class Company(BaseModel):
     source_url: Optional[str] = None
     extraction_date: Optional[datetime] = None
     confidence_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    data_quality_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     
     class Config:
         json_encoders = {

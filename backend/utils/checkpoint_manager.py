@@ -381,7 +381,7 @@ class CheckpointedPipelineRunner:
             # Load existing data based on completed stage
             companies = None
             enhanced_companies = None
-            enriched_companies = None
+            profiles = None
             rankings = None
             
             if stage in ['companies', 'enhanced_companies', 'profiles', 'rankings']:
@@ -585,7 +585,7 @@ class CheckpointedPipelineRunner:
                 self.checkpoint_manager.save_checkpoint(job_id, 'rankings', rankings)
                 
                 # Export founders CSV immediately after ranking
-                await self._export_founders_csv(enriched_companies, job_id)
+                await self._export_founders_csv(profiles, job_id)
                 
             else:
                 logger.info("📂 Stage 3: Loaded rankings from checkpoint")
@@ -593,7 +593,7 @@ class CheckpointedPipelineRunner:
                 from pathlib import Path
                 csv_path = Path("./output") / f"{job_id}_founders.csv"
                 if not csv_path.exists():
-                    await self._export_founders_csv(enriched_companies, job_id)
+                    await self._export_founders_csv(profiles, job_id)
             
             # Stage 4: Complete - Final result
             final_result = {
