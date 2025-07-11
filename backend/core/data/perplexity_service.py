@@ -158,7 +158,7 @@ class PerplexitySearchService:
         }
         
         payload = {
-            "model": "llama-3.1-sonar-large-128k-online",
+            "model": "sonar-pro",
             "messages": [
                 {
                     "role": "system",
@@ -189,9 +189,18 @@ class PerplexitySearchService:
                 timeout=30
             ) as response:
                 if response.status == 200:
-                    return await response.json()
+                    try:
+                        response_data = await response.json()
+                        logger.debug(f"Perplexity API response type: {type(response_data)}")
+                        return response_data
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Failed to parse Perplexity JSON response: {e}")
+                        response_text = await response.text()
+                        logger.error(f"Raw response: {response_text[:500]}...")
+                        return None
                 else:
-                    logger.error(f"Perplexity API error {response.status}: {await response.text()}")
+                    error_text = await response.text()
+                    logger.error(f"Perplexity API error {response.status}: {error_text}")
                     return None
                     
         except Exception as e:
@@ -201,25 +210,52 @@ class PerplexitySearchService:
     async def _convert_perplexity_response(
         self, 
         query: str, 
-        response_data: Dict[str, Any],
+        response_data: Any,
         category: str
     ) -> Optional[WebSearchResult]:
         """Convert Perplexity API response to WebSearchResult."""
         try:
+            # Debug: log the response data type and structure
+            logger.debug(f"Perplexity response type: {type(response_data)}")
+            logger.debug(f"Perplexity response: {str(response_data)[:200]}...")
+            
+            # Handle case where response_data might be a string
+            if isinstance(response_data, str):
+                logger.error(f"Perplexity response is a string, not a dict: {response_data[:200]}...")
+                return None
+            
+            # Ensure response_data is a dictionary
+            if not isinstance(response_data, dict):
+                logger.error(f"Perplexity response is not a dict: {type(response_data)}")
+                return None
+            
+            # Check for required structure
             if 'choices' not in response_data or not response_data['choices']:
+                logger.warning(f"No choices in Perplexity response: {response_data.keys()}")
                 return None
             
             choice = response_data['choices'][0]
+            if not isinstance(choice, dict):
+                logger.error(f"Choice is not a dict: {type(choice)}")
+                return None
+                
             message = choice.get('message', {})
+            if not isinstance(message, dict):
+                logger.error(f"Message is not a dict: {type(message)}")
+                return None
+                
             content = message.get('content', '')
+            if not isinstance(content, str):
+                logger.error(f"Content is not a string: {type(content)}")
+                content = str(content)
             
             # Extract citations if available
             citations = []
-            if 'citations' in response_data:
+            if 'citations' in response_data and isinstance(response_data['citations'], list):
                 citations = [
                     citation.get('url', '') 
                     for citation in response_data['citations']
-                    if citation.get('url')
+                    if isinstance(citation, dict) and citation.get('url')
                 ]
             
             # Extract facts from content
@@ -241,6 +277,8 @@ class PerplexitySearchService:
             
         except Exception as e:
             logger.error(f"Error converting Perplexity response: {e}")
+            logger.error(f"Response data type: {type(response_data)}")
+            logger.error(f"Response data: {str(response_data)[:500]}...")
             return None
     
     async def _extract_facts_from_content(

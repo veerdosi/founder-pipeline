@@ -241,7 +241,7 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
             await self.rate_limiter.acquire()
             
             response = await self.perplexity_client.chat.completions.create(
-                model="sonar",
+                model="sonar-pro",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1
             )
@@ -296,7 +296,7 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
             await self.rate_limiter.acquire()
             
             response = await self.perplexity_client.chat.completions.create(
-                model="sonar",
+                model="sonar-pro",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1
             )
@@ -350,7 +350,7 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
             await self.rate_limiter.acquire()
             
             response = await self.perplexity_client.chat.completions.create(
-                model="sonar",
+                model="sonar-pro",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1
             )
@@ -402,7 +402,7 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
             await self.rate_limiter.acquire()
             
             response = await self.perplexity_client.chat.completions.create(
-                model="sonar",
+                model="sonar-pro",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1
             )

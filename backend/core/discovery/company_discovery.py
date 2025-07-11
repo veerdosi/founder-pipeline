@@ -393,7 +393,7 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
                 query += f" Website: {website}"
             
             response = await perplexity_client.chat.completions.create(
-                model="llama-3.1-sonar-small-128k-online",
+                model="sonar",
                 messages=[
                     {
                         "role": "system",
@@ -481,7 +481,7 @@ Answer with ONLY "YES" if this is an early-stage startup suitable for VC investm
             await self.rate_limiter.acquire()
             
             response = await perplexity_client.chat.completions.create(
-                model="llama-3.1-sonar-small-128k-online",
+                model="sonar",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
                 max_tokens=10,
@@ -517,7 +517,7 @@ Answer with ONLY "YES" if this is an early-stage startup suitable for VC investm
             query += " Please provide the exact Crunchbase URL."
             
             response = await perplexity_client.chat.completions.create(
-                model="llama-3.1-sonar-small-128k-online",
+                model="sonar",
                 messages=[
                     {
                         "role": "system",
