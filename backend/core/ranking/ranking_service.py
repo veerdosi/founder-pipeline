@@ -196,8 +196,14 @@ class FounderRankingService:
         return output_path
     
     def _profile_to_ai_dict(self, profile: FounderProfile) -> Dict[str, Any]:
-        """Convert profile to dict for AI ranking (includes enhanced data if available)."""
-        # Basic profile data
+        """Convert FounderProfile to dict for AI ranking (includes enhanced data if available)."""
+        # Ensure we only accept FounderProfile objects
+        if not isinstance(profile, FounderProfile):
+            raise TypeError(f"Expected FounderProfile, got {type(profile).__name__}. "
+                          f"LinkedInProfile objects should be converted to FounderProfile "
+                          f"in the founder intelligence stage before ranking.")
+        
+        # FounderProfile handling
         data = {
             "name": profile.name,
             "company_name": profile.company_name,

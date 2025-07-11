@@ -10,6 +10,7 @@ from .financial_collector import FinancialDataCollector
 from .perplexity_service import PerplexitySearchService
 from .media_collector import MediaCollector
 from ...utils.rate_limiter import RateLimiter
+from ...models import LinkedInProfile
 
 logger = logging.getLogger(__name__)
 
@@ -357,3 +358,103 @@ class FounderDataPipeline:
             report['recommendations'].append("Low confidence rates suggest need for data source quality improvements")
         
         return report
+    
+    @staticmethod
+    def convert_linkedin_profile_to_founder_profile(linkedin_profile: LinkedInProfile, company_name: str = None) -> FounderProfile:
+        """Convert LinkedInProfile to FounderProfile for intelligence collection."""
+        
+        # Use company name from profile or provided parameter
+        profile_company = linkedin_profile.company_name or company_name or "Unknown Company"
+        
+        # Extract education information
+        education_1_school = None
+        education_1_degree = None
+        if linkedin_profile.education:
+            education_1_school = linkedin_profile.education[0] if len(linkedin_profile.education) > 0 else None
+            # Try to extract degree from education string if it contains degree info
+            if education_1_school and ("-" in education_1_school or "," in education_1_school):
+                parts = education_1_school.replace("-", ",").split(",")
+                if len(parts) >= 2:
+                    education_1_school = parts[0].strip()
+                    education_1_degree = parts[1].strip()
+        
+        # Extract skills
+        skill_1 = linkedin_profile.skills[0] if linkedin_profile.skills and len(linkedin_profile.skills) > 0 else None
+        skill_2 = linkedin_profile.skills[1] if linkedin_profile.skills and len(linkedin_profile.skills) > 1 else None
+        skill_3 = linkedin_profile.skills[2] if linkedin_profile.skills and len(linkedin_profile.skills) > 2 else None
+        
+        # Extract experience from previous companies
+        experience_1_company = None
+        experience_1_title = None
+        experience_2_company = None
+        experience_2_title = None
+        
+        if linkedin_profile.previous_companies:
+            experience_1_company = linkedin_profile.previous_companies[0] if len(linkedin_profile.previous_companies) > 0 else None
+            experience_1_title = "Previous Role"  # Generic title since we don't have detailed experience data
+            
+            if len(linkedin_profile.previous_companies) > 1:
+                experience_2_company = linkedin_profile.previous_companies[1]
+                experience_2_title = "Previous Role"
+        
+        # Create FounderProfile
+        founder_profile = FounderProfile(
+            name=linkedin_profile.person_name,
+            company_name=profile_company,
+            title=linkedin_profile.current_position or "Founder",
+            linkedin_url=linkedin_profile.linkedin_url,
+            location=linkedin_profile.location,
+            about=linkedin_profile.summary,
+            estimated_age=None,  # Not available from LinkedIn profile
+            
+            # Experience data
+            experience_1_title=experience_1_title,
+            experience_1_company=experience_1_company,
+            experience_2_title=experience_2_title,
+            experience_2_company=experience_2_company,
+            experience_3_title=None,  # Not available
+            experience_3_company=None,  # Not available
+            
+            # Education data
+            education_1_school=education_1_school,
+            education_1_degree=education_1_degree,
+            education_2_school=None,  # Could be expanded if needed
+            education_2_degree=None,   # Could be expanded if needed
+            
+            # Skills
+            skill_1=skill_1,
+            skill_2=skill_2,
+            skill_3=skill_3,
+            
+            # Data collection metadata
+            data_collection_timestamp=datetime.now(),
+            data_collected=False  # Will be set to True after intelligence collection
+        )
+        
+        return founder_profile
+    
+    async def collect_founder_intelligence_from_linkedin_profiles(
+        self, 
+        linkedin_profiles: List[LinkedInProfile],
+        company_name: str = None,
+        collection_options: Optional[Dict[str, bool]] = None
+    ) -> List[FounderProfile]:
+        """Convert LinkedIn profiles to FounderProfiles and collect intelligence data."""
+        
+        logger.info(f"🔄 Converting {len(linkedin_profiles)} LinkedIn profiles to FounderProfiles")
+        
+        # Convert LinkedIn profiles to FounderProfiles
+        founder_profiles = []
+        for linkedin_profile in linkedin_profiles:
+            founder_profile = self.convert_linkedin_profile_to_founder_profile(
+                linkedin_profile, 
+                company_name or linkedin_profile.company_name
+            )
+            founder_profiles.append(founder_profile)
+            logger.info(f"✅ Converted {linkedin_profile.person_name} to FounderProfile")
+        
+        # Collect intelligence data for all founder profiles
+        enriched_profiles = await self.collect_founder_data(founder_profiles, collection_options)
+        
+        logger.info(f"🎯 Founder intelligence collection complete for {len(enriched_profiles)} profiles")
+        return enriched_profiles

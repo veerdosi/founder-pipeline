@@ -163,17 +163,13 @@ Be conservative - require strong evidence for higher levels."""
             # Parse JSON response
             content = response.content[0].text.strip()
             
-            # Extract JSON from response (handle markdown code blocks)
-            if "```json" in content:
-                json_start = content.find("```json") + 7
-                json_end = content.find("```", json_start)
-                content = content[json_start:json_end].strip()
-            elif "```" in content:
-                json_start = content.find("```") + 3
-                json_end = content.find("```", json_start)
-                content = content[json_start:json_end].strip()
+            # Clean and extract JSON from response
+            parsed_json = self._extract_json_from_response(content)
+            if parsed_json:
+                return parsed_json
             
-            return json.loads(content)
+            logger.error(f"Failed to parse JSON from Claude response: {content[:200]}...")
+            return None
             
         except Exception as e:
             logger.error(f"Claude analysis failed: {e}")
@@ -235,6 +231,105 @@ Be conservative - require strong evidence for higher levels."""
             context_parts.append(f"Estimated Age: {founder_data['estimated_age']}")
         
         return "\n".join(context_parts)
+    
+    def _extract_json_from_response(self, content: str) -> Optional[Dict[str, Any]]:
+        """Extract and parse JSON from Claude response with robust error handling."""
+        import re
+        
+        # Strategy 1: Extract from markdown code blocks
+        if "```json" in content:
+            json_start = content.find("```json") + 7
+            json_end = content.find("```", json_start)
+            if json_end != -1:
+                json_content = content[json_start:json_end].strip()
+                try:
+                    return json.loads(json_content)
+                except json.JSONDecodeError as e:
+                    logger.warning(f"JSON decode error in markdown block: {e}")
+        
+        # Strategy 2: Extract from generic code blocks
+        if "```" in content:
+            json_start = content.find("```") + 3
+            json_end = content.find("```", json_start)
+            if json_end != -1:
+                json_content = content[json_start:json_end].strip()
+                try:
+                    return json.loads(json_content)
+                except json.JSONDecodeError as e:
+                    logger.warning(f"JSON decode error in code block: {e}")
+        
+        # Strategy 3: Look for JSON object patterns
+        json_pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
+        matches = re.findall(json_pattern, content, re.DOTALL)
+        
+        for match in matches:
+            try:
+                # Clean the JSON content
+                clean_json = self._clean_json_string(match)
+                return json.loads(clean_json)
+            except json.JSONDecodeError:
+                continue
+        
+        # Strategy 4: Try to parse the entire content as JSON
+        try:
+            clean_content = self._clean_json_string(content)
+            return json.loads(clean_content)
+        except json.JSONDecodeError:
+            pass
+        
+        # Strategy 5: Look for key-value pairs and construct JSON
+        try:
+            return self._construct_json_from_text(content)
+        except Exception as e:
+            logger.warning(f"Failed to construct JSON from text: {e}")
+        
+        return None
+    
+    def _clean_json_string(self, json_str: str) -> str:
+        """Clean JSON string by removing control characters and fixing common issues."""
+        import re
+        
+        # Remove control characters except newlines and tabs
+        json_str = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', json_str)
+        
+        # Fix common JSON issues
+        json_str = json_str.replace('```json', '').replace('```', '')
+        json_str = json_str.strip()
+        
+        # Remove trailing commas before closing brackets
+        json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
+        
+        return json_str
+    
+    def _construct_json_from_text(self, text: str) -> Dict[str, Any]:
+        """Attempt to construct JSON from text by extracting key information."""
+        import re
+        
+        # Look for experience level
+        experience_match = re.search(r'experience[_\s]*level[:\s]*["\']?([Ll]\d+|INSUFFICIENT_DATA)["\']?', text, re.IGNORECASE)
+        experience_level = experience_match.group(1) if experience_match else "INSUFFICIENT_DATA"
+        
+        # Look for confidence score
+        confidence_match = re.search(r'confidence[_\s]*score[:\s]*([0-9.]+)', text, re.IGNORECASE)
+        confidence_score = float(confidence_match.group(1)) if confidence_match else 0.1
+        
+        # Look for reasoning
+        reasoning_match = re.search(r'reasoning[:\s]*["\']([^"\']+)["\']', text, re.IGNORECASE | re.DOTALL)
+        reasoning = reasoning_match.group(1) if reasoning_match else "Unable to parse reasoning from response"
+        
+        # Look for evidence
+        evidence_match = re.search(r'evidence[:\s]*\[(.*?)\]', text, re.IGNORECASE | re.DOTALL)
+        evidence = []
+        if evidence_match:
+            evidence_text = evidence_match.group(1)
+            evidence = [item.strip().strip('"\'') for item in evidence_text.split(',') if item.strip()]
+        
+        return {
+            "experience_level": experience_level,
+            "confidence_score": min(1.0, max(0.0, confidence_score)),
+            "reasoning": reasoning[:500],  # Limit reasoning length
+            "evidence": evidence[:5]  # Limit evidence items
+        }
     
     async def _finalize_ranking_with_verification(
         self, 

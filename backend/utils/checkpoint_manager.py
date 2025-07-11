@@ -382,16 +382,20 @@ class CheckpointedPipelineRunner:
             companies = None
             enhanced_companies = None
             profiles = None
+            founder_intelligence = None
             rankings = None
             
-            if stage in ['companies', 'enhanced_companies', 'profiles', 'rankings']:
+            if stage in ['companies', 'enhanced_companies', 'profiles', 'founder_intelligence', 'rankings']:
                 companies = self.checkpoint_manager.load_checkpoint(checkpoint_id, 'companies')
                 
-            if stage in ['enhanced_companies', 'profiles', 'rankings']:
+            if stage in ['enhanced_companies', 'profiles', 'founder_intelligence', 'rankings']:
                 enhanced_companies = self.checkpoint_manager.load_checkpoint(checkpoint_id, 'enhanced_companies')
                 
-            if stage in ['profiles', 'rankings']:
+            if stage in ['profiles', 'founder_intelligence', 'rankings']:
                 profiles = self.checkpoint_manager.load_checkpoint(checkpoint_id, 'profiles')
+                
+            if stage in ['founder_intelligence', 'rankings']:
+                founder_intelligence = self.checkpoint_manager.load_checkpoint(checkpoint_id, 'founder_intelligence')
                 
             if stage == 'rankings':
                 rankings = self.checkpoint_manager.load_checkpoint(checkpoint_id, 'rankings')
@@ -412,11 +416,41 @@ class CheckpointedPipelineRunner:
                 profiles = await pipeline_service.enrich_profiles(enhanced_companies)
                 self.checkpoint_manager.save_checkpoint(checkpoint_id, 'profiles', profiles)
             
+            if founder_intelligence is None:
+                logger.info("🧠 Stage 3.5: Founder Intelligence Collection")
+                # Import the founder pipeline
+                from ..core.data.founder_pipeline import FounderDataPipeline
+                
+                # Process each enriched company's LinkedIn profiles
+                all_enriched_profiles = []
+                async with FounderDataPipeline() as founder_pipeline:
+                    for enriched_company in profiles:
+                        if enriched_company.profiles:
+                            logger.info(f"Processing {len(enriched_company.profiles)} founder profiles for {enriched_company.company.name}")
+                            
+                            # Convert LinkedIn profiles to FounderProfiles and collect intelligence
+                            company_founder_profiles = await founder_pipeline.collect_founder_intelligence_from_linkedin_profiles(
+                                enriched_company.profiles,
+                                enriched_company.company.name
+                            )
+                            
+                            # Update the enriched company with the new FounderProfile objects
+                            enriched_company.profiles = company_founder_profiles
+                            all_enriched_profiles.append(enriched_company)
+                        else:
+                            # Keep companies without profiles as is
+                            all_enriched_profiles.append(enriched_company)
+                
+                founder_intelligence = all_enriched_profiles
+                self.checkpoint_manager.save_checkpoint(checkpoint_id, 'founder_intelligence', founder_intelligence)
+                logger.info(f"✅ Founder intelligence collection complete for {len(founder_intelligence)} companies")
+            
             if rankings is None and ranking_service is not None:
                 logger.info("🏆 Stage 4: Founder Ranking")
-                # Extract founder profiles for ranking
+                # Extract founder profiles for ranking from founder intelligence data
                 founder_profiles = []
-                for ec in profiles:
+                data_source = founder_intelligence if founder_intelligence else profiles
+                for ec in data_source:
                     for profile in ec.profiles:
                         founder_profiles.append(profile)
                 
@@ -432,7 +466,7 @@ class CheckpointedPipelineRunner:
             
             # Mark as complete
             result = {
-                'companies': profiles,
+                'companies': founder_intelligence if founder_intelligence else profiles,
                 'rankings': rankings or [],
                 'job_id': checkpoint_id
             }
@@ -513,79 +547,78 @@ class CheckpointedPipelineRunner:
             else:
                 logger.info("📂 Stage 3: Loaded profiles from checkpoint")
             
+            # Stage 3.5: Founder Intelligence Collection
+            founder_intelligence = self.checkpoint_manager.load_checkpoint(job_id, 'founder_intelligence')
+            if founder_intelligence is None:
+                logger.info("🧠 Stage 3.5: Founder Intelligence Collection")
+                # Import the founder pipeline
+                from ..core.data.founder_pipeline import FounderDataPipeline
+                
+                # Process each enriched company's LinkedIn profiles
+                all_enriched_profiles = []
+                async with FounderDataPipeline() as founder_pipeline:
+                    for enriched_company in profiles:
+                        if enriched_company.profiles:
+                            logger.info(f"Processing {len(enriched_company.profiles)} founder profiles for {enriched_company.company.name}")
+                            
+                            # Convert LinkedIn profiles to FounderProfiles and collect intelligence
+                            company_founder_profiles = await founder_pipeline.collect_founder_intelligence_from_linkedin_profiles(
+                                enriched_company.profiles,
+                                enriched_company.company.name
+                            )
+                            
+                            # Update the enriched company with the new FounderProfile objects
+                            enriched_company.profiles = company_founder_profiles
+                            all_enriched_profiles.append(enriched_company)
+                        else:
+                            # Keep companies without profiles as is
+                            all_enriched_profiles.append(enriched_company)
+                
+                founder_intelligence = all_enriched_profiles
+                self.checkpoint_manager.save_checkpoint(job_id, 'founder_intelligence', founder_intelligence)
+                logger.info(f"✅ Founder intelligence collection complete for {len(founder_intelligence)} companies")
+            else:
+                logger.info("📂 Stage 3.5: Loaded founder intelligence from checkpoint")
+            
             if not companies:
                 raise ValueError("No companies found in discovery stage")
             
-            if not profiles:
-                raise ValueError("No profiles found in enrichment stage")
+            if not founder_intelligence:
+                raise ValueError("No founder intelligence found in enrichment stage")
             
             # Extract profiles data for further processing
             profiles_data = []
-            for ec in profiles:
+            for ec in founder_intelligence:
                 for profile in ec.profiles:
                     profiles_data.append({
                         'company_name': ec.company.name,
                         'profile': profile
                     })
             
-            logger.info(f"📂 Stage 3: Extracted {len(profiles_data)} profiles")
+            logger.info(f"📂 Stage 3.5: Extracted {len(profiles_data)} enriched founder profiles")
             
             # Stage 4: Founder Rankings
             rankings = self.checkpoint_manager.load_checkpoint(job_id, 'rankings')
             if rankings is None and profiles_data:
                 logger.info("🏆 Stage 4: Founder Rankings")
                 
-                # Convert to FounderProfile format for ranking
-                founder_profiles = []
-                for pd in profiles_data:
-                    profile = pd['profile']
-                    from ..core.ranking.models import FounderProfile
-                    founder_profile = FounderProfile(
-                        name=profile.person_name,
-                        company_name=pd['company_name'],
-                        title=getattr(profile, 'current_position', '') or "",
-                        linkedin_url=str(profile.linkedin_url) if profile.linkedin_url else "",
-                        location=getattr(profile, 'location', '') or "",
-                        about=getattr(profile, 'summary', '') or "",
-                        estimated_age=getattr(profile, 'estimated_age', None),
-                        experience_1_title=getattr(profile, 'experience_1_title', None),
-                        experience_1_company=getattr(profile, 'experience_1_company', None),
-                        experience_2_title=getattr(profile, 'experience_2_title', None),
-                        experience_2_company=getattr(profile, 'experience_2_company', None),
-                        experience_3_title=getattr(profile, 'experience_3_title', None),
-                        experience_3_company=getattr(profile, 'experience_3_company', None),
-                        education_1_school=getattr(profile, 'education_1_school', None),
-                        education_1_degree=getattr(profile, 'education_1_degree', None),
-                        education_2_school=getattr(profile, 'education_2_school', None),
-                        education_2_degree=getattr(profile, 'education_2_degree', None),
-                        skill_1=getattr(profile, 'skill_1', None),
-                        skill_2=getattr(profile, 'skill_2', None),
-                        skill_3=getattr(profile, 'skill_3', None)
-                    )
-                    founder_profiles.append((founder_profile, profile))
+                # Profiles are already FounderProfile objects from founder intelligence stage
+                founder_profiles = [pd['profile'] for pd in profiles_data]
                 
                 # Rank founders with enhanced system
                 from ..core.ranking.ranking_service import FounderRankingService
                 ranking_service = FounderRankingService()
                 
                 rankings = await ranking_service.rank_founders_batch(
-                    [fp for fp, _ in founder_profiles], 
+                    founder_profiles, 
                     batch_size=5,
                     use_enhanced=True  # Use enhanced ranking with L-level validation
                 )
                 
-                # Apply rankings back to original profiles
-                for i, ranking in enumerate(rankings):
-                    if i < len(founder_profiles):
-                        _, original_profile = founder_profiles[i]
-                        original_profile.l_level = ranking.classification.level.value
-                        original_profile.confidence_score = ranking.classification.confidence_score
-                        original_profile.reasoning = ranking.classification.reasoning
-                
                 self.checkpoint_manager.save_checkpoint(job_id, 'rankings', rankings)
                 
                 # Export founders CSV immediately after ranking
-                await self._export_founders_csv(profiles, job_id)
+                await self._export_founders_csv(founder_intelligence, job_id)
                 
             else:
                 logger.info("📂 Stage 3: Loaded rankings from checkpoint")
@@ -593,17 +626,17 @@ class CheckpointedPipelineRunner:
                 from pathlib import Path
                 csv_path = Path("./output") / f"{job_id}_founders.csv"
                 if not csv_path.exists():
-                    await self._export_founders_csv(profiles, job_id)
+                    await self._export_founders_csv(founder_intelligence, job_id)
             
             # Stage 4: Complete - Final result
             final_result = {
                 'job_id': job_id,
-                'companies': profiles,
+                'companies': founder_intelligence,
                 'profiles': profiles_data,
                 'rankings': rankings,
                 'completed_at': datetime.now(),
                 'stats': {
-                    'total_companies': len(profiles),
+                    'total_companies': len(founder_intelligence),
                     'total_founders': len(profiles_data),
                     'ranked_founders': len(rankings) if rankings else 0,
                     'high_confidence_founders': len([r for r in rankings if r.classification.confidence_score >= 0.75]) if rankings else 0

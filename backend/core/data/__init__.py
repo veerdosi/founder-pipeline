@@ -12,7 +12,6 @@ This module includes comprehensive founder intelligence gathering:
 from .data_fusion import DataFusionService, FusedCompanyData
 from .profile_enrichment import LinkedInEnrichmentService
 
-# Founder intelligence services
 from .financial_collector import FinancialDataCollector
 from .media_collector import MediaCollector
 from .perplexity_service import PerplexitySearchService
@@ -22,7 +21,6 @@ __all__ = [
     "DataFusionService",
     "FusedCompanyData", 
     "LinkedInEnrichmentService",
-    # Founder intelligence
     "FinancialDataCollector",
     "MediaCollector",
     "PerplexitySearchService", 
