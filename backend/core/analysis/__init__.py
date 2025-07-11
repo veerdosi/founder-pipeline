@@ -1,8 +1,8 @@
 """Core analysis module for AI-powered founder analysis."""
 
-from .ai_analysis import ClaudeSonnet4RankingService, FounderAnalysisResult
+from .ai_analysis import AIAnalysisService, FounderAnalysisResult
 
 __all__ = [
-    "ClaudeSonnet4RankingService",
+    "AIAnalysisService",
     "FounderAnalysisResult"
 ]

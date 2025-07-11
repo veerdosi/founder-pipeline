@@ -11,7 +11,7 @@ from openai import AsyncOpenAI
 
 from ...core import settings
 from ...utils.rate_limiter import RateLimiter
-from ...validators import validate_funding_amount, validate_year
+from ...utils.validators import validate_funding_amount, validate_year
 
 import logging
 logger = logging.getLogger(__name__)

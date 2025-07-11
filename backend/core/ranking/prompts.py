@@ -2,8 +2,6 @@
 
 from typing import Dict, Any
 from .models import FounderProfile
-
-
 class RankingPrompts:
     """Centralized prompt templates for founder ranking."""
     
@@ -84,7 +82,7 @@ CRITICAL ANALYSIS REQUIREMENTS:
 7. Account for age and career stage appropriately
 
 CONFIDENCE SCORING:
-- Only classify with confidence ≥0.75 (75%) for actionable results
+- Only classify with confidence ">=0.75 (75%) for actionable results
 - If confidence <0.75, return "INSUFFICIENT_DATA" with reasoning
 - Higher levels (L6+) require stronger evidence and higher confidence
 - Consider data quality and verification possibilities in confidence scoring
@@ -104,8 +102,64 @@ Provide a structured JSON response with:
 - evidence: List of specific achievements/facts supporting the level
 - verification_sources: What additional sources would verify key claims"""
 
-    @staticmethod
-    def create_founder_analysis_prompt(profile: FounderProfile, company_founding_year: int = None) -> str:
+    def _prepare_founder_context(
+        self, 
+        founder_data: Dict[str, Any], 
+        company_data: Dict[str, Any] = None
+    ) -> str:
+        """Prepare founder context for Claude analysis."""
+        
+        context_parts = []
+        
+        # Basic info
+        context_parts.append(f"Name: {founder_data.get('name', 'Unknown')}")
+        context_parts.append(f"Title: {founder_data.get('title', 'Founder')}")
+        
+        if company_data:
+            context_parts.append(f"Company: {company_data.get('name', 'Unknown')}")
+            context_parts.append(f"Company Description: {company_data.get('description', 'N/A')}")
+            if company_data.get('funding_total_usd'):
+                context_parts.append(f"Total Funding: ${company_data['funding_total_usd']:,.0f}")
+        
+        # Professional background
+        if founder_data.get('about'):
+            context_parts.append(f"Background: {founder_data['about']}")
+        
+        # Experience
+        for i in range(1, 4):
+            exp_title = founder_data.get(f'experience_{i}_title')
+            exp_company = founder_data.get(f'experience_{i}_company')
+            if exp_title and exp_company:
+                context_parts.append(f"Experience {i}: {exp_title} at {exp_company}")
+        
+        # Education
+        for i in range(1, 3):
+            edu_school = founder_data.get(f'education_{i}_school')
+            edu_degree = founder_data.get(f'education_{i}_degree')
+            if edu_school:
+                degree_text = f" - {edu_degree}" if edu_degree else ""
+                context_parts.append(f"Education {i}: {edu_school}{degree_text}")
+        
+        # Skills
+        skills = []
+        for i in range(1, 4):
+            skill = founder_data.get(f'skill_{i}')
+            if skill:
+                skills.append(skill)
+        
+        if skills:
+            context_parts.append(f"Skills: {', '.join(skills)}")
+        
+        # Additional context
+        if founder_data.get('location'):
+            context_parts.append(f"Location: {founder_data['location']}")
+        
+        if founder_data.get('estimated_age'):
+            context_parts.append(f"Estimated Age: {founder_data['estimated_age']}")
+        
+        return "\n".join(context_parts)
+
+    def create_founder_analysis_prompt(self, profile: FounderProfile, company_founding_year: int = None) -> str:
         """Create the main analysis prompt for a founder with year context."""
         
         # Build experience summary
@@ -232,47 +286,3 @@ Expected format:
 ]
 """
         return prompt
-
-    @staticmethod
-    def create_verification_prompt(profile: FounderProfile, initial_classification: str) -> str:
-        """Create prompt for verifying and refining initial classification."""
-        
-        prompt = f"""
-FOUNDER CLASSIFICATION VERIFICATION
-
-Initial classification: {initial_classification}
-Founder: {profile.name} at {profile.company_name}
-
-Please verify this classification by:
-
-1. Double-checking the evidence against L1-L10 criteria
-2. Looking for any missed indicators that could change the level
-3. Assessing if the confidence score should be adjusted
-4. Identifying the most critical verification needs
-
-Focus particularly on:
-- Financial outcomes (exits, valuations, funding)
-- Company scale and growth metrics  
-- Founder's specific contributions vs. just being present
-- Industry impact and recognition
-- Track record consistency
-
-Return refined classification with same JSON structure, noting any changes made and why.
-"""
-        return prompt
-
-    @staticmethod
-    def get_level_descriptions() -> Dict[str, str]:
-        """Get detailed descriptions for each level."""
-        return {
-            "L10": "Legendary Entrepreneurs - Multiple IPOs or exits >$1B, created entire industries",
-            "L9": "Transformational Leaders - 1 major IPO/exit >$1B, building second major company", 
-            "L8": "Proven Unicorn Builders - Built 1+ companies to $1B+ valuation",
-            "L7": "Elite Serial Entrepreneurs - 2+ exits >$100M OR 2+ unicorn companies",
-            "L6": "Market Innovators and Thought Leaders - Groundbreaking innovation, disrupted markets",
-            "L5": "Growth-Stage Entrepreneurs - Scaled companies to >$50M funding, positioned for major exits",
-            "L4": "Proven Operators - Small-medium exits ($10M-$100M) OR C-level at notable tech companies",
-            "L3": "Technical and Management Veterans - 10+ years experience OR PhD in relevant field",
-            "L2": "Early-Stage Entrepreneurs - Accelerator graduate OR 2-5 years startup experience",
-            "L1": "Nascent Founders - <2 years experience OR first-time founder OR recent graduate"
-        }

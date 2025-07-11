@@ -14,13 +14,12 @@ import pandas as pd
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 
-from .models import CompanyDiscoveryRequest, DashboardStats, PipelineJobResponse, SimpleDateRangeRequest, YearBasedRequest
+from .models import CompanyDiscoveryRequest, PipelineJobResponse, YearBasedRequest
 from .dependencies import get_pipeline_service, get_ranking_service
 from ..core.pipeline import InitiationPipeline
 from ..core.ranking import FounderRankingService
 from ..core.ranking.models import FounderProfile
 from ..core.analysis.market_analysis import PerplexityMarketAnalysis
-from ..models import EnrichedCompany
 from ..utils.checkpoint_manager import checkpointed_runner, checkpoint_manager
 
 # --- Application Setup ---
@@ -109,29 +108,6 @@ async def get_available_checkpoints():
     except Exception as e:
         logger.error(f"Error fetching checkpoints: {e}")
         return []
-
-# --- Dashboard Endpoints ---
-
-@app.get("/api/dashboard/stats", response_model=DashboardStats)
-async def get_dashboard_stats():
-    """Get basic dashboard statistics from checkpointed results."""
-    companies = safe_get_companies()
-    rankings = safe_get_rankings()
-
-    # Calculate level distribution
-    level_dist = {}
-    if rankings:
-        for r in rankings:
-            level = r.classification.level.value
-            level_dist[level] = level_dist.get(level, 0) + 1
-
-    return DashboardStats(
-        totalCompanies=len(companies),
-        totalFounders=sum(len(ec.profiles) for ec in companies),
-        avgConfidenceScore=sum(r.classification.confidence_score for r in rankings) / len(rankings) if rankings else 0.0,
-        levelDistribution=level_dist,
-        recentActivity=[]
-    )
 
 # --- Company Discovery Endpoints ---
 

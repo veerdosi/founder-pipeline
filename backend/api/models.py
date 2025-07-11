@@ -4,7 +4,6 @@ from pydantic import BaseModel, validator
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
 
-
 class CompanyDiscoveryRequest(BaseModel):
     limit: int = 50
     categories: List[str] = []
@@ -13,7 +12,6 @@ class CompanyDiscoveryRequest(BaseModel):
     # Date range for company founding
     founded_after: Optional[date] = None
     founded_before: Optional[date] = None
-
 
 class YearBasedRequest(BaseModel):
     """Request model for year-based company discovery."""
@@ -40,49 +38,9 @@ class YearBasedRequest(BaseModel):
             founded_after=start_date,
             founded_before=end_date
         )
-
-
-class SimpleDateRangeRequest(BaseModel):
-    """Request model for simple date range input in DD/MM/YYYY format."""
-    start_date: str  # DD/MM/YYYY format
-    end_date: str    # DD/MM/YYYY format
-    limit: int = 100
-    
-    @validator('start_date', 'end_date')
-    def validate_date_format(cls, v):
-        try:
-            # Parse DD/MM/YYYY format
-            datetime.strptime(v, '%d/%m/%Y')
-            return v
-        except ValueError:
-            raise ValueError('Date must be in DD/MM/YYYY format')
-    
-    def to_discovery_request(self) -> CompanyDiscoveryRequest:
-        """Convert to standard discovery request format."""
-        start_date = datetime.strptime(self.start_date, '%d/%m/%Y').date()
-        end_date = datetime.strptime(self.end_date, '%d/%m/%Y').date()
-        
-        return CompanyDiscoveryRequest(
-            limit=self.limit,
-            categories=[],
-            regions=[],
-            sources=["techcrunch", "crunchbase", "ycombinator"],
-            founded_after=start_date,
-            founded_before=end_date
-        )
-
-
 class PipelineJobResponse(BaseModel):
     jobId: str
     status: str
     companiesFound: int
     foundersFound: int
     message: str
-
-
-class DashboardStats(BaseModel):
-    totalCompanies: int
-    totalFounders: int
-    avgConfidenceScore: float
-    levelDistribution: Dict[str, int]
-    recentActivity: List[Dict[str, Any]]

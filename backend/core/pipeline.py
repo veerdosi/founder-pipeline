@@ -7,8 +7,8 @@ from typing import List, Optional
 from datetime import date
 
 from .config import settings
-from ..models import Company, EnrichedCompany, PipelineResult
-from .discovery.company_discovery import ExaCompanyDiscovery
+from ..models import Company, EnrichedCompany
+from .data.company_discovery import ExaCompanyDiscovery
 from .data.profile_enrichment import LinkedInEnrichmentService
 from .analysis.market_analysis import PerplexityMarketAnalysis
 from .data.data_fusion import DataFusionService, FusedCompanyData
@@ -264,6 +264,11 @@ class InitiationPipeline:
                 # Step 4: Profile Enrichment
                 if include_profiles:
                     enriched_companies = await self._run_profiles_from_fused(
+                        enriched_companies, checkpoint_prefix
+                    )
+                    
+                    # Step 5: Founder Intelligence Collection
+                    enriched_companies = await self._run_founder_intelligence_from_profiles(
                         enriched_companies, checkpoint_prefix
                     )
                 
@@ -766,6 +771,60 @@ class InitiationPipeline:
         
         # Save checkpoint
         await save_checkpoint(enriched_companies, checkpoint_name)
+        return enriched_companies
+    
+    async def _run_founder_intelligence_from_profiles(
+        self, 
+        enriched_companies: List[EnrichedCompany], 
+        checkpoint_prefix: str
+    ) -> List[EnrichedCompany]:
+        """Run founder intelligence collection on EnrichedCompany objects."""
+        checkpoint_name = f"{checkpoint_prefix}_founder_intelligence"
+        
+        # Try to load from checkpoint
+        cached_companies = await load_checkpoint(checkpoint_name)
+        if cached_companies:
+            console.print(f"📂 Loaded {len(cached_companies)} companies with founder intelligence from checkpoint")
+            return cached_companies
+        
+        console.print("🧠 Collecting founder intelligence...")
+        
+        logger.info("🧠 Processing companies for founder intelligence collection...")
+        
+        # Import the founder pipeline
+        from .data.founder_pipeline import FounderDataPipeline
+        
+        # Process each enriched company's LinkedIn profiles
+        async with FounderDataPipeline() as founder_pipeline:
+            for i, enriched in enumerate(enriched_companies):
+                logger.info(f"Processing company {i+1}/{len(enriched_companies)}: {enriched.company.name}")
+                try:
+                    if enriched.profiles:
+                        logger.info(f"🔍 Collecting intelligence for {len(enriched.profiles)} founder profiles from {enriched.company.name}")
+                        
+                        # Convert LinkedIn profiles to FounderProfiles and collect intelligence
+                        company_founder_profiles = await founder_pipeline.collect_founder_intelligence_from_linkedin_profiles(
+                            enriched.profiles,
+                            enriched.company.name
+                        )
+                        
+                        # Update the enriched company with the enhanced FounderProfile objects
+                        enriched.profiles = company_founder_profiles
+                        
+                        logger.info(f"✅ Intelligence collection complete for {enriched.company.name}")
+                    else:
+                        logger.info(f"⚠️ No profiles found for {enriched.company.name}, skipping intelligence collection")
+                    
+                    await asyncio.sleep(0.5)  # Rate limiting
+                    
+                except Exception as e:
+                    logger.error(f"Founder intelligence collection failed for {enriched.company.name}: {e}")
+                    # Continue with existing profiles
+                    pass
+        
+        # Save checkpoint
+        await save_checkpoint(enriched_companies, checkpoint_name)
+        logger.info(f"✅ Founder intelligence collection complete for {len(enriched_companies)} companies")
         return enriched_companies
     
     async def _run_market_analysis_from_fused(

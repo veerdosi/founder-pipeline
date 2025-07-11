@@ -11,10 +11,10 @@ This module includes comprehensive founder intelligence gathering:
 
 from .data_fusion import DataFusionService, FusedCompanyData
 from .profile_enrichment import LinkedInEnrichmentService
-
+from .company_discovery import ExaCompanyDiscovery
 from .financial_collector import FinancialDataCollector
 from .media_collector import MediaCollector
-from .perplexity_service import PerplexitySearchService
+from .intel_service import PerplexitySearchService
 from .founder_pipeline import FounderDataPipeline
 
 __all__ = [
@@ -24,5 +24,6 @@ __all__ = [
     "FinancialDataCollector",
     "MediaCollector",
     "PerplexitySearchService", 
-    "FounderDataPipeline"
+    "FounderDataPipeline",
+    "ExaCompanyDiscovery"
 ]

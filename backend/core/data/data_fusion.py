@@ -171,46 +171,9 @@ class DataFusionService:
             
         except Exception as e:
             logger.error(f"Error in data fusion for {base_company.name}: {e}")
-            return self._create_fallback_data(base_company)
+            raise e
     
-    async def batch_fuse_companies(
-        self, 
-        companies: List[Company],
-        batch_size: int = 3  # Reduced batch size for better reliability
-    ) -> List[FusedCompanyData]:
-        """Fuse data for multiple companies in smaller, more reliable batches."""
-        fused_companies = []
-        
-        for i in range(0, len(companies), batch_size):
-            batch = companies[i:i + batch_size]
-            logger.info(f"Processing batch {i//batch_size + 1}/{(len(companies) + batch_size - 1)//batch_size}")
-            
-            # Process companies sequentially within batch to avoid overwhelming APIs
-            for company in batch:
-                try:
-                    result = await asyncio.wait_for(
-                        self.fuse_company_data(company),
-                        timeout=90  # 90 second timeout per company
-                    )
-                    
-                    if result is not None:
-                        fused_companies.append(result)
-                        
-                    # Small delay to be nice to APIs
-                    await asyncio.sleep(0.5)
-                        
-                except asyncio.TimeoutError:
-                    logger.error(f"Timeout processing {company.name}")
-                    # Add fallback data instead of skipping
-                    fallback = self._create_fallback_data(company)
-                    fused_companies.append(fallback)
-                except Exception as e:
-                    logger.error(f"Error processing {company.name}: {e}")
-                    # Add fallback data instead of skipping
-                    fallback = self._create_fallback_data(company)
-                    fused_companies.append(fallback)
-        
-        return fused_companies
+    
     
     def _fuse_data_sources(
         self,
@@ -461,38 +424,6 @@ class DataFusionService:
         
         return min(confidence, 1.0)
     
-    def _create_fallback_data(self, base_company: Company) -> FusedCompanyData:
-        """Create fallback data when fusion fails."""
-        return FusedCompanyData(
-            name=base_company.name,
-            description=base_company.description or "",
-            website=str(base_company.website) if base_company.website else None,
-            founded_year=base_company.founded_year,
-            primary_sector=base_company.ai_focus or "machine_learning",
-            sub_sectors=[],
-            ai_focus=base_company.ai_focus or "Artificial Intelligence",
-            technology_stack=[],
-            business_model="b2b_saas",
-            target_market="Enterprise",
-            total_funding_usd=base_company.funding_total_usd,
-            latest_funding_usd=None,
-            funding_stage=base_company.funding_stage,
-            current_valuation_usd=None,
-            annual_revenue_usd=None,
-            employee_count=None,
-            customer_count=None,
-            founders=base_company.founders or [],
-            key_investors=[],
-            headquarters_location=f"{base_company.city}, {base_company.country}" if base_company.city and base_company.country else None,
-            linkedin_url=None,
-            crunchbase_url=None,
-            data_sources=['exa'],
-            data_quality_score=0.3,
-            confidence_score=0.2,
-            last_updated=datetime.now().isoformat(),
-            fusion_timestamp=datetime.now().isoformat()
-        )
     
-    def to_dict(self, fused_data: FusedCompanyData) -> Dict[str, Any]:
-        """Convert fused data to dictionary for export."""
-        return asdict(fused_data)
+    
+    

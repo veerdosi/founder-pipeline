@@ -282,16 +282,16 @@ class FounderWebSearchData:
 
 class ExperienceLevel(Enum):
     """L1-L10 experience levels."""
-    L1 = "L1"  # Nascent Founders with Potential
-    L2 = "L2"  # Early-Stage Entrepreneurs  
-    L3 = "L3"  # Technical and Management Veterans
-    L4 = "L4"  # Proven Operators with Exits or Executive Experience
-    L5 = "L5"  # Growth-Stage Entrepreneurs
-    L6 = "L6"  # Market Innovators and Thought Leaders
-    L7 = "L7"  # Elite Serial Entrepreneurs
-    L8 = "L8"  # Proven Unicorn Builders
-    L9 = "L9"  # Transformational Leaders
-    L10 = "L10"  # Legendary Entrepreneurs
+    L1 = "L1"
+    L2 = "L2"
+    L3 = "L3"
+    L4 = "L4"
+    L5 = "L5"
+    L6 = "L6"
+    L7 = "L7" 
+    L8 = "L8"  
+    L9 = "L9"  
+    L10 = "L10"  
     INSUFFICIENT_DATA = "INSUFFICIENT_DATA"  # Confidence <75%
 
 

@@ -7,7 +7,7 @@ import hashlib
 from pathlib import Path
 from typing import Any, Optional, Dict, List
 from datetime import datetime, timedelta
-import tempfile
+import asyncio
 import shutil
 
 logger = logging.getLogger(__name__)
@@ -92,7 +92,7 @@ class PipelineCheckpointManager:
     
     def get_job_progress(self, job_id: str) -> Dict[str, Any]:
         """Get progress information for a job."""
-        stages = ['companies', 'enhanced_companies', 'profiles', 'rankings']
+        stages = ['companies', 'enhanced_companies', 'profiles', 'founder_intelligence', 'rankings']
         progress = {
             'job_id': job_id,
             'stages': {},
@@ -134,7 +134,7 @@ class PipelineCheckpointManager:
         latest_stage = None
         latest_data = None
         
-        for stage in ['rankings', 'profiles', 'enhanced_companies', 'companies']:
+        for stage in ['rankings', 'founder_intelligence', 'profiles', 'enhanced_companies', 'companies']:
             if progress['stages'].get(stage, {}).get('completed'):
                 latest_stage = stage
                 latest_data = self.load_checkpoint(job_id, stage)
@@ -418,32 +418,52 @@ class CheckpointedPipelineRunner:
             
             if founder_intelligence is None:
                 logger.info("🧠 Stage 3.5: Founder Intelligence Collection")
+                print("🧠 Stage 3.5: Founder Intelligence Collection - STARTING NOW")
                 # Import the founder pipeline
                 from ..core.data.founder_pipeline import FounderDataPipeline
                 
                 # Process each enriched company's LinkedIn profiles
                 all_enriched_profiles = []
+                print(f"📊 Found {len(profiles)} companies to process for founder intelligence")
                 async with FounderDataPipeline() as founder_pipeline:
-                    for enriched_company in profiles:
+                    for i, enriched_company in enumerate(profiles):
                         if enriched_company.profiles:
                             logger.info(f"Processing {len(enriched_company.profiles)} founder profiles for {enriched_company.company.name}")
+                            print(f"🔍 [{i+1}/{len(profiles)}] Processing {len(enriched_company.profiles)} founder profiles for {enriched_company.company.name}")
                             
-                            # Convert LinkedIn profiles to FounderProfiles and collect intelligence
-                            company_founder_profiles = await founder_pipeline.collect_founder_intelligence_from_linkedin_profiles(
-                                enriched_company.profiles,
-                                enriched_company.company.name
-                            )
-                            
-                            # Update the enriched company with the new FounderProfile objects
-                            enriched_company.profiles = company_founder_profiles
-                            all_enriched_profiles.append(enriched_company)
+                            try:
+                                # Convert LinkedIn profiles to FounderProfiles and collect intelligence with timeout
+                                company_founder_profiles = await asyncio.wait_for(
+                                    founder_pipeline.collect_founder_intelligence_from_linkedin_profiles(
+                                        enriched_company.profiles,
+                                        enriched_company.company.name
+                                    ),
+                                    timeout=100  # 5 minute timeout per company
+                                )
+                                
+                                # Update the enriched company with the new FounderProfile objects
+                                enriched_company.profiles = company_founder_profiles
+                                all_enriched_profiles.append(enriched_company)
+                                print(f"✅ [{i+1}/{len(profiles)}] Completed intelligence collection for {enriched_company.company.name}")
+                            except asyncio.TimeoutError:
+                                logger.error(f"⏰ Intelligence collection timeout for {enriched_company.company.name} (5 minute limit)")
+                                print(f"⏰ [{i+1}/{len(profiles)}] Intelligence collection timeout for {enriched_company.company.name} (5 minute limit)")
+                                # Keep original profiles as fallback
+                                all_enriched_profiles.append(enriched_company)
+                            except Exception as e:
+                                logger.error(f"❌ Intelligence collection failed for {enriched_company.company.name}: {e}")
+                                print(f"❌ [{i+1}/{len(profiles)}] Intelligence collection failed for {enriched_company.company.name}: {e}")
+                                # Keep original profiles as fallback
+                                all_enriched_profiles.append(enriched_company)
                         else:
                             # Keep companies without profiles as is
                             all_enriched_profiles.append(enriched_company)
+                            print(f"⚠️ [{i+1}/{len(profiles)}] No profiles found for {enriched_company.company.name}")
                 
                 founder_intelligence = all_enriched_profiles
                 self.checkpoint_manager.save_checkpoint(checkpoint_id, 'founder_intelligence', founder_intelligence)
                 logger.info(f"✅ Founder intelligence collection complete for {len(founder_intelligence)} companies")
+                print(f"✅ Founder intelligence collection complete for {len(founder_intelligence)} companies")
             
             if rankings is None and ranking_service is not None:
                 logger.info("🏆 Stage 4: Founder Ranking")

@@ -2,7 +2,6 @@
 
 import asyncio
 import re
-import statistics
 import time
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -46,11 +45,11 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
         if self.session:
             await self.session.close()
     
-    def _safe_json_parse(self, content: str, fallback_type: str = "generic") -> dict:
-        """Safely parse JSON with fallback handling."""
+    def _safe_json_parse(self, content: str) -> dict:
+        """Safely parse JSON from a string, returning a dictionary."""
         if not content or not content.strip():
-            logger.warning("Empty content for JSON parsing")
-            return self._get_fallback_data(fallback_type)
+            logger.warning("Empty content provided for JSON parsing.")
+            return {}
             
         try:
             # Clean up common JSON formatting issues
@@ -71,74 +70,11 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
             
         except json.JSONDecodeError as e:
             logger.error(f"JSON parsing failed: {e}. Content: '{content[:200]}...'")
-            
-            # Try to extract numbers with regex as fallback
-            import re
-            numbers = re.findall(r'\d+\.?\d*', content)
-            if numbers:
-                logger.info(f"Extracted numbers as fallback: {numbers}")
-                return self._create_fallback_from_numbers(numbers, fallback_type)
-            
-            return self._get_fallback_data(fallback_type)
+            return {}
         except Exception as e:
-            logger.error(f"Unexpected error in JSON parsing: {e}")
-            return self._get_fallback_data(fallback_type)
-    
-    def _get_fallback_data(self, fallback_type: str) -> dict:
-        """Get fallback data based on type."""
-        fallbacks = {
-            "market_size": {"market_size": 0, "cagr": 0},
-            "timing": {"timing_score": 3},
-            "sentiment": {"us_sentiment": 3, "sea_sentiment": 3},
-            "competitor": {"competitor_count": 10, "total_funding": 1.0, "momentum_score": 3.0},
-            "generic": {}
-        }
-        return fallbacks.get(fallback_type, {})
-    
-    def _create_fallback_from_numbers(self, numbers: list, fallback_type: str) -> dict:
-        """Create fallback data from extracted numbers."""
-        if fallback_type == "market_size":
-            return {
-                "market_size": float(numbers[0]) if numbers else 0,
-                "cagr": float(numbers[1]) if len(numbers) > 1 else 0
-            }
-        elif fallback_type == "timing":
-            return {"timing_score": min(5, max(1, float(numbers[0]))) if numbers else 3}
-        elif fallback_type == "sentiment":
-            return {
-                "us_sentiment": min(5, max(1, float(numbers[0]))) if numbers else 3,
-                "sea_sentiment": min(5, max(1, float(numbers[1]))) if len(numbers) > 1 else 3
-            }
-        elif fallback_type == "competitor":
-            return {
-                "competitor_count": int(float(numbers[0])) if numbers else 10,
-                "total_funding": float(numbers[1]) if len(numbers) > 1 else 1.0,
-                "momentum_score": min(5, max(1, float(numbers[2]))) if len(numbers) > 2 else 3.0
-            }
-        return {}
-    
-    def _safe_float(self, value) -> float:
-        """Safely convert value to float."""
-        try:
-            if value is None:
-                return 0.0
-            if isinstance(value, (int, float)):
-                return float(value)
-            if isinstance(value, str):
-                # Extract first number from string
-                import re
-                numbers = re.findall(r'\d+\.?\d*', value)
-                return float(numbers[0]) if numbers else 0.0
-            if isinstance(value, dict):
-                # If it's a dict, try to get a numeric value from it
-                for key in ['value', 'number', 'amount', 'size', 'cagr', 'score']:
-                    if key in value:
-                        return self._safe_float(value[key])
-                return 0.0
-            return 0.0
-        except (ValueError, TypeError, AttributeError):
-            return 0.0
-    
+            logger.error(f"An unexpected error occurred during JSON parsing: {e}")
+            return {}
+
     async def analyze_market(
         self, 
         sector: str, 
@@ -162,38 +98,46 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
             
             results = await asyncio.gather(*tasks, return_exceptions=True)
             
-            # Extract results safely
-            market_data = results[0] if not isinstance(results[0], Exception) else {"market_size": 0, "cagr": 0}
-            timing_data = results[1] if not isinstance(results[1], Exception) else {"timing_score": 3.0}
-            us_sentiment = results[2] if not isinstance(results[2], Exception) else 3.0
-            asia_sentiment = results[3] if not isinstance(results[3], Exception) else 3.0
-            competitor_data = results[4] if not isinstance(results[4], Exception) else {"competitor_count": 10, "total_funding": 1.0, "momentum_score": 3.0}
-            
+            # Safely extract results
+            market_data = results[0] if isinstance(results[0], dict) else {}
+            timing_data = results[1] if isinstance(results[1], dict) else {}
+            us_sentiment = results[2] if isinstance(results[2], (int, float)) else 0.0
+            asia_sentiment = results[3] if isinstance(results[3], (int, float)) else 0.0
+            competitor_data = results[4] if isinstance(results[4], dict) else {}
+
+            # Safely access and convert values, providing 0 as a default
+            market_size = float(market_data.get("market_size", 0) or 0)
+            cagr = float(market_data.get("cagr", 0) or 0)
+            timing_score = float(timing_data.get("timing_score", 0) or 0)
+            competitor_count = int(competitor_data.get("competitor_count", 0) or 0)
+            total_funding = float(competitor_data.get("total_funding", 0) or 0)
+            momentum_score = float(competitor_data.get("momentum_score", 0) or 0)
+
             # Determine market stage
             market_stage = self._determine_market_stage(
-                market_data.get("cagr", 0),
-                competitor_data.get("competitor_count", 10),
-                timing_data.get("timing_score", 3.0)
+                cagr,
+                competitor_count,
+                timing_score
             )
             
             # Calculate confidence score
             confidence = self._calculate_confidence_score(
-                market_data, competitor_data, timing_data.get("timing_score", 3.0)
+                market_data, competitor_data, timing_score
             )
             
             execution_time = time.time() - start_time
             
             metrics = MarketMetrics(
-                market_size_billion=market_data.get("market_size", 0),
-                market_size_usd=market_data.get("market_size", 0) * 1_000_000_000,  # Convert to USD
-                cagr_percent=market_data.get("cagr", 0),
-                growth_rate=market_data.get("cagr", 0),
-                timing_score=timing_data.get("timing_score", 3.0),
+                market_size_billion=market_size,
+                market_size_usd=market_size * 1_000_000_000,
+                cagr_percent=cagr,
+                growth_rate=cagr,
+                timing_score=timing_score,
                 us_sentiment=us_sentiment,
-                sea_sentiment=asia_sentiment,  # Using Asia as proxy for SEA
-                competitor_count=competitor_data.get("competitor_count", 10),
-                total_funding_billion=competitor_data.get("total_funding", 1.0),
-                momentum_score=competitor_data.get("momentum_score", 3.0),
+                sea_sentiment=asia_sentiment,
+                competitor_count=competitor_count,
+                total_funding_billion=total_funding,
+                momentum_score=momentum_score,
                 market_stage=market_stage,
                 confidence_score=confidence,
                 analysis_date=datetime.utcnow(),
@@ -205,36 +149,34 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
             
         except Exception as e:
             logger.error(f"Error analyzing market for {sector}: {e}")
-            # Return default metrics
+            # Return default metrics on failure
             return MarketMetrics(
                 market_size_billion=0,
                 market_size_usd=0,
                 cagr_percent=0,
                 growth_rate=0,
-                timing_score=3.0,
-                us_sentiment=3.0,
-                sea_sentiment=3.0,
-                competitor_count=10,
-                total_funding_billion=1.0,
-                momentum_score=3.0,
+                timing_score=0.0,
+                us_sentiment=0.0,
+                sea_sentiment=0.0,
+                competitor_count=0,
+                total_funding_billion=0.0,
+                momentum_score=0.0,
                 market_stage=MarketStage.UNKNOWN,
                 confidence_score=0.1,
                 analysis_date=datetime.utcnow(),
                 execution_time=time.time() - start_time
             )
     
-    async def _get_market_size_and_cagr_perplexity(self, sector: str, year: int) -> Dict:
-        """Get market size and CAGR using Perplexity's research capabilities."""
+    async def _get_market_size_and_cagr_perplexity(self, sector: str, year: int) -> Optional[Dict]:
+        """Get market size and CAGR using Perplexity, returning structured JSON."""
         prompt = f"""
-        Research the {sector} market globally for {year}. Provide specific data on:
+        Research the {sector} market globally for {year}. Provide the following data in a clear JSON format:
         
-        1. Current market size in billions USD
-        2. Expected CAGR (Compound Annual Growth Rate) percentage
-        3. Key growth drivers
-        4. Market forecasts for the next 3-5 years
+        - Market size in billions USD
+        - Expected CAGR (Compound Annual Growth Rate) as a percentage
         
-        Focus on early-stage companies and emerging opportunities in this sector.
-        Please provide specific numerical values where available.
+        Return only a valid JSON object with the keys "market_size" and "cagr".
+        Example: {{"market_size": 15.5, "cagr": 12.5}}
         """
         
         try:
@@ -243,53 +185,25 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
             response = await self.perplexity_client.chat.completions.create(
                 model="sonar-pro",
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.1
+                temperature=0.1,
+                response_format={"type": "json_object"},
             )
             
             content = response.choices[0].message.content
-            
-            # Extract metrics using OpenAI for structured parsing
-            extraction_prompt = f"""
-            Extract market metrics from this research content. Return valid JSON only:
-            
-            {content}
-            
-            {{
-                "market_size": "market size in billions USD as number or null",
-                "cagr": "CAGR percentage as number or null"
-            }}
-            """
-            
-            extraction_response = await self.openai_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": extraction_prompt}],
-                temperature=0.1
-            )
-            
-            result = self._safe_json_parse(extraction_response.choices[0].message.content, "market_size")
-            
-            return {
-                "market_size": self._safe_float(result.get("market_size", 0)),
-                "cagr": self._safe_float(result.get("cagr", 0))
-            }
+            return self._safe_json_parse(content)
             
         except Exception as e:
             logger.error(f"Error getting market size/CAGR from Perplexity: {e}")
-            return {"market_size": 0, "cagr": 0}
+            return None
     
-    async def _get_timing_analysis_perplexity(self, sector: str, year: int) -> Dict:
-        """Get market timing analysis using Perplexity."""
+    async def _get_timing_analysis_perplexity(self, sector: str, year: int) -> Optional[Dict]:
+        """Get market timing analysis using Perplexity, returning structured JSON."""
         prompt = f"""
-        Analyze the market timing for early-stage {sector} companies in {year}. Consider:
+        Analyze the market timing for early-stage {sector} companies in {year}.
+        Rate the market timing on a scale of 1-5 (5 being excellent).
         
-        1. Technology maturity and adoption readiness
-        2. Market barriers and entry opportunities
-        3. Competitive landscape for new entrants
-        4. Investment climate and funding availability
-        5. Regulatory environment
-        
-        Rate the market timing on a scale of 1-5 (5 being excellent timing for new companies).
-        Explain your reasoning.
+        Return only a valid JSON object with the key "timing_score".
+        Example: {{"timing_score": 4.0}}
         """
         
         try:
@@ -298,52 +212,25 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
             response = await self.perplexity_client.chat.completions.create(
                 model="sonar-pro",
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.1
+                temperature=0.1,
+                response_format={"type": "json_object"},
             )
             
             content = response.choices[0].message.content
-            
-            # Extract timing score
-            extraction_prompt = f"""
-            Extract the timing score from this analysis. Return valid JSON only:
-            
-            {content}
-            
-            {{
-                "timing_score": "timing score from 1-5 as number"
-            }}
-            """
-            
-            extraction_response = await self.openai_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": extraction_prompt}],
-                temperature=0.1
-            )
-            
-            result = self._safe_json_parse(extraction_response.choices[0].message.content, "timing")
-            
-            return {
-                "timing_score": self._safe_float(result.get("timing_score", 3.0))
-            }
+            return self._safe_json_parse(content)
             
         except Exception as e:
             logger.error(f"Error getting timing analysis from Perplexity: {e}")
-            return {"timing_score": 3.0}
+            return None
     
     async def _get_regional_sentiment_perplexity(self, sector: str, year: int, region: str) -> float:
-        """Get regional market sentiment using Perplexity."""
+        """Get regional market sentiment using Perplexity, returning a score."""
         prompt = f"""
-        Analyze the {sector} market sentiment and opportunities in {region} for {year}. Consider:
+        Analyze the {sector} market sentiment in {region} for {year}.
+        Rate the sentiment for early-stage companies on a scale of 1-5 (5 being very positive).
         
-        1. Government support and policies
-        2. Investment climate and VC activity
-        3. Talent availability and ecosystem maturity
-        4. Market adoption rates
-        5. Regulatory environment
-        6. Success stories and market traction
-        
-        Rate the overall sentiment for early-stage companies on a scale of 1-5 
-        (5 being very positive/favorable conditions).
+        Return only a valid JSON object with the key "sentiment_score".
+        Example: {{"sentiment_score": 4.5}}
         """
         
         try:
@@ -352,50 +239,30 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
             response = await self.perplexity_client.chat.completions.create(
                 model="sonar-pro",
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.1
+                temperature=0.1,
+                response_format={"type": "json_object"},
             )
             
             content = response.choices[0].message.content
-            
-            # Extract sentiment score
-            extraction_prompt = f"""
-            Extract the sentiment score from this analysis. Return valid JSON only:
-            
-            {content}
-            
-            {{
-                "sentiment_score": "sentiment score from 1-5 as number"
-            }}
-            """
-            
-            extraction_response = await self.openai_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": extraction_prompt}],
-                temperature=0.1
-            )
-            
-            result = self._safe_json_parse(extraction_response.choices[0].message.content, "sentiment")
-            
-            return self._safe_float(result.get("sentiment_score", 3.0))
-            
+            result = self._safe_json_parse(content)
+            return float(result.get("sentiment_score", 0.0) or 0.0)
+
         except Exception as e:
-            logger.error(f"Error getting regional sentiment from Perplexity: {e}")
-            return 3.0
+            logger.error(f"Error getting regional sentiment from Perplexity for {region}: {e}")
+            return 0.0
     
-    async def _get_competitor_analysis_perplexity(self, sector: str, year: int) -> Dict:
-        """Get competitor analysis using Perplexity."""
+    async def _get_competitor_analysis_perplexity(self, sector: str, year: int) -> Optional[Dict]:
+        """Get competitor analysis using Perplexity, returning structured JSON."""
         prompt = f"""
-        Analyze the competitive landscape for early-stage {sector} companies in {year}:
+        Analyze the competitive landscape for early-stage {sector} companies in {year}.
+        Provide the following data in a clear JSON format:
         
-        1. Number of major competitors/players in the market
-        2. Total venture funding raised in this sector
-        3. Key market leaders and their positions
-        4. Barriers to entry for new companies
-        5. Market consolidation trends
-        6. Opportunities for disruption
+        - Number of major competitors as an integer
+        - Total venture funding in this sector in billions USD
+        - Market momentum score on a 1-5 scale (5 being high momentum)
         
-        Provide specific numbers where possible (competitor count, funding amounts).
-        Rate market momentum on 1-5 scale (5 being very high momentum/activity).
+        Return only a valid JSON object with keys "competitor_count", "total_funding", and "momentum_score".
+        Example: {{"competitor_count": 25, "total_funding": 2.1, "momentum_score": 4.0}}
         """
         
         try:
@@ -404,41 +271,16 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
             response = await self.perplexity_client.chat.completions.create(
                 model="sonar-pro",
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.1
+                temperature=0.1,
+                response_format={"type": "json_object"},
             )
             
             content = response.choices[0].message.content
-            
-            # Extract competitor metrics
-            extraction_prompt = f"""
-            Extract competitor metrics from this analysis. Return valid JSON only:
-            
-            {content}
-            
-            {{
-                "competitor_count": "number of major competitors as integer",
-                "total_funding": "total funding in billions USD as number",
-                "momentum_score": "momentum score from 1-5 as number"
-            }}
-            """
-            
-            extraction_response = await self.openai_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": extraction_prompt}],
-                temperature=0.1
-            )
-            
-            result = self._safe_json_parse(extraction_response.choices[0].message.content, "competitor")
-            
-            return {
-                "competitor_count": int(self._safe_float(result.get("competitor_count", 10))),
-                "total_funding": self._safe_float(result.get("total_funding", 1.0)),
-                "momentum_score": self._safe_float(result.get("momentum_score", 3.0))
-            }
+            return self._safe_json_parse(content)
             
         except Exception as e:
             logger.error(f"Error getting competitor analysis from Perplexity: {e}")
-            return {"competitor_count": 10, "total_funding": 1.0, "momentum_score": 3.0}
+            return None
     
     def _determine_market_stage(
         self, 

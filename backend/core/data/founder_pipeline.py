@@ -7,7 +7,7 @@ import logging
 
 from ..ranking.models import FounderProfile
 from .financial_collector import FinancialDataCollector
-from .perplexity_service import PerplexitySearchService
+from .intel_service import PerplexitySearchService
 from .media_collector import MediaCollector
 from ...utils.rate_limiter import RateLimiter
 from ...models import LinkedInProfile
@@ -26,10 +26,31 @@ class FounderDataPipeline:
     
     async def __aenter__(self):
         """Async context manager entry."""
-        # Initialize all services
-        await self.financial_collector.__aenter__()
-        await self.perplexity_service.__aenter__()
-        await self.media_collector.__aenter__()
+        # Initialize all services with individual timeouts
+        logger.info("🔧 Initializing founder pipeline services...")
+        
+        try:
+            logger.info("🔧 Initializing financial collector...")
+            await asyncio.wait_for(self.financial_collector.__aenter__(), timeout=30)
+            logger.info("✅ Financial collector initialized")
+        except Exception as e:
+            logger.error(f"❌ Financial collector initialization failed: {e}")
+            
+        try:
+            logger.info("🔧 Initializing perplexity service...")
+            await asyncio.wait_for(self.perplexity_service.__aenter__(), timeout=30)
+            logger.info("✅ Perplexity service initialized")
+        except Exception as e:
+            logger.error(f"❌ Perplexity service initialization failed: {e}")
+            
+        try:
+            logger.info("🔧 Initializing media collector...")
+            await asyncio.wait_for(self.media_collector.__aenter__(), timeout=30)
+            logger.info("✅ Media collector initialized")
+        except Exception as e:
+            logger.error(f"❌ Media collector initialization failed: {e}")
+            
+        logger.info("🔧 Founder pipeline services initialization complete")
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -197,9 +218,15 @@ class FounderDataPipeline:
     ):
         """Collect financial data with error handling."""
         try:
-            return await self.financial_collector.collect_founder_financial_data(
-                founder_name, company_name, linkedin_url
+            return await asyncio.wait_for(
+                self.financial_collector.collect_founder_financial_data(
+                    founder_name, company_name, linkedin_url
+                ),
+                timeout=60  # 1 minute timeout for financial data
             )
+        except asyncio.TimeoutError:
+            logger.error(f"Financial data collection timeout for {founder_name}")
+            return None
         except Exception as e:
             logger.error(f"Financial data collection failed for {founder_name}: {e}")
             return None
@@ -207,9 +234,15 @@ class FounderDataPipeline:
     async def _collect_media_data(self, founder_name: str, company_name: str):
         """Collect media data with error handling."""
         try:
-            return await self.media_collector.collect_founder_media_profile(
-                founder_name, company_name
+            return await asyncio.wait_for(
+                self.media_collector.collect_founder_media_profile(
+                    founder_name, company_name
+                ),
+                timeout=60  # 1 minute timeout for media data
             )
+        except asyncio.TimeoutError:
+            logger.error(f"Media data collection timeout for {founder_name}")
+            return None
         except Exception as e:
             logger.error(f"Media data collection failed for {founder_name}: {e}")
             return None
@@ -217,9 +250,15 @@ class FounderDataPipeline:
     async def _collect_web_intelligence(self, founder_name: str, company_name: str):
         """Collect web intelligence with error handling."""
         try:
-            return await self.perplexity_service.collect_founder_web_intelligence(
-                founder_name, company_name
+            return await asyncio.wait_for(
+                self.perplexity_service.collect_founder_web_intelligence(
+                    founder_name, company_name
+                ),
+                timeout=60  # 1 minute timeout for web intelligence
             )
+        except asyncio.TimeoutError:
+            logger.error(f"Web intelligence collection timeout for {founder_name}")
+            return None
         except Exception as e:
             logger.error(f"Web intelligence collection failed for {founder_name}: {e}")
             return None

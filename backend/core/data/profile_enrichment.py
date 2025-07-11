@@ -15,7 +15,7 @@ from ..interfaces import ProfileEnrichmentService
 from ..config import settings
 from ...utils.data_processing import clean_text
 from ...utils.rate_limiter import RateLimiter
-from ...validators import validate_linkedin_url
+from ...utils.validators import validate_linkedin_url
 from ...models import Company, LinkedInProfile
 
 import logging
