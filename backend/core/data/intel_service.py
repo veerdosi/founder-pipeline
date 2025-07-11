@@ -110,7 +110,7 @@ class PerplexitySearchService(PerplexityBaseService):
         current_company: str
     ) -> FounderWebSearchData:
         """Collect comprehensive web intelligence for a founder using Perplexity."""
-        logger.info(f"🔍 Collecting web intelligence for {founder_name} using Perplexity")
+        logger.debug(f"🔍 Collecting web intelligence for {founder_name} using Perplexity")
         
         web_data = FounderWebSearchData(
             founder_name=founder_name,

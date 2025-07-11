@@ -306,7 +306,7 @@ async def export_companies():
         
         # Save to outputs folder
         import os
-        output_dir = "/Users/veerdosi/Documents/code/github/initiation-pipeline/output"
+        output_dir = "output"
         os.makedirs(output_dir, exist_ok=True)
         
         filename = f"companies_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
@@ -421,7 +421,7 @@ async def export_rankings():
         
         # Save to outputs folder
         import os
-        output_dir = "/Users/veerdosi/Documents/code/github/initiation-pipeline/output"
+        output_dir = "output"
         os.makedirs(output_dir, exist_ok=True)
         
         filename = f"founder_rankings_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"

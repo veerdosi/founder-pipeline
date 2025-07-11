@@ -1,237 +1,180 @@
-# AI Founder Discovery & Ranking Pipeline
+# Initiation Pipeline: AI-Powered Founder Discovery and Ranking
 
-A comprehensive system for discovering early-stage AI companies and building detailed founder datasets with **L1-L10 experience classification**, multi-source verification, and real-time data enhancement.
+A comprehensive, multi-source data processing pipeline to discover, analyze, and rank early-stage AI companies and their founders. This system uses an advanced L1-L10 experience classification framework, real-time data enhancement, and multi-source verification to build detailed founder datasets.
 
-## 🎯 Enhanced L1-L10 Founder Classification System
+## Table of Contents
 
-This pipeline implements a sophisticated **L1-L10 founder experience framework** with **comprehensive data verification** from multiple authoritative sources including SEC filings, university records, accelerator databases, and financial data aggregation.
+- [Key Features](#-key-features)
+- [System Architecture](#️-system-architecture)
+- [Data Pipeline Workflow](#-data-pipeline-workflow)
+- [Getting Started](#-getting-started)
+- [Usage](#-usage)
+- [API Keys](#-required-api-keys)
+- [Project Structure](#-project-structure)
+- [Technologies Used](#-technologies-used)
+- [Troubleshooting](#-troubleshooting)
+- [License](#-license)
 
 ## ✨ Key Features
 
-### Core Capabilities
-
-- **Enhanced Data Collection**: Comprehensive founder financial profiles, education verification, accelerator tracking, and SEC filings analysis
-- **Multi-Source Verification**: Real-time validation from SEC EDGAR, university databases, Y Combinator API, Techstars, and academic publication databases
-- **L1-L10 Classification**: AI-powered ranking with rule-based validation using verified financial thresholds
-- **Web-Based Interface**: Modern React frontend for managing discovery and ranking workflows
-- **Smart Checkpointing**: Robust resume capability for interrupted operations
-
-- **Financial Data Aggregation**: Comprehensive exit tracking, unicorn identification, and valuation verification
-
-### Enhanced L1-L10 Framework with Verification
-
-- **L10**: Multiple IPOs >$1B _(SEC EDGAR verified)_
-- **L9**: 1 IPO >$1B, building second company _(SEC + Crunchbase verified)_
-- **L8**: Built 1+ unicorn companies _(Crunchbase + market data verified)_
-- **L7**: 2+ exits >$100M _(SEC filings + financial records verified)_
-- **L6**: Groundbreaking innovation _(Patent databases + media verified)_
-- **L5**: Companies with >$50M funding _(Crunchbase + SEC verified)_
-- **L4**: $10M-$100M exits or C-level roles _(LinkedIn + financial verified)_
-- **L3**: 10+ years experience OR PhD _(University + academic publication verified)_
-- **L2**: Accelerator graduates, 2-5 years experience _(Y Combinator/Techstars API verified)_
-- **L1**: <2 years experience, first-time founders _(LinkedIn profile verified)_
+- **Automated Company Discovery**: Identifies early-stage AI companies from multiple sources like Exa and Crunchbase.
+- **Comprehensive Data Enrichment**: Gathers detailed information on companies and founders, including financials, educational background, and professional history from sources like LinkedIn, SEC EDGAR, and university databases.
+- **AI-Powered Founder Ranking**: Utilizes a sophisticated L1-L10 framework to classify founder experience, leveraging large language models (Claude Sonnet 4) for nuanced analysis.
+- **Multi-Source Verification**: Cross-references data from various authoritative sources to ensure accuracy and assign confidence scores.
+- **Web-Based Interface**: A modern React frontend provides a user-friendly interface for running the pipeline, viewing results, and performing market analysis.
+- **Smart Checkpointing**: Robust checkpointing system allows for resuming interrupted pipelines, saving time and resources.
+- **Market Analysis**: On-demand market analysis for discovered companies, providing insights into market size, growth, and competition.
 
 ## 🏗️ System Architecture
 
-### Backend Components
+The Initiation Pipeline is composed of two main components: a Python backend and a React frontend.
 
-- **Enhanced Data Collectors**: SEC filings, university verification, accelerator APIs, financial aggregation
-- **AI Ranking Service**: Claude Sonnet 4 with multi-source validation
-- **Data Enhancement Orchestrator**: Manages comprehensive data collection workflows
-- **FastAPI Server**: RESTful API with async processing
+### Backend
+
+The backend is built with **FastAPI** and is responsible for the core data processing and analysis. It consists of several key modules:
+
+- **Data Collectors**: A set of services that gather data from various external APIs and web sources.
+- **Data Fusion Service**: Merges and de-duplicates data from multiple sources to create a unified view of each company.
+- **Profile Enrichment**: Finds and scrapes LinkedIn profiles for founders to gather professional history.
+- **Founder Ranking Service**: Uses AI to classify founders based on the L1-L10 framework.
+- **Market Analysis**: Generates market reports using Perplexity AI.
+- **Checkpoint Manager**: Saves and loads the state of the pipeline at various stages.
 
 ### Frontend
 
-- **React (Vite) Interface**: Company discovery, founder ranking, data export
-- **Real-time Progress Tracking**: Live updates during data collection and ranking
+The frontend is a **React** application built with **Vite**. It provides a user interface for:
+
+- **Running the Pipeline**: Initiating company discovery and founder ranking tasks.
+- **Viewing Results**: Displaying discovered companies and ranked founders in a clear and interactive way.
+- **Market Analysis**: Selecting a company and generating a detailed market analysis report.
+- **Checkpoint Management**: Resuming the pipeline from a previous checkpoint.
+
+## 📊 Data Pipeline Workflow
+
+The data flows through the system in the following stages:
+
+1.  **Company Discovery**: The pipeline starts by discovering a list of companies based on user-defined criteria (e.g., industry, location, founding year).
+2.  **Data Fusion & Enhancement**: The initial list of companies is enriched with additional data from Crunchbase and other sources.
+3.  **Founder Profile Enrichment**: The system identifies the founders of each company and scrapes their LinkedIn profiles for detailed professional and educational history.
+4.  **Founder Intelligence Collection**: Further intelligence is gathered on each founder to prepare for ranking.
+5.  **Founder Ranking**: The enriched founder profiles are passed to the AI-powered ranking service, which classifies each founder on the L1-L10 scale.
+6.  **Results Display**: The final results, including the list of companies and ranked founders, are displayed in the web interface and can be exported to CSV.
 
 ## 🚀 Getting Started
 
-### 1. Prerequisites
+### Prerequisites
 
 - Python 3.9+
 - Node.js 16+ and npm
-- API keys for verification sources (see below)
+- API keys for the services listed in the `.env.example` file.
 
-### 2. Environment Setup
+### Installation
 
-```bash
-git clone <repository_url>
-cd <repository_folder>
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/your-username/initiation-pipeline.git
+    cd initiation-pipeline
+    ```
 
-# Copy and configure environment
-cp .env.example .env
-# Edit .env with your API keys
-```
+2.  **Set up the environment:**
+    ```bash
+    cp .env.example .env
+    ```
+    Edit the `.env` file and add your API keys.
 
-### 3. Backend Setup
+3.  **Set up the backend:**
+    ```bash
+    python -m venv venv
+    source venv/bin/activate
+    pip install -r requirements.txt
+    ```
 
-```bash
-# Install dependencies
-pip install -r requirements.txt
+4.  **Set up the frontend:**
+    ```bash
+    cd frontend
+    npm install
+    ```
 
-# Start FastAPI server
-uvicorn backend.web:app --reload
-```
+### Running the Application
 
-### 4. Frontend Setup
+1.  **Start the backend server:**
+    ```bash
+    source venv/bin/activate
+    uvicorn backend.api.main:app --reload
+    ```
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+2.  **Start the frontend development server:**
+    ```bash
+    cd frontend
+    npm run dev
+    ```
 
-Access the application at `http://localhost:3000`
+The application will be available at `http://localhost:3000`.
 
-## 💻 Enhanced Workflow
+## 💻 Usage
 
-### 1. Company Discovery
+The web interface provides two main tabs: "Pipeline" and "Market Analysis".
 
-- Configure discovery parameters (categories, regions, funding stages)
-- Multi-source discovery via Exa, Crunchbase, and specialized databases
-- Export discovered companies with founder profiles
+### Pipeline Tab
 
-### 2. Enhanced Data Collection
+- **Run a new pipeline:** Select "Start Fresh", choose a founding year, and click "Run Pipeline".
+- **Resume a pipeline:** Select "Resume from Checkpoint", choose a checkpoint from the dropdown, and click "Run Pipeline".
+- **View results:** Once the pipeline is complete, the discovered companies and ranked founders will be displayed in sortable tables.
+- **Export results:** Click the "Export Companies" or "Export Founders" buttons to download the results as CSV files.
 
-- **Financial Profile Enhancement**: Exit tracking, valuation history, unicorn identification
-- **Education Verification**: PhD validation across 60+ universities, academic publication mining
-- **Accelerator Verification**: Direct API verification with Y Combinator, Techstars, 500 Startups
-- **SEC Filings Analysis**: Real-time IPO/acquisition verification via EDGAR
+### Market Analysis Tab
 
-### 3. L1-L10 Ranking
-
-- AI-powered classification with Claude Sonnet 4
-- Rule-based validation using enhanced data
-- Confidence scoring based on verification source quality
-- Export ranked datasets with comprehensive founder profiles
+- **Select a company:** Choose a company from the dropdown list.
+- **Run analysis:** Click "Run Market Analysis" to generate a report.
+- **View report:** The market analysis report will be displayed with key metrics and scores.
+- **Export to PDF:** Click "Export to PDF" to save the report.
 
 ## 🔑 Required API Keys
 
-### Core Classification APIs
+The following API keys are required for the pipeline to function correctly. They should be placed in the `.env` file.
 
-```bash
-ANTHROPIC_API_KEY=          # Claude Sonnet 4 for L1-L10 classification
-PERPLEXITY_API_KEY=         # Real-time verification and fact-checking
-OPENAI_API_KEY=             # Data extraction and analysis
+- `ANTHROPIC_API_KEY`: For founder ranking using Claude Sonnet 4.
+- `PERPLEXITY_API_KEY`: For market analysis and real-time fact-checking.
+- `OPENAI_API_KEY`: For data extraction and analysis.
+- `EXA_API_KEY`: For company discovery and web search.
+- `CRUNCHBASE_API_KEY`: For financial data and company intelligence.
+- `APIFY_API_KEY`: For scraping LinkedIn profiles.
+- `SERPER_API_KEY`: For real-time Google Search validation.
+
+## 📁 Project Structure
+
+```
+/
+├── backend/
+│   ├── api/            # FastAPI application
+│   ├── core/           # Core business logic
+│   │   ├── analysis/   # Data analysis modules
+│   │   ├── data/       # Data collection and fusion
+│   │   └── ranking/    # Founder ranking service
+│   └── utils/          # Utility functions
+├── frontend/
+│   ├── src/
+│   │   ├── components/ # React components
+│   │   ├── interfaces.ts # TypeScript interfaces
+│   │   └── App.tsx     # Main application component
+├── jupyter/            # Jupyter notebooks for data exploration
+├── output/             # Default directory for exported files
+├── checkpoints/        # Saved pipeline checkpoints
+└── requirements.txt    # Python dependencies
 ```
 
-### Data Source APIs
+## 🛠️ Technologies Used
 
-```bash
-EXA_API_KEY=                # Company discovery and web search
-CRUNCHBASE_API_KEY=         # Financial data and company intelligence
-APIFY_API_KEY=              # LinkedIn profile extraction
-SERPER_API_KEY=             # Real-time Google Search validation
-```
-
-### Verification APIs (Enhanced System)
-
-```bash
-# SEC verification (no key required - uses public EDGAR API)
-# Y Combinator verification (public API)
-# University verification (public directories)
-# Academic databases (arXiv, PubMed - public APIs)
-```
-
-## 📊 Data Sources & Verification
-
-### Financial Data
-
-- **SEC EDGAR**: Official IPO/acquisition filings for L7+ verification
-- **Crunchbase**: Funding rounds, valuations, company intelligence
-- **Market Data**: Real-time valuation tracking and unicorn identification
-
-### Education Verification
-
-- **60+ Top Universities**: MIT, Stanford, Harvard, Oxford, Cambridge, IITs, etc.
-- **Academic Databases**: arXiv, PubMed for publication verification
-- **Faculty Directories**: Direct university verification for PhD claims
-
-### Accelerator Verification
-
-- **Y Combinator API**: Direct batch and demo day verification
-- **Techstars Portfolio**: Program participation tracking
-- **500 Startups**: Cohort verification and funding data
-
-### Professional History
-
-- **LinkedIn Profiles**: Experience validation and role verification
-- **Company Databases**: Executive history and role authentication
-
-## 🛠️ Configuration
-
-### Rate Limiting
-
-```bash
-REQUESTS_PER_MINUTE=30      # API request throttling
-CONCURRENT_REQUESTS=3       # Concurrent processing limit
-```
-
-### Processing Options
-
-```bash
-DEFAULT_OUTPUT_DIR=./output # Export directory
-CHECKPOINT_ENABLED=true     # Resume interrupted operations
-```
-
-## 🔧 Enhanced Features
-
-### Multi-Source Confidence Scoring
-
-- **High Confidence**: 3+ verification sources, SEC/university verified
-- **Medium Confidence**: 2 verification sources, financial data confirmed
-- **Low Confidence**: Single source, basic profile data only
-
-### Adaptive Data Collection
-
-- **Priority-Based**: Focus on high-value L7+ verification first
-- **Source-Aware**: Automatically select optimal verification methods
-- **Quality-Driven**: Prefer authoritative sources (SEC > media reports)
-
-### Real-Time Validation
-
-- **Stale Data Detection**: Identify outdated information before ranking
-- **Live Verification**: Cross-check claims against current data
-- **Confidence Adjustment**: Dynamic scoring based on verification quality
-
-## 📈 Performance & Accuracy
-
-- **Enhanced L7+ Accuracy**: 95%+ with SEC filing verification
-- **PhD Verification**: 90%+ accuracy with university database integration
-- **Accelerator Tracking**: 98% accuracy with direct API access
-- **Processing Speed**: 100-500 founders/hour depending on verification depth
+- **Backend**: Python, FastAPI, Pandas, httpx, Anthropic API, OpenAI API, Exa API
+- **Frontend**: React, TypeScript, Vite, TanStack Query, Recharts, Lucide React
+- **Data Storage**: Filesystem for checkpointing and CSV/JSON for exports.
 
 ## 🚨 Troubleshooting
 
-### Common Issues
+- **Missing API Keys**: Ensure all required API keys are present in the `.env` file.
+- **Rate Limiting**: If you encounter 429 errors, adjust the `REQUESTS_PER_MINUTE` and `CONCURRENT_REQUESTS` settings in `backend/core/config.py`.
+- **Frontend Not Connecting**: Make sure the backend server is running on `http://localhost:8000`.
 
-- **Missing API Keys**: Check `.env` file configuration
-- **Rate Limiting**: Adjust `REQUESTS_PER_MINUTE` if encountering 429 errors
-- **Verification Failures**: Some universities/accelerators may have limited public data
-- **SEC Access**: No API key required, but rate limits apply (10 requests/second)
+## 📄 License
 
-### Performance Optimization
-
-- **Batch Processing**: Process founders in groups of 3-5 for optimal performance
-- **Selective Enhancement**: Use adaptive collection for faster processing
-- **Checkpoint Recovery**: Resume interrupted jobs without data loss
-
-## 📊 Output Formats
-
-### Enhanced Founder Dataset
-
-- **Ranking Data**: L-level, confidence score, reasoning
-- **Financial Metrics**: Exit values, unicorn count, total value created
-- **Verification Status**: Source quality, confidence adjustments
-- **Professional History**: Enhanced experience and education verification
-
-### Export Options
-
-- **CSV**: Standard spreadsheet format with all enhanced data
-- **JSON**: Structured data for API integration
-- **Dashboard**: Real-time visualization and filtering
-
-## License
-
-MIT License
+This project is licensed under the MIT License.

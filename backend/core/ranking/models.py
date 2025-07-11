@@ -20,6 +20,7 @@ class ExitType(Enum):
 class InvestmentType(Enum):
     """Types of investments made by founder."""
     ANGEL = "angel"
+    SERIES_A = "series_a"
     VENTURE = "venture"
     ADVISORY = "advisory"
     BOARD_SEAT = "board_seat"

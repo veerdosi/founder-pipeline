@@ -39,7 +39,7 @@ export default function App() {
 
   const loadCheckpoints = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/checkpoints');
+      const response = await fetch('/api/checkpoints');
       if (response.ok) {
         const checkpointList = await response.json();
         setCheckpoints(checkpointList);
@@ -72,7 +72,7 @@ export default function App() {
 
   const loadCompanies = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/companies/list');
+      const response = await fetch('/api/companies/list');
       if (response.ok) {
         const companiesList = await response.json();
         setCompanies(companiesList);
@@ -98,7 +98,7 @@ export default function App() {
     setMarketAnalysis(null);
 
     try {
-      const response = await fetch(`http://localhost:8000/api/companies/${encodeURIComponent(selectedCompany)}/market-analysis`, {
+      const response = await fetch(`/api/companies/${encodeURIComponent(selectedCompany)}/market-analysis`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -205,7 +205,7 @@ export default function App() {
       if (startMode === 'resume') {
         updateStep('Resuming Pipeline', 'running', `Resuming from checkpoint: ${selectedCheckpoint}`);
         
-        const resumeResponse = await fetch(`http://localhost:8000/api/pipeline/resume/${selectedCheckpoint}`, {
+        const resumeResponse = await fetch(`/api/pipeline/resume/${selectedCheckpoint}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
@@ -219,8 +219,8 @@ export default function App() {
 
         updateStep('Loading Results', 'running');
         const [companiesData, foundersData] = await Promise.all([
-          fetch('http://localhost:8000/api/companies').then(r => r.json()),
-          fetch('http://localhost:8000/api/founders/rankings').then(r => r.json()).catch(() => [])
+          fetch('/api/companies').then(r => r.json()),
+          fetch('/api/founders/rankings').then(r => r.json()).catch(() => [])
         ]);
 
         setResults({
@@ -234,7 +234,7 @@ export default function App() {
       } else {
         updateStep('Company Discovery', 'running', 'Searching for companies...');
         
-        const pipelineResponse = await fetch('http://localhost:8000/api/pipeline/run', {
+        const pipelineResponse = await fetch('/api/pipeline/run', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -251,7 +251,7 @@ export default function App() {
         updateStep('Company Discovery', 'completed', `Found ${pipelineResult.companiesFound} companies`);
 
         updateStep('Loading Company Data', 'running');
-        const companiesResponse = await fetch('http://localhost:8000/api/companies');
+        const companiesResponse = await fetch('/api/companies');
         const companies = await companiesResponse.json();
         updateStep('Loading Company Data', 'completed', `Loaded ${companies.length} companies`);
 
@@ -280,7 +280,7 @@ export default function App() {
             const blob = new Blob([csvContent], { type: 'text/csv' });
             formData.append('file', blob, 'founders.csv');
 
-            const rankingResponse = await fetch('http://localhost:8000/api/founders/rank', {
+            const rankingResponse = await fetch('/api/founders/rank', {
               method: 'POST',
               body: formData
             });
@@ -301,8 +301,8 @@ export default function App() {
 
         updateStep('Preparing Results', 'running');
         const [companiesData, foundersData] = await Promise.all([
-          fetch('http://localhost:8000/api/companies').then(r => r.json()),
-          fetch('http://localhost:8000/api/founders/rankings').then(r => r.json()).catch(() => [])
+          fetch('/api/companies').then(r => r.json()),
+          fetch('/api/founders/rankings').then(r => r.json()).catch(() => [])
         ]);
 
         setResults({
@@ -340,8 +340,8 @@ export default function App() {
   const downloadCSV = async (type: 'companies' | 'founders') => {
     try {
       const endpoint = type === 'companies' 
-        ? 'http://localhost:8000/api/companies/export'
-        : 'http://localhost:8000/api/founders/rankings/export';
+        ? '/api/companies/export'
+        : '/api/founders/rankings/export';
       
       const response = await fetch(endpoint);
       if (!response.ok) throw new Error(`Export failed: ${response.statusText}`);

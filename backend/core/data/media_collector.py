@@ -178,7 +178,7 @@ class MediaCollector(PerplexityBaseService):
         current_company: str
     ) -> FounderMediaProfile:
         """Collect comprehensive media profile for a founder using Perplexity AI."""
-        logger.info(f"📰 Collecting media profile for {founder_name} using Perplexity AI")
+        logger.debug(f"📰 Collecting media profile for {founder_name} using Perplexity AI")
         logger.debug(f"📝 Parameters: company={current_company}")
         
         profile = FounderMediaProfile(

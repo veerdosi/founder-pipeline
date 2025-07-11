@@ -147,7 +147,7 @@ class FinancialDataCollector(PerplexityBaseService):
         linkedin_url: Optional[str] = None
     ) -> FounderFinancialProfile:
         """Collect comprehensive financial data for a founder using Perplexity AI."""
-        logger.info(f"🔍 Collecting financial data for {founder_name} using Perplexity AI")
+        logger.debug(f"🔍 Collecting financial data for {founder_name} using Perplexity AI")
         logger.debug(f"📋 Parameters: company={current_company}, linkedin_url={linkedin_url}")
         
         profile = FounderFinancialProfile(
@@ -588,7 +588,7 @@ class FinancialDataCollector(PerplexityBaseService):
             # Determine investment type
             investment_type = InvestmentType.ANGEL
             if "seed" in sentence.lower():
-                investment_type = InvestmentType.SEED
+                investment_type = InvestmentType.ANGEL
             elif "series a" in sentence.lower():
                 investment_type = InvestmentType.SERIES_A
             elif "venture" in sentence.lower():

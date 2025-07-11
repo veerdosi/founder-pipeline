@@ -30,23 +30,17 @@ class FounderDataPipeline:
         logger.info("🔧 Initializing founder pipeline services...")
         
         try:
-            logger.info("🔧 Initializing financial collector...")
             await asyncio.wait_for(self.financial_collector.__aenter__(), timeout=30)
-            logger.info("✅ Financial collector initialized")
         except Exception as e:
             logger.error(f"❌ Financial collector initialization failed: {e}")
             
         try:
-            logger.info("🔧 Initializing perplexity service...")
             await asyncio.wait_for(self.perplexity_service.__aenter__(), timeout=30)
-            logger.info("✅ Perplexity service initialized")
         except Exception as e:
             logger.error(f"❌ Perplexity service initialization failed: {e}")
             
         try:
-            logger.info("🔧 Initializing media collector...")
             await asyncio.wait_for(self.media_collector.__aenter__(), timeout=30)
-            logger.info("✅ Media collector initialized")
         except Exception as e:
             logger.error(f"❌ Media collector initialization failed: {e}")
             
@@ -135,7 +129,7 @@ class FounderDataPipeline:
         
         await self.rate_limiter.acquire()
         
-        logger.info(f"🔍 Collecting data for {founder_profile.name}")
+        logger.debug(f"🔍 Collecting data for {founder_profile.name}")
         
         try:
             # Collect data from different sources in parallel
@@ -490,7 +484,7 @@ class FounderDataPipeline:
                 company_name or linkedin_profile.company_name
             )
             founder_profiles.append(founder_profile)
-            logger.info(f"✅ Converted {linkedin_profile.person_name} to FounderProfile")
+            logger.debug(f"✅ Converted {linkedin_profile.person_name} to FounderProfile")
         
         # Collect intelligence data for all founder profiles
         enriched_profiles = await self.collect_founder_data(founder_profiles, collection_options)

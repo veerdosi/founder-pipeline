@@ -27,14 +27,13 @@ class PerplexityBaseService(ABC):
         self.default_model = "sonar-pro"
         self.default_temperature = 0.1
         self.default_max_tokens = 1500
-        self.default_timeout = 30
+        self.default_timeout = 60
         
-        # High-quality domains for search filtering
+        # High-quality domains for search filtering (max 10 for Perplexity API)
         self.trusted_domains = [
             "techcrunch.com", "forbes.com", "bloomberg.com", "crunchbase.com",
             "linkedin.com", "reuters.com", "wsj.com", "ft.com", "cnbc.com",
-            "venturebeat.com", "theinformation.com", "axios.com", "businessinsider.com",
-            "inc.com", "entrepreneur.com", "wired.com", "sec.gov", "pitchbook.com"
+            "sec.gov"
         ]
     
     async def __aenter__(self):
@@ -112,37 +111,50 @@ class PerplexityBaseService(ABC):
             "frequency_penalty": 1
         }
         
-        try:
-            async with self.session.post(
-                f"{self.base_url}/chat/completions",
-                headers=headers,
-                json=payload,
-                timeout=self.default_timeout
-            ) as response:
-                logger.debug(f"📡 Perplexity API response status: {response.status}")
-                
-                if response.status == 200:
-                    try:
-                        response_data = await response.json()
-                        logger.debug(f"✅ Perplexity API response received successfully")
-                        return response_data
-                    except json.JSONDecodeError as e:
-                        logger.error(f"❌ Failed to parse Perplexity JSON response: {e}")
-                        return None
-                else:
-                    error_text = await response.text()
-                    logger.error(f"❌ Perplexity API error {response.status}: {error_text}")
-                    return None
+        # Retry logic for failed API calls
+        max_retries = 2
+        for attempt in range(max_retries + 1):
+            try:
+                async with self.session.post(
+                    f"{self.base_url}/chat/completions",
+                    headers=headers,
+                    json=payload,
+                    timeout=self.default_timeout
+                ) as response:
+                    logger.debug(f"📡 Perplexity API response status: {response.status}")
                     
-        except asyncio.TimeoutError:
-            logger.error(f"❌ Perplexity API timeout after {self.default_timeout} seconds")
-            return None
-        except aiohttp.ClientError as e:
-            logger.error(f"❌ HTTP client error calling Perplexity API: {e}")
-            return None
-        except Exception as e:
-            logger.error(f"❌ Unexpected error calling Perplexity API: {e}", exc_info=True)
-            return None
+                    if response.status == 200:
+                        try:
+                            response_data = await response.json()
+                            logger.debug(f"✅ Perplexity API response received successfully")
+                            return response_data
+                        except json.JSONDecodeError as e:
+                            logger.error(f"❌ Failed to parse Perplexity JSON response: {e}")
+                            return None
+                    else:
+                        error_text = await response.text()
+                        logger.error(f"❌ Perplexity API error {response.status}: {error_text}")
+                        return None
+                        
+            except asyncio.TimeoutError:
+                if attempt < max_retries:
+                    logger.warning(f"⚠️ Perplexity API timeout (attempt {attempt + 1}/{max_retries + 1}), retrying...")
+                    await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                    continue
+                else:
+                    logger.error(f"❌ Perplexity API timeout after {self.default_timeout} seconds (all retries exhausted)")
+                    return None
+            except aiohttp.ClientError as e:
+                if attempt < max_retries:
+                    logger.warning(f"⚠️ HTTP client error (attempt {attempt + 1}/{max_retries + 1}): {e}, retrying...")
+                    await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                    continue
+                else:
+                    logger.error(f"❌ HTTP client error calling Perplexity API: {e}")
+                    return None
+            except Exception as e:
+                logger.error(f"❌ Unexpected error calling Perplexity API: {e}", exc_info=True)
+                return None
     
     def extract_content_from_response(self, response_data: Dict[str, Any]) -> Optional[str]:
         """Extract the main content from Perplexity response."""
