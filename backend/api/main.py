@@ -21,6 +21,17 @@ from ..core.ranking import FounderRankingService
 from ..core.ranking.models import FounderProfile
 from ..core.analysis.market_analysis import PerplexityMarketAnalysis
 from ..utils.checkpoint_manager import checkpointed_runner, checkpoint_manager
+from ..core.config import settings
+
+# Configure logging
+logging.basicConfig(
+    level=getattr(logging, settings.log_level.upper()),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler(settings.log_file) if settings.log_file else logging.NullHandler()
+    ]
+)
 
 # --- Application Setup ---
 app = FastAPI(
