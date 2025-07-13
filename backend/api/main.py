@@ -59,11 +59,75 @@ latest_results: Dict[str, Any] = {
 
 # Ensure rankings is always a list, never None
 def safe_get_rankings():
+    from backend.core.ranking.models import FounderRanking, LevelClassification, ExperienceLevel
+    
     rankings = latest_results.get("rankings", [])
+    
+    # Only return rankings if pipeline is 100% complete
+    if not rankings:
+        try:
+            jobs = checkpoint_manager.list_active_jobs()
+            for job_progress in jobs:
+                # Only load rankings if job is 100% complete
+                if job_progress.get('completion_percentage', 0) == 100:
+                    job_id = job_progress['job_id']
+                    checkpoint_rankings = checkpoint_manager.load_checkpoint(job_id, 'rankings')
+                    if checkpoint_rankings:
+                        rankings = checkpoint_rankings
+                        break
+        except Exception as e:
+            logger.warning(f"Failed to load rankings from checkpoint: {e}")
+    
+    # Convert EnrichedCompany objects to FounderRanking objects if needed
+    if rankings and hasattr(rankings[0], 'profiles'):
+        founder_rankings = []
+        for enriched_company in rankings:
+            for profile in enriched_company.profiles:
+                # Check if profile has ranking data
+                if hasattr(profile, 'l_level') and hasattr(profile, 'confidence_score'):
+                    try:
+                        level = ExperienceLevel(profile.l_level)
+                        classification = LevelClassification(
+                            level=level,
+                            confidence_score=profile.confidence_score,
+                            reasoning=getattr(profile, 'reasoning', ''),
+                            evidence=getattr(profile, 'evidence', []),
+                            verification_sources=getattr(profile, 'verification_sources', [])
+                        )
+                        founder_ranking = FounderRanking(
+                            profile=profile,
+                            classification=classification,
+                            timestamp=getattr(profile, 'timestamp', ''),
+                            processing_metadata={}
+                        )
+                        founder_rankings.append(founder_ranking)
+                    except Exception as e:
+                        logger.warning(f"Failed to convert profile to FounderRanking: {e}")
+        rankings = founder_rankings
+    
     return rankings if rankings is not None else []
 
 def safe_get_companies():
     companies = latest_results.get("companies", [])
+    
+    # If no companies in memory, try to load from latest checkpoint
+    if not companies:
+        try:
+            jobs = checkpoint_manager.list_active_jobs()
+            for job_progress in jobs:
+                job_id = job_progress['job_id']
+                # Try to load companies from any completed stage (companies, enhanced_companies, profiles, or rankings)
+                for stage in ['rankings', 'profiles', 'enhanced_companies', 'companies']:
+                    if job_progress['stages'].get(stage, {}).get('completed'):
+                        checkpoint_companies = checkpoint_manager.load_checkpoint(job_id, stage)
+                        if checkpoint_companies:
+                            companies = checkpoint_companies
+                            break
+                if companies:
+                    break
+        except Exception as e:
+            logger.warning(f"Failed to load companies from checkpoint: {e}")
+    
     return companies if companies is not None else []
 
 logger = logging.getLogger(__name__)
@@ -80,7 +144,7 @@ async def debug_data():
         "companies_count": len(companies),
         "companies_sample": [ec.company.name for ec in companies[:5]] if companies else [],
         "rankings_count": len(rankings),
-        "rankings_sample": [r.profile.name for r in rankings[:5]] if rankings else [],
+        "rankings_sample": [r.profile.person_name for r in rankings[:5]] if rankings else [],
         "last_job_id": latest_results.get("last_job_id"),
         "companies_structure": str(type(companies[0])) if companies else "No companies",
         "first_company_fields": list(vars(companies[0].company).keys()) if companies else "No companies"
@@ -100,16 +164,43 @@ async def get_available_checkpoints():
         
         for job_progress in jobs:
             job_id = job_progress['job_id']
-            companies_stage = job_progress['stages'].get('companies', {})
             
-            if companies_stage.get('completed'):
-                checkpoints.append({
-                    "id": job_id,
-                    "created_at": companies_stage['timestamp'].isoformat() if hasattr(companies_stage['timestamp'], 'isoformat') else str(companies_stage['timestamp']),
-                    "companies_count": companies_stage.get('data_count', 0),
-                    "completion_percentage": job_progress['completion_percentage'],
-                    "stages_completed": len([s for s in job_progress['stages'].values() if s.get('completed')])
-                })
+            # Find all completed stages
+            completed_stages = [(stage, data) for stage, data in job_progress['stages'].items() if data.get('completed')]
+            
+            if completed_stages:
+                # Get foundation year (default to 2025 for current checkpoints)
+                foundation_year = 2025  # Default for current data
+                
+                # Try to extract foundation year from checkpoint data if available
+                try:
+                    checkpoint_data = checkpoint_manager.load_checkpoint(job_id, 'companies')
+                    if checkpoint_data and len(checkpoint_data) > 0:
+                        # Find the most common foundation year from companies
+                        years = [getattr(company, 'founded_year', None) for company in checkpoint_data if hasattr(company, 'founded_year') and getattr(company, 'founded_year')]
+                        if years:
+                            foundation_year = max(set(years), key=years.count)  # Most common year
+                except:
+                    pass  # Keep default 2025
+                
+                # Create a separate checkpoint entry for each completed stage
+                stage_order = ['companies', 'enhanced_companies', 'profiles', 'rankings']
+                for stage in stage_order:
+                    if stage in job_progress['stages'] and job_progress['stages'][stage].get('completed'):
+                        stage_data = job_progress['stages'][stage]
+                        stage_index = stage_order.index(stage)
+                        completion_percentage = ((stage_index + 1) / len(stage_order)) * 100
+                        
+                        checkpoints.append({
+                            "id": f"{job_id}_{stage}",
+                            "job_id": job_id,
+                            "stage": stage,
+                            "created_at": stage_data['timestamp'].isoformat() if hasattr(stage_data['timestamp'], 'isoformat') else str(stage_data['timestamp']),
+                            "foundation_year": foundation_year,
+                            "latest_stage": stage,
+                            "completion_percentage": completion_percentage,
+                            "stages_completed": stage_index + 1
+                        })
         
         # Sort by creation date, newest first
         checkpoints.sort(key=lambda x: x['created_at'], reverse=True)
@@ -128,12 +219,22 @@ async def resume_pipeline_from_checkpoint(
 ):
     """Resume pipeline from a specific checkpoint."""
     try:
-        pipeline_service = get_pipeline_service(job_id=checkpoint_id)
+        # Extract actual job_id from checkpoint_id (format: job_id_stage)
+        if '_companies' in checkpoint_id or '_enhanced_companies' in checkpoint_id or '_profiles' in checkpoint_id or '_rankings' in checkpoint_id:
+            # Remove the stage suffix to get the actual job_id
+            for stage in ['_rankings', '_profiles', '_enhanced_companies', '_companies']:
+                if checkpoint_id.endswith(stage):
+                    actual_job_id = checkpoint_id[:-len(stage)]
+                    break
+        else:
+            actual_job_id = checkpoint_id
+        
+        pipeline_service = get_pipeline_service(job_id=actual_job_id)
         result = await pipeline_service.run(force_restart=False)
         
         latest_results["companies"] = result
         latest_results["rankings"] = []
-        latest_results["last_job_id"] = checkpoint_id
+        latest_results["last_job_id"] = actual_job_id
         
         return PipelineJobResponse(
             jobId=checkpoint_id,
@@ -374,8 +475,8 @@ async def get_rankings():
     formatted_rankings = []
     for r in rankings:
         formatted_rankings.append({
-            "id": r.profile.linkedin_url or r.profile.name,
-            "name": r.profile.name,
+            "id": r.profile.linkedin_url or r.profile.person_name,
+            "name": r.profile.person_name,
             "company": r.profile.company_name,
             "level": r.classification.level.value,
             "confidenceScore": r.classification.confidence_score,
@@ -401,7 +502,7 @@ async def export_rankings():
         for i, r in enumerate(rankings):
             try:
                 record = {
-                    "founder_name": r.profile.name,
+                    "founder_name": r.profile.person_name,
                     "company_name": r.profile.company_name,
                     "linkedin_url": r.profile.linkedin_url,
                     "l_level": r.classification.level.value,

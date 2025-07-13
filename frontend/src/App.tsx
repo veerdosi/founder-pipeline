@@ -44,7 +44,9 @@ export default function App() {
         const checkpointList = await response.json();
         setCheckpoints(checkpointList);
         if (checkpointList.length > 0 && !selectedCheckpoint) {
-          setSelectedCheckpoint(checkpointList[0].id);
+          // Sort by completion percentage (highest first) and pick the most advanced
+          const sortedByCompletion = [...checkpointList].sort((a, b) => b.completion_percentage - a.completion_percentage);
+          setSelectedCheckpoint(sortedByCompletion[0].id);
         }
       }
     } catch (error) {
@@ -60,7 +62,9 @@ export default function App() {
 
   useEffect(() => {
     if (startMode === 'resume' && checkpoints.length > 0 && !selectedCheckpoint) {
-      setSelectedCheckpoint(checkpoints[0].id);
+      // Sort by completion percentage (highest first) and pick the most advanced
+      const sortedByCompletion = checkpoints.sort((a, b) => b.completion_percentage - a.completion_percentage);
+      setSelectedCheckpoint(sortedByCompletion[0].id);
     }
   }, [startMode, checkpoints]);
 

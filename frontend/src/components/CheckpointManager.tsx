@@ -59,7 +59,7 @@ const CheckpointManager: React.FC<CheckpointManagerProps> = ({
                 <option value="">-- Select a checkpoint --</option>
                 {checkpoints.map(cp => (
                   <option key={cp.id} value={cp.id}>
-                    {new Date(cp.created_at).toLocaleString()} - {cp.companies_count} companies ({cp.completion_percentage.toFixed(0)}%)
+                    {new Date(cp.created_at).toLocaleString()} - {cp.foundation_year} ({cp.latest_stage}, {cp.completion_percentage.toFixed(0)}%)
                   </option>
                 ))}
               </select>

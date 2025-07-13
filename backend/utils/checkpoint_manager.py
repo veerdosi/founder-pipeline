@@ -72,19 +72,29 @@ class PipelineCheckpointManager:
             with open(checkpoint_file, 'rb') as f:
                 checkpoint = pickle.load(f)
             
-            # Validate checkpoint
-            if checkpoint['job_id'] != job_id or checkpoint['stage'] != stage:
-                logger.warning(f"⚠️ Invalid checkpoint file: {checkpoint_file}")
+            # Validate checkpoint structure
+            if not isinstance(checkpoint, dict):
+                logger.warning(f"⚠️ Invalid checkpoint structure: {checkpoint_file}")
+                return None
+                
+            # Validate checkpoint metadata
+            if checkpoint.get('job_id') != job_id or checkpoint.get('stage') != stage:
+                logger.warning(f"⚠️ Invalid checkpoint metadata: {checkpoint_file} (expected job_id: {job_id}, stage: {stage})")
                 return None
             
             # Check if checkpoint is too old (72 hours)
-            age = datetime.now() - checkpoint['timestamp']
-            if age > timedelta(hours=72):
-                logger.warning(f"⚠️ Checkpoint expired (age: {age}): {checkpoint_file}")
-                return None
+            checkpoint_timestamp = checkpoint.get('timestamp')
+            if checkpoint_timestamp:
+                age = datetime.now() - checkpoint_timestamp
+                if age > timedelta(hours=72):
+                    logger.warning(f"⚠️ Checkpoint expired (age: {age}): {checkpoint_file}")
+                    return None
             
-            return checkpoint['data']
+            return checkpoint.get('data')
             
+        except (pickle.UnpicklingError, ModuleNotFoundError, ImportError) as e:
+            logger.warning(f"⚠️ Could not load checkpoint {checkpoint_file} due to missing dependencies or corrupted data: {e}")
+            return None
         except Exception as e:
             logger.error(f"❌ Failed to load checkpoint {job_id}_{stage}: {e}")
             return None
@@ -175,12 +185,24 @@ class PipelineCheckpointManager:
         for checkpoint_file in self.checkpoint_dir.glob("*.pkl"):
             try:
                 # Extract job_id from filename
-                parts = checkpoint_file.stem.split('_')
-                if len(parts) >= 4:  # job_YYYYMMDD_HHMM_hash_stage
-                    job_id = '_'.join(parts[:-1])  # Everything except the last part (stage)
-                    
-                    if job_id not in jobs:
-                        jobs[job_id] = self.get_job_progress(job_id)
+                # Expected format: job_YYYYMMDD_HHMM_hash_stage
+                # Stage can be: companies, enhanced_companies, profiles, rankings
+                filename = checkpoint_file.stem
+                
+                # Find the stage suffix and extract job_id accordingly
+                known_stages = ['rankings', 'profiles', 'enhanced_companies', 'companies']
+                job_id = None
+                
+                for stage in known_stages:
+                    if filename.endswith(f'_{stage}'):
+                        job_id = filename[:-len(f'_{stage}')]
+                        break
+                
+                if not job_id:
+                    continue  # Skip files that don't match expected pattern
+                
+                if job_id not in jobs:
+                    jobs[job_id] = self.get_job_progress(job_id)
             except Exception:
                 continue
         

@@ -38,8 +38,11 @@ export interface MarketAnalysisData {
 
 export interface CheckpointInfo {
   id: string
+  job_id?: string
+  stage?: string
   created_at: string
-  companies_count: number
+  foundation_year: number
+  latest_stage: string
   completion_percentage: number
   stages_completed: number
 }
