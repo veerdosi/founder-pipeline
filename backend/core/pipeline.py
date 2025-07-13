@@ -44,6 +44,9 @@ class InitiationPipeline:
         logger.info(f"🚀 Starting pipeline for job_id: {self.job_id}")
         console.print("=" * 70)
         start_time = time.time()
+        
+        # Extract target year for CSV export fallback
+        self.target_year = founded_after.year if founded_after else None
 
         try:
             companies = await self._discover_companies_checkpointed(
@@ -115,20 +118,20 @@ class InitiationPipeline:
                 # Export companies CSV when loading from checkpoint (50% complete)
                 try:
                     runner = CheckpointedPipelineRunner(checkpoint_manager)
-                    await runner._export_companies_csv(cached_data, self.job_id)
+                    await runner._export_companies_csv(cached_data, self.job_id, self.target_year)
                     logger.info("📊 Companies CSV export completed from checkpoint")
                 except Exception as e:
                     logger.error(f"Failed to export companies CSV from checkpoint: {e}")
                 return cached_data
 
         console.print("🔄 Enhancing companies with Crunchbase data fusion...")
-        enhanced_companies = await self.data_fusion.batch_fuse_companies(companies, batch_size=min(3, settings.concurrent_requests))
+        enhanced_companies = await self.data_fusion.batch_fuse_companies(companies, batch_size=min(3, settings.concurrent_requests), target_year=self.target_year)
         checkpoint_manager.save_checkpoint(self.job_id, stage_name, enhanced_companies)
         
         # Export companies CSV after enhancement (50% complete)
         try:
             runner = CheckpointedPipelineRunner(checkpoint_manager)
-            await runner._export_companies_csv(enhanced_companies, self.job_id)
+            await runner._export_companies_csv(enhanced_companies, self.job_id, self.target_year)
             logger.info("📊 Companies CSV export completed")
         except Exception as e:
             logger.error(f"Failed to export companies CSV: {e}")

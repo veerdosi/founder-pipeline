@@ -101,7 +101,8 @@ class DataFusionService:
         self, 
         base_company: Company,
         website_content: str = "",
-        additional_sources: Optional[Dict[str, Any]] = None
+        additional_sources: Optional[Dict[str, Any]] = None,
+        target_year: Optional[int] = None
     ) -> FusedCompanyData:
         """Fuse data from multiple sources to create comprehensive company profile."""
         crunchbase_data = None
@@ -163,7 +164,8 @@ class DataFusionService:
                 enhanced_metrics=enhanced_metrics,
                 sector_classification=sector_classification,
                 website_content=website_content,
-                additional_sources=additional_sources or {}
+                additional_sources=additional_sources or {},
+                target_year=target_year
             )
             
             logger.info(f"✅ Data fusion complete for {base_company.name} (quality: {fused_data.data_quality_score:.2f})")
@@ -173,6 +175,63 @@ class DataFusionService:
             logger.error(f"Error in data fusion for {base_company.name}: {e}")
             raise e
     
+    async def batch_fuse_companies(
+        self, 
+        companies: List[Company], 
+        batch_size: int = 3,
+        target_year: Optional[int] = None
+    ) -> List[Company]:
+        """Batch process companies through data fusion with target year fallback."""
+        enhanced_companies = []
+        
+        for i in range(0, len(companies), batch_size):
+            batch = companies[i:i + batch_size]
+            batch_tasks = []
+            
+            for company in batch:
+                task = self.fuse_company_data(
+                    base_company=company,
+                    website_content="",
+                    additional_sources=None,
+                    target_year=target_year
+                )
+                batch_tasks.append(task)
+            
+            # Process batch concurrently
+            batch_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
+            
+            for j, result in enumerate(batch_results):
+                if isinstance(result, Exception):
+                    logger.error(f"Failed to fuse data for {batch[j].name}: {result}")
+                    # Keep original company if fusion fails
+                    enhanced_companies.append(batch[j])
+                else:
+                    # Convert FusedCompanyData back to Company model
+                    enhanced_company = self._convert_fused_to_company(result, batch[j])
+                    enhanced_companies.append(enhanced_company)
+        
+        return enhanced_companies
+    
+    def _convert_fused_to_company(self, fused_data: FusedCompanyData, original_company: Company) -> Company:
+        """Convert FusedCompanyData back to Company model with enhanced data."""
+        # Update the original company with fused data
+        original_company.name = fused_data.name
+        original_company.description = fused_data.description
+        original_company.website = fused_data.website
+        original_company.founded_year = fused_data.founded_year
+        original_company.ai_focus = fused_data.ai_focus
+        original_company.sector = fused_data.primary_sector
+        original_company.funding_total_usd = fused_data.total_funding_usd
+        original_company.funding_stage = fused_data.funding_stage
+        original_company.founders = fused_data.founders
+        original_company.investors = fused_data.key_investors
+        original_company.linkedin_url = fused_data.linkedin_url
+        original_company.crunchbase_url = fused_data.crunchbase_url
+        original_company.employee_count = fused_data.employee_count
+        original_company.confidence_score = fused_data.confidence_score
+        original_company.data_quality_score = fused_data.data_quality_score
+        
+        return original_company
     
     
     def _fuse_data_sources(
@@ -182,7 +241,8 @@ class DataFusionService:
         enhanced_metrics: Dict[str, Any],
         sector_classification: Optional[SectorClassification],
         website_content: str,
-        additional_sources: Dict[str, Any]
+        additional_sources: Dict[str, Any],
+        target_year: Optional[int] = None
     ) -> FusedCompanyData:
         """Fuse data from multiple sources using intelligent conflict resolution."""
         
@@ -213,12 +273,16 @@ class DataFusionService:
             ['exa', 'crunchbase']
         )
         
-        # Founded year with validation
-        founded_year = self._resolve_numeric_field(
-            [base_company.founded_year, 
-             int(crunchbase_data.founded_date.split('-')[0]) if crunchbase_data and crunchbase_data.founded_date else None],
-            ['exa', 'crunchbase']
-        )
+        # Founded year with validation and target year fallback
+        founded_year_candidates = [
+            base_company.founded_year, 
+            int(crunchbase_data.founded_date.split('-')[0]) if crunchbase_data and crunchbase_data.founded_date else None
+        ]
+        founded_year = self._resolve_numeric_field(founded_year_candidates, ['exa', 'crunchbase'])
+        
+        # Use target_year as fallback if no founded_year found from data sources
+        if founded_year is None and target_year is not None:
+            founded_year = target_year
         
         # Sector classification (prioritize AI classification)
         if sector_classification:

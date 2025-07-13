@@ -263,7 +263,7 @@ class CheckpointedPipelineRunner:
     def __init__(self, checkpoint_manager: PipelineCheckpointManager):
         self.checkpoint_manager = checkpoint_manager
     
-    async def _export_companies_csv(self, companies: List, job_id: str):
+    async def _export_companies_csv(self, companies: List, job_id: str, target_year: Optional[int] = None):
         """Export companies to CSV immediately after discovery."""
         import csv
         from pathlib import Path
@@ -293,11 +293,16 @@ class CheckpointedPipelineRunner:
                 writer.writeheader()
                 
                 for company in companies:
+                    # Use target_year as fallback if founded_year is None
+                    founded_year = getattr(company, 'founded_year', None)
+                    if founded_year is None and target_year is not None:
+                        founded_year = target_year
+                    
                     row = {
                         'name': getattr(company, 'name', ''),
                         'description': getattr(company, 'description', ''),
                         'short_description': getattr(company, 'short_description', ''),
-                        'founded_year': getattr(company, 'founded_year', ''),
+                        'founded_year': founded_year if founded_year is not None else '',
                         'funding_total_usd': getattr(company, 'funding_total_usd', ''),
                         'funding_stage': getattr(company, 'funding_stage', ''),
                         'founders': '|'.join(getattr(company, 'founders', [])),
