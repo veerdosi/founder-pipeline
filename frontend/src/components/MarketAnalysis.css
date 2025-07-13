@@ -1,4 +1,32 @@
 /* === Market Analysis === */
+.market-analysis-controls {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: end;
+}
+
+.market-analysis-controls .form-group {
+  margin-bottom: 0;
+}
+
+.market-analysis-controls .btn {
+  height: 48px;
+  white-space: nowrap;
+  min-width: 200px;
+  align-self: end;
+}
+
+.market-analysis-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.pdf-export-button {
+  flex-shrink: 0;
+}
 .market-analysis-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -56,4 +84,31 @@
 
 .pdf-export-button {
   margin-left: auto;
+}
+
+@media (max-width: 768px) {
+  .market-analysis-controls {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .market-analysis-controls .btn {
+    width: 100%;
+    min-width: unset;
+  }
+  
+  .market-analysis-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  
+  .pdf-export-button {
+    width: 100%;
+    margin-left: 0;
+  }
+  
+  .market-analysis-grid {
+    grid-template-columns: 1fr;
+  }
 }

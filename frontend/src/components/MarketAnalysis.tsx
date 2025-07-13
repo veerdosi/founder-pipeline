@@ -33,7 +33,7 @@ const MarketAnalysis: React.FC<MarketAnalysisProps> = ({
         <h2>Market Analysis</h2>
         <p>Generate comprehensive market analysis for any company from your latest pipeline results.</p>
         
-        <div className="pipeline-grid">
+        <div className="market-analysis-controls">
           <div className="form-group">
             <label className="form-label">Select Company</label>
             {companies.length > 0 ? (
@@ -79,7 +79,7 @@ const MarketAnalysis: React.FC<MarketAnalysisProps> = ({
 
       {marketAnalysis && !isAnalyzing && (
         <div className="card animate-fade-in">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="market-analysis-header">
             <h2>Market Analysis Results</h2>
             <button onClick={exportToPDF} className="btn btn-success pdf-export-button">
               📄 Export PDF

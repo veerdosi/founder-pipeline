@@ -168,6 +168,7 @@ p {
 .form-select, .form-input {
   width: 100%;
   padding: 12px 16px;
+  height: 48px;
   border-radius: var(--border-radius-md);
   border: 1px solid #CFD8DC;
   background-color: #FFFFFF;

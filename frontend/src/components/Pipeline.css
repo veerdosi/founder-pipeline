@@ -7,13 +7,30 @@
 
 .pipeline-grid {
   display: grid;
-  grid-template-columns: 1fr 280px;
+  grid-template-columns: 1fr auto;
   gap: 24px;
-  align-items: flex-end;
+  align-items: end;
+}
+
+.pipeline-grid .form-group {
+  margin-bottom: 0;
+}
+
+.pipeline-grid .btn {
+  height: 48px;
+  white-space: nowrap;
+  min-width: 180px;
+  align-self: end;
 }
 
 @media (max-width: 768px) {
   .pipeline-grid {
     grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .pipeline-grid .btn {
+    width: 100%;
+    min-width: unset;
   }
 }
