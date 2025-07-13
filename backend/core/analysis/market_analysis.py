@@ -186,7 +186,6 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
                 model="sonar-pro",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
-                response_format={"type": "json_object"},
             )
             
             content = response.choices[0].message.content
@@ -213,7 +212,6 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
                 model="sonar-pro",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
-                response_format={"type": "json_object"},
             )
             
             content = response.choices[0].message.content
@@ -240,7 +238,6 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
                 model="sonar-pro",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
-                response_format={"type": "json_object"},
             )
             
             content = response.choices[0].message.content
@@ -272,7 +269,6 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
                 model="sonar-pro",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
-                response_format={"type": "json_object"},
             )
             
             content = response.choices[0].message.content

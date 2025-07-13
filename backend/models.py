@@ -96,7 +96,15 @@ class LinkedInProfile(BaseModel):
 class MarketMetrics(BaseModel):
     """Market analysis metrics."""
     market_size_usd: Optional[float] = None
+    market_size_billion: Optional[float] = None
     growth_rate: Optional[float] = None
+    cagr_percent: Optional[float] = None
+    timing_score: Optional[float] = None
+    us_sentiment: Optional[float] = None
+    sea_sentiment: Optional[float] = None
+    competitor_count: Optional[int] = None
+    total_funding_billion: Optional[float] = None
+    momentum_score: Optional[float] = None
     competition_level: Optional[str] = None
     market_stage: Optional[MarketStage] = None
     key_trends: Optional[List[str]] = Field(default_factory=list)
@@ -105,6 +113,8 @@ class MarketMetrics(BaseModel):
     opportunities: Optional[List[str]] = Field(default_factory=list)
     threats: Optional[List[str]] = Field(default_factory=list)
     confidence_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    analysis_date: Optional[datetime] = None
+    execution_time: Optional[float] = None
 
 
 class EnrichedCompany(BaseModel):
