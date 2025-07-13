@@ -144,6 +144,132 @@ const MarketAnalysis: React.FC<MarketAnalysisProps> = ({
             </div>
           </div>
 
+          {/* Comprehensive Text Analysis */}
+          {marketAnalysis.market_overview && (
+            <div className="analysis-section">
+              <h4 className="analysis-section-header">Market Overview</h4>
+              <p className="analysis-text">{marketAnalysis.market_overview}</p>
+            </div>
+          )}
+
+          {marketAnalysis.growth_drivers && (
+            <div className="analysis-section">
+              <h4 className="analysis-section-header">Growth Drivers</h4>
+              <p className="analysis-text">{marketAnalysis.growth_drivers}</p>
+            </div>
+          )}
+
+          {marketAnalysis.competitive_landscape && (
+            <div className="analysis-section">
+              <h4 className="analysis-section-header">Competitive Landscape</h4>
+              <p className="analysis-text">{marketAnalysis.competitive_landscape}</p>
+            </div>
+          )}
+
+          {marketAnalysis.timing_analysis && (
+            <div className="analysis-section">
+              <h4 className="analysis-section-header">Market Timing Analysis</h4>
+              <p className="analysis-text">{marketAnalysis.timing_analysis}</p>
+            </div>
+          )}
+
+          {marketAnalysis.technology_trends && (
+            <div className="analysis-section">
+              <h4 className="analysis-section-header">Technology Trends</h4>
+              <p className="analysis-text">{marketAnalysis.technology_trends}</p>
+            </div>
+          )}
+
+          {marketAnalysis.investment_climate && (
+            <div className="analysis-section">
+              <h4 className="analysis-section-header">Investment Climate</h4>
+              <p className="analysis-text">{marketAnalysis.investment_climate}</p>
+            </div>
+          )}
+
+          {marketAnalysis.risk_assessment && (
+            <div className="analysis-section">
+              <h4 className="analysis-section-header">Risk Assessment</h4>
+              <p className="analysis-text">{marketAnalysis.risk_assessment}</p>
+            </div>
+          )}
+
+          {marketAnalysis.strategic_recommendations && (
+            <div className="analysis-section">
+              <h4 className="analysis-section-header">Strategic Recommendations</h4>
+              <p className="analysis-text">{marketAnalysis.strategic_recommendations}</p>
+            </div>
+          )}
+
+          {/* Structured Insights */}
+          <div className="insights-grid">
+            {marketAnalysis.key_trends && marketAnalysis.key_trends.length > 0 && (
+              <div className="insight-card">
+                <h4 className="insight-header">Key Trends</h4>
+                <ul className="insight-list">
+                  {marketAnalysis.key_trends.map((trend, index) => (
+                    <li key={index}>{trend}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {marketAnalysis.major_players && marketAnalysis.major_players.length > 0 && (
+              <div className="insight-card">
+                <h4 className="insight-header">Major Players</h4>
+                <ul className="insight-list">
+                  {marketAnalysis.major_players.map((player, index) => (
+                    <li key={index}>{player}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {marketAnalysis.opportunities && marketAnalysis.opportunities.length > 0 && (
+              <div className="insight-card">
+                <h4 className="insight-header">Opportunities</h4>
+                <ul className="insight-list">
+                  {marketAnalysis.opportunities.map((opportunity, index) => (
+                    <li key={index}>{opportunity}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {marketAnalysis.threats && marketAnalysis.threats.length > 0 && (
+              <div className="insight-card">
+                <h4 className="insight-header">Threats</h4>
+                <ul className="insight-list">
+                  {marketAnalysis.threats.map((threat, index) => (
+                    <li key={index}>{threat}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {marketAnalysis.emerging_technologies && marketAnalysis.emerging_technologies.length > 0 && (
+              <div className="insight-card">
+                <h4 className="insight-header">Emerging Technologies</h4>
+                <ul className="insight-list">
+                  {marketAnalysis.emerging_technologies.map((tech, index) => (
+                    <li key={index}>{tech}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {marketAnalysis.barriers_to_entry && marketAnalysis.barriers_to_entry.length > 0 && (
+              <div className="insight-card">
+                <h4 className="insight-header">Barriers to Entry</h4>
+                <ul className="insight-list">
+                  {marketAnalysis.barriers_to_entry.map((barrier, index) => (
+                    <li key={index}>{barrier}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
           <div className="analysis-footer">
             Generated on {new Date(marketAnalysis.analysis_date).toLocaleString()}
           </div>

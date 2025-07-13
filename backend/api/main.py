@@ -602,26 +602,55 @@ async def generate_market_analysis(company_name: str):
             metrics = await market_analysis.analyze_market(
                 sector=sector,
                 year=founded_year,
-                region="United States"
+                region="United States",
+                company_name=company_name
             )
         
-        # Format response
+        # Format response to match frontend expectations (flat structure)
         analysis_data = {
+            # Basic info (required by frontend)
             "company_name": company_name,
             "sector": sector,
             "founded_year": founded_year,
-            "market_size_billion": metrics.market_size_billion,
-            "cagr_percent": metrics.cagr_percent,
-            "timing_score": metrics.timing_score,
-            "us_sentiment": metrics.us_sentiment,
-            "sea_sentiment": metrics.sea_sentiment,
-            "competitor_count": metrics.competitor_count,
-            "total_funding_billion": metrics.total_funding_billion,
-            "momentum_score": metrics.momentum_score,
+            
+            # Numerical metrics (required by frontend)
+            "market_size_billion": metrics.market_size_billion or 0,
+            "market_size_usd": metrics.market_size_usd or 0,
+            "cagr_percent": metrics.cagr_percent or 0,
+            "timing_score": metrics.timing_score or 0,
+            "us_sentiment": metrics.us_sentiment or 0,
+            "sea_sentiment": metrics.sea_sentiment or 0,
+            "competitor_count": metrics.competitor_count or 0,
+            "total_funding_billion": metrics.total_funding_billion or 0,
+            "momentum_score": metrics.momentum_score or 0,
             "market_stage": metrics.market_stage.value if metrics.market_stage else "unknown",
-            "confidence_score": metrics.confidence_score,
+            "confidence_score": metrics.confidence_score or 0,
             "analysis_date": metrics.analysis_date.isoformat() if metrics.analysis_date else datetime.now().isoformat(),
-            "execution_time": metrics.execution_time
+            "execution_time": metrics.execution_time or 0,
+            
+            # Enhanced comprehensive analysis (new fields)
+            "market_overview": metrics.market_overview or "",
+            "market_size_analysis": metrics.market_size_analysis or "",
+            "growth_drivers": metrics.growth_drivers or "",
+            "timing_analysis": metrics.timing_analysis or "",
+            "regional_analysis": metrics.regional_analysis or "",
+            "competitive_landscape": metrics.competitive_landscape or "",
+            "investment_climate": metrics.investment_climate or "",
+            "regulatory_environment": metrics.regulatory_environment or "",
+            "technology_trends": metrics.technology_trends or "",
+            "consumer_adoption": metrics.consumer_adoption or "",
+            "supply_chain_analysis": metrics.supply_chain_analysis or "",
+            "risk_assessment": metrics.risk_assessment or "",
+            "strategic_recommendations": metrics.strategic_recommendations or "",
+            
+            # Structured insights (new fields)
+            "key_trends": metrics.key_trends or [],
+            "major_players": metrics.major_players or [],
+            "barriers_to_entry": metrics.barriers_to_entry or [],
+            "opportunities": metrics.opportunities or [],
+            "threats": metrics.threats or [],
+            "regulatory_changes": metrics.regulatory_changes or [],
+            "emerging_technologies": metrics.emerging_technologies or []
         }
         
         return {

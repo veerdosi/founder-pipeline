@@ -131,56 +131,279 @@ export default function App() {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
     
+    // Helper function to safely display text or fallback
+    const safeText = (text: string | undefined) => text || 'Not available';
+    
+    // Helper function to render list items
+    const renderList = (items: string[] | undefined) => {
+      if (!items || items.length === 0) return '<li>Not available</li>';
+      return items.map(item => `<li>${item}</li>`).join('');
+    };
+    
     printWindow.document.write(`
       <html>
         <head>
           <title>Market Analysis - ${marketAnalysis.company_name}</title>
           <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            .header { text-align: center; margin-bottom: 30px; }
-            .section { margin-bottom: 20px; }
-            .metric { display: flex; justify-content: space-between; margin: 10px 0; }
-            .score { font-weight: bold; }
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+              margin: 30px; 
+              line-height: 1.6; 
+              color: #333;
+            }
+            .header { 
+              text-align: center; 
+              margin-bottom: 40px; 
+              border-bottom: 3px solid #2563eb;
+              padding-bottom: 20px;
+            }
+            .company-name { 
+              color: #2563eb; 
+              margin-bottom: 10px; 
+            }
+            .section { 
+              margin-bottom: 30px; 
+              break-inside: avoid;
+            }
+            .section h3 { 
+              color: #2563eb; 
+              border-bottom: 2px solid #e5e7eb; 
+              padding-bottom: 8px; 
+              margin-bottom: 15px;
+            }
+            .metrics-grid {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 15px;
+              margin-bottom: 20px;
+            }
+            .metric { 
+              display: flex; 
+              justify-content: space-between; 
+              margin: 8px 0; 
+              padding: 8px 12px;
+              background: #f8fafc;
+              border-radius: 6px;
+            }
+            .score { 
+              font-weight: bold; 
+              color: #1d4ed8;
+            }
+            .text-content {
+              background: #f9fafb;
+              padding: 20px;
+              border-radius: 8px;
+              margin: 15px 0;
+              border-left: 4px solid #2563eb;
+            }
+            .insights-grid {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 20px;
+              margin-top: 20px;
+            }
+            .insight-card {
+              background: #f8fafc;
+              padding: 15px;
+              border-radius: 8px;
+              border: 1px solid #e5e7eb;
+            }
+            .insight-card h4 {
+              color: #2563eb;
+              margin-bottom: 10px;
+              border-bottom: 1px solid #e5e7eb;
+              padding-bottom: 5px;
+            }
+            .insight-card ul {
+              margin: 0;
+              padding-left: 20px;
+            }
+            .insight-card li {
+              margin-bottom: 5px;
+            }
+            .footer {
+              margin-top: 40px;
+              padding-top: 20px;
+              border-top: 2px solid #e5e7eb;
+              text-align: center;
+              color: #6b7280;
+              font-size: 0.9em;
+            }
+            @media print {
+              .section { page-break-inside: avoid; }
+              .insights-grid { grid-template-columns: 1fr; }
+              .metrics-grid { grid-template-columns: 1fr; }
+            }
           </style>
         </head>
         <body>
           <div class="header">
-            <h1>Market Analysis Report</h1>
-            <h2>${marketAnalysis.company_name}</h2>
+            <h1>Comprehensive Market Analysis Report</h1>
+            <h2 class="company-name">${marketAnalysis.company_name}</h2>
+            <p><strong>Sector:</strong> ${marketAnalysis.sector} | <strong>Founded:</strong> ${marketAnalysis.founded_year}</p>
             <p>Generated on ${new Date(marketAnalysis.analysis_date).toLocaleDateString()}</p>
           </div>
           
           <div class="section">
-            <h3>Company Information</h3>
-            <div class="metric"><span>Sector:</span><span>${marketAnalysis.sector}</span></div>
-            <div class="metric"><span>Founded:</span><span>${marketAnalysis.founded_year}</span></div>
+            <h3>📊 Key Metrics Summary</h3>
+            <div class="metrics-grid">
+              <div class="metric">
+                <span>Market Size:</span>
+                <span class="score">$${marketAnalysis.market_size_billion.toFixed(1)}B</span>
+              </div>
+              <div class="metric">
+                <span>CAGR:</span>
+                <span class="score">${marketAnalysis.cagr_percent.toFixed(1)}%</span>
+              </div>
+              <div class="metric">
+                <span>Market Stage:</span>
+                <span class="score">${marketAnalysis.market_stage}</span>
+              </div>
+              <div class="metric">
+                <span>Timing Score:</span>
+                <span class="score">${marketAnalysis.timing_score.toFixed(1)}/5</span>
+              </div>
+              <div class="metric">
+                <span>US Sentiment:</span>
+                <span class="score">${marketAnalysis.us_sentiment.toFixed(1)}/5</span>
+              </div>
+              <div class="metric">
+                <span>Asia Sentiment:</span>
+                <span class="score">${marketAnalysis.sea_sentiment.toFixed(1)}/5</span>
+              </div>
+              <div class="metric">
+                <span>Competitors:</span>
+                <span class="score">${marketAnalysis.competitor_count}</span>
+              </div>
+              <div class="metric">
+                <span>Total Funding:</span>
+                <span class="score">$${marketAnalysis.total_funding_billion.toFixed(1)}B</span>
+              </div>
+            </div>
           </div>
-          
+
+          ${marketAnalysis.market_overview ? `
           <div class="section">
-            <h3>Market Size & Growth</h3>
-            <div class="metric"><span>Market Size:</span><span class="score">${marketAnalysis.market_size_billion.toFixed(1)}B</span></div>
-            <div class="metric"><span>CAGR:</span><span class="score">${marketAnalysis.cagr_percent.toFixed(1)}%</span></div>
-            <div class="metric"><span>Market Stage:</span><span>${marketAnalysis.market_stage}</span></div>
+            <h3>🌍 Market Overview</h3>
+            <div class="text-content">
+              ${safeText(marketAnalysis.market_overview).replace(/\n/g, '<br>')}
+            </div>
           </div>
-          
+          ` : ''}
+
+          ${marketAnalysis.growth_drivers ? `
           <div class="section">
-            <h3>Market Sentiment & Timing</h3>
-            <div class="metric"><span>Timing Score:</span><span class="score">${marketAnalysis.timing_score.toFixed(1)}/5</span></div>
-            <div class="metric"><span>US Sentiment:</span><span class="score">${marketAnalysis.us_sentiment.toFixed(1)}/5</span></div>
-            <div class="metric"><span>Asia Sentiment:</span><span class="score">${marketAnalysis.sea_sentiment.toFixed(1)}/5</span></div>
-            <div class="metric"><span>Momentum Score:</span><span class="score">${marketAnalysis.momentum_score.toFixed(1)}/5</span></div>
+            <h3>📈 Growth Drivers</h3>
+            <div class="text-content">
+              ${safeText(marketAnalysis.growth_drivers).replace(/\n/g, '<br>')}
+            </div>
           </div>
-          
+          ` : ''}
+
+          ${marketAnalysis.competitive_landscape ? `
           <div class="section">
-            <h3>Competition & Funding</h3>
-            <div class="metric"><span>Competitor Count:</span><span>${marketAnalysis.competitor_count}</span></div>
-            <div class="metric"><span>Total Funding:</span><span>${marketAnalysis.total_funding_billion.toFixed(1)}B</span></div>
+            <h3>🏟️ Competitive Landscape</h3>
+            <div class="text-content">
+              ${safeText(marketAnalysis.competitive_landscape).replace(/\n/g, '<br>')}
+            </div>
           </div>
-          
+          ` : ''}
+
+          ${marketAnalysis.timing_analysis ? `
           <div class="section">
-            <h3>Analysis Quality</h3>
-            <div class="metric"><span>Confidence Score:</span><span class="score">${(marketAnalysis.confidence_score * 100).toFixed(0)}%</span></div>
-            <div class="metric"><span>Execution Time:</span><span class="score">${marketAnalysis.execution_time.toFixed(1)}s</span></div>
+            <h3>⏰ Market Timing Analysis</h3>
+            <div class="text-content">
+              ${safeText(marketAnalysis.timing_analysis).replace(/\n/g, '<br>')}
+            </div>
+          </div>
+          ` : ''}
+
+          ${marketAnalysis.technology_trends ? `
+          <div class="section">
+            <h3>💡 Technology Trends</h3>
+            <div class="text-content">
+              ${safeText(marketAnalysis.technology_trends).replace(/\n/g, '<br>')}
+            </div>
+          </div>
+          ` : ''}
+
+          ${marketAnalysis.investment_climate ? `
+          <div class="section">
+            <h3>💰 Investment Climate</h3>
+            <div class="text-content">
+              ${safeText(marketAnalysis.investment_climate).replace(/\n/g, '<br>')}
+            </div>
+          </div>
+          ` : ''}
+
+          ${marketAnalysis.risk_assessment ? `
+          <div class="section">
+            <h3>⚠️ Risk Assessment</h3>
+            <div class="text-content">
+              ${safeText(marketAnalysis.risk_assessment).replace(/\n/g, '<br>')}
+            </div>
+          </div>
+          ` : ''}
+
+          ${marketAnalysis.strategic_recommendations ? `
+          <div class="section">
+            <h3>🎯 Strategic Recommendations</h3>
+            <div class="text-content">
+              ${safeText(marketAnalysis.strategic_recommendations).replace(/\n/g, '<br>')}
+            </div>
+          </div>
+          ` : ''}
+
+          <div class="section">
+            <h3>📋 Market Insights</h3>
+            <div class="insights-grid">
+              ${marketAnalysis.key_trends && marketAnalysis.key_trends.length > 0 ? `
+              <div class="insight-card">
+                <h4>🔥 Key Trends</h4>
+                <ul>${renderList(marketAnalysis.key_trends)}</ul>
+              </div>
+              ` : ''}
+              
+              ${marketAnalysis.major_players && marketAnalysis.major_players.length > 0 ? `
+              <div class="insight-card">
+                <h4>🏢 Major Players</h4>
+                <ul>${renderList(marketAnalysis.major_players)}</ul>
+              </div>
+              ` : ''}
+              
+              ${marketAnalysis.opportunities && marketAnalysis.opportunities.length > 0 ? `
+              <div class="insight-card">
+                <h4>🚀 Opportunities</h4>
+                <ul>${renderList(marketAnalysis.opportunities)}</ul>
+              </div>
+              ` : ''}
+              
+              ${marketAnalysis.threats && marketAnalysis.threats.length > 0 ? `
+              <div class="insight-card">
+                <h4>⚡ Threats</h4>
+                <ul>${renderList(marketAnalysis.threats)}</ul>
+              </div>
+              ` : ''}
+              
+              ${marketAnalysis.emerging_technologies && marketAnalysis.emerging_technologies.length > 0 ? `
+              <div class="insight-card">
+                <h4>🔬 Emerging Technologies</h4>
+                <ul>${renderList(marketAnalysis.emerging_technologies)}</ul>
+              </div>
+              ` : ''}
+              
+              ${marketAnalysis.barriers_to_entry && marketAnalysis.barriers_to_entry.length > 0 ? `
+              <div class="insight-card">
+                <h4>🚧 Barriers to Entry</h4>
+                <ul>${renderList(marketAnalysis.barriers_to_entry)}</ul>
+              </div>
+              ` : ''}
+            </div>
+          </div>
+
+          <div class="footer">
+            <p><strong>Analysis Quality:</strong> Confidence Score: ${(marketAnalysis.confidence_score * 100).toFixed(0)}% | Execution Time: ${marketAnalysis.execution_time.toFixed(1)}s</p>
+            <p>This report was generated using AI-powered market analysis. Data should be validated with additional sources.</p>
           </div>
         </body>
       </html>

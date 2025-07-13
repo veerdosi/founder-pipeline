@@ -95,6 +95,7 @@ class LinkedInProfile(BaseModel):
 
 class MarketMetrics(BaseModel):
     """Market analysis metrics."""
+    # Numerical metrics
     market_size_usd: Optional[float] = None
     market_size_billion: Optional[float] = None
     growth_rate: Optional[float] = None
@@ -107,14 +108,33 @@ class MarketMetrics(BaseModel):
     momentum_score: Optional[float] = None
     competition_level: Optional[str] = None
     market_stage: Optional[MarketStage] = None
+    confidence_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    analysis_date: Optional[datetime] = None
+    execution_time: Optional[float] = None
+    
+    # Comprehensive text analysis
+    market_overview: Optional[str] = None
+    market_size_analysis: Optional[str] = None
+    growth_drivers: Optional[str] = None
+    timing_analysis: Optional[str] = None
+    regional_analysis: Optional[str] = None
+    competitive_landscape: Optional[str] = None
+    investment_climate: Optional[str] = None
+    regulatory_environment: Optional[str] = None
+    technology_trends: Optional[str] = None
+    consumer_adoption: Optional[str] = None
+    supply_chain_analysis: Optional[str] = None
+    risk_assessment: Optional[str] = None
+    strategic_recommendations: Optional[str] = None
+    
+    # Structured lists (enhanced)
     key_trends: Optional[List[str]] = Field(default_factory=list)
     major_players: Optional[List[str]] = Field(default_factory=list)
     barriers_to_entry: Optional[List[str]] = Field(default_factory=list)
     opportunities: Optional[List[str]] = Field(default_factory=list)
     threats: Optional[List[str]] = Field(default_factory=list)
-    confidence_score: float = Field(default=0.0, ge=0.0, le=1.0)
-    analysis_date: Optional[datetime] = None
-    execution_time: Optional[float] = None
+    regulatory_changes: Optional[List[str]] = Field(default_factory=list)
+    emerging_technologies: Optional[List[str]] = Field(default_factory=list)
 
 
 class EnrichedCompany(BaseModel):

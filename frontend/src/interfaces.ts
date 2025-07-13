@@ -34,6 +34,30 @@ export interface MarketAnalysisData {
   confidence_score: number
   analysis_date: string
   execution_time: number
+  
+  // Comprehensive text analysis
+  market_overview?: string
+  market_size_analysis?: string
+  growth_drivers?: string
+  timing_analysis?: string
+  regional_analysis?: string
+  competitive_landscape?: string
+  investment_climate?: string
+  regulatory_environment?: string
+  technology_trends?: string
+  consumer_adoption?: string
+  supply_chain_analysis?: string
+  risk_assessment?: string
+  strategic_recommendations?: string
+  
+  // Structured insights
+  key_trends?: string[]
+  major_players?: string[]
+  barriers_to_entry?: string[]
+  opportunities?: string[]
+  threats?: string[]
+  regulatory_changes?: string[]
+  emerging_technologies?: string[]
 }
 
 export interface CheckpointInfo {
