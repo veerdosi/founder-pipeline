@@ -412,6 +412,32 @@ class FounderRankingService:
         # Convert LinkedInProfile to dict format with better null handling
         profile_name = getattr(profile, 'person_name', '') or "Unknown Founder"
         
+        # Extract media coverage data
+        media_coverage = getattr(profile, 'media_coverage', None)
+        media_data = {}
+        if media_coverage:
+            media_data = {
+                "media_mentions_count": getattr(media_coverage, 'media_mentions_count', 0) or 0,
+                "awards_and_recognitions": getattr(media_coverage, 'awards_and_recognitions', []) or [],
+                "speaking_engagements": getattr(media_coverage, 'speaking_engagements', []) or [],
+                "social_media_followers": getattr(media_coverage, 'social_media_followers', 0) or 0,
+                "thought_leadership_score": getattr(media_coverage, 'thought_leadership_score', 0) or 0,
+                "overall_sentiment": getattr(media_coverage, 'overall_sentiment', '') or ""
+            }
+        
+        # Extract financial profile data
+        financial_profile = getattr(profile, 'financial_profile', None)
+        financial_data = {}
+        if financial_profile:
+            financial_data = {
+                "companies_founded": getattr(financial_profile, 'companies_founded', []) or [],
+                "investment_activities": getattr(financial_profile, 'investment_activities', []) or [],
+                "board_positions": getattr(financial_profile, 'board_positions', []) or [],
+                "notable_achievements": getattr(financial_profile, 'notable_achievements', []) or [],
+                "estimated_net_worth": getattr(financial_profile, 'estimated_net_worth', '') or "",
+                "confidence_level": getattr(financial_profile, 'confidence_level', '') or ""
+            }
+        
         data = {
             "name": profile_name,
             "company_name": getattr(profile, 'company_name', '') or "",
@@ -423,6 +449,8 @@ class FounderRankingService:
             "experience_1_company": experience_1_company,
             "education_1_school": education_1_school,
             "education_1_degree": education_1_degree,
+            "media_coverage": media_data,
+            "financial_profile": financial_data,
             "overall_confidence": 0.3 if getattr(profile, 'linkedin_url', '') else 0.1
         }
         return data

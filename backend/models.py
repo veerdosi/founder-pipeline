@@ -66,6 +66,26 @@ class Company(BaseModel):
         }
 
 
+class MediaCoverageData(BaseModel):
+    """Media coverage and public presence data model."""
+    media_mentions_count: Optional[int] = None
+    awards_and_recognitions: Optional[List[str]] = Field(default_factory=list)
+    speaking_engagements: Optional[List[str]] = Field(default_factory=list)
+    social_media_followers: Optional[int] = None
+    thought_leadership_score: Optional[float] = None
+    overall_sentiment: Optional[str] = None
+
+
+class FinancialProfileData(BaseModel):
+    """Financial profile and investment data model."""
+    companies_founded: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
+    investment_activities: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
+    board_positions: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
+    notable_achievements: Optional[List[str]] = Field(default_factory=list)
+    estimated_net_worth: Optional[str] = None
+    confidence_level: Optional[str] = None
+
+
 class LinkedInProfile(BaseModel):
     """LinkedIn profile data model."""
     person_name: str  # Field expected by ranking system
@@ -87,6 +107,10 @@ class LinkedInProfile(BaseModel):
     # Optional metadata
     estimated_age: Optional[int] = None
     confidence_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    
+    # Enhanced data from Perplexity
+    media_coverage: Optional[MediaCoverageData] = None
+    financial_profile: Optional[FinancialProfileData] = None
     
     # Fields for ranking system compatibility
     l_level: Optional[str] = None  # L1-L10 ranking result

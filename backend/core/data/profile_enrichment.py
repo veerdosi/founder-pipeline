@@ -1,6 +1,7 @@
 """LinkedIn profile enrichment service."""
 
 import asyncio
+import json
 import re
 from datetime import datetime
 from typing import List, Optional
@@ -17,7 +18,7 @@ from ..config import settings
 from ...utils.data_processing import clean_text
 from ...utils.rate_limiter import RateLimiter
 from ...utils.validators import validate_linkedin_url
-from ...models import Company, LinkedInProfile
+from ...models import Company, LinkedInProfile, MediaCoverageData, FinancialProfileData
 
 logger = logging.getLogger(__name__)
 class ProfileSearchResult(BaseModel):
@@ -37,12 +38,18 @@ class LinkedInEnrichmentService(ProfileEnrichmentService):
     def __init__(self):
         self.apify = ApifyClient(settings.apify_api_key)
         self.openai = AsyncOpenAI(api_key=settings.openai_api_key)
+        self.perplexity = AsyncOpenAI(
+            api_key=settings.perplexity_api_key,
+            base_url="https://api.perplexity.ai"
+        )
         self.rate_limiter = RateLimiter(
             max_requests=settings.requests_per_minute,
             time_window=60
         )
         # Slow down SerpAPI to 10 requests per minute to avoid blocks
         self.search_rate_limiter = RateLimiter(max_requests=10, time_window=60)
+        # Perplexity rate limiter
+        self.perplexity_rate_limiter = RateLimiter(max_requests=20, time_window=60)
     
     async def find_profiles(self, company: Company) -> List[LinkedInProfile]:
         """Find LinkedIn profiles for company executives."""
@@ -124,7 +131,10 @@ class LinkedInEnrichmentService(ProfileEnrichmentService):
                             # Add individual fields as dynamic attributes for ranking compatibility
                             setattr(profile, field, value)
             
-            return profiles
+            # Enhance with Perplexity data
+            enhanced_profiles = await self._enhance_with_perplexity(valid_profiles)
+            
+            return enhanced_profiles
             
         except Exception as e:
             logger.error(f"Error batch enriching profiles: {e}")
@@ -705,3 +715,113 @@ Return a JSON object with this structure:
         ]
         
         return min(year_matches) if year_matches else None
+    
+    async def _enhance_with_perplexity(self, profiles: List[LinkedInProfile]) -> List[LinkedInProfile]:
+        """Enhance profiles with Perplexity data for media coverage and financial information."""
+        enhanced_profiles = []
+        
+        for profile in profiles:
+            try:
+                logger.info(f"Enhancing profile with Perplexity data: {profile.person_name}")
+                
+                # Get media coverage data
+                media_data = await self._get_media_coverage_perplexity(
+                    profile.person_name, 
+                    profile.company_name
+                )
+                profile.media_coverage = media_data
+                
+                # Get financial profile data
+                financial_data = await self._get_financial_profile_perplexity(
+                    profile.person_name
+                )
+                profile.financial_profile = financial_data
+                
+                enhanced_profiles.append(profile)
+                
+            except Exception as e:
+                logger.error(f"Error enhancing profile {profile.person_name} with Perplexity: {e}")
+                # Still append the profile without Perplexity data
+                enhanced_profiles.append(profile)
+        
+        return enhanced_profiles
+    
+    async def _get_media_coverage_perplexity(
+        self, 
+        founder_name: str, 
+        company_name: Optional[str] = None
+    ) -> Optional[MediaCoverageData]:
+        """Get media coverage and public presence data using Perplexity with structured JSON."""
+        current_company = f" (founder/CEO of {company_name})" if company_name else ""
+        
+        prompt = f"""Provide comprehensive media coverage and public presence data for {founder_name}{current_company}.
+        
+        Please include:
+        1. Media mentions: total count from major publications, interviews, podcasts, speaking engagements
+        2. Awards and recognitions: business awards, industry recognitions, honors received
+        3. Thought leadership: speaking engagements, conferences, articles authored, books, keynotes
+        4. Social media presence: approximate total follower count across all platforms
+        5. Thought leadership score: rate 1-10 based on industry influence and visibility
+        6. Overall sentiment: "positive", "neutral", "negative", or "mixed"
+        
+        Focus on verified, factual information with specific metrics where available."""
+        
+        try:
+            await self.perplexity_rate_limiter.acquire()
+            
+            response = await self.perplexity.chat.completions.create(
+                model="sonar",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {"schema": MediaCoverageData.model_json_schema()},
+                },
+            )
+            
+            content = response.choices[0].message.content
+            data = json.loads(content)
+            return MediaCoverageData(**data)
+            
+        except Exception as e:
+            logger.error(f"Error getting media coverage from Perplexity for {founder_name}: {e}")
+            return MediaCoverageData()  # Return empty model
+    
+    async def _get_financial_profile_perplexity(
+        self, 
+        founder_name: str
+    ) -> Optional[FinancialProfileData]:
+        """Get financial profile information using Perplexity with structured JSON."""
+        
+        prompt = f"""Provide comprehensive financial profile information for {founder_name}.
+        
+        Please include:
+        1. Companies founded: name, founding year, role, current status, industry, valuation/exit details
+        2. Investment activities: companies invested in, amounts, years, types, current status
+        3. Board positions: companies, position titles, start years, current status, industries
+        4. Notable achievements: awards, recognitions, milestones with years and categories
+        5. Estimated net worth: provide range or specific amount if publicly known
+        6. Confidence level: "high", "medium", "low" based on data availability
+        
+        Focus on verified, factual information. Use specific numbers where available."""
+        
+        try:
+            await self.perplexity_rate_limiter.acquire()
+            
+            response = await self.perplexity.chat.completions.create(
+                model="sonar",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {"schema": FinancialProfileData.model_json_schema()},
+                },
+            )
+            
+            content = response.choices[0].message.content
+            data = json.loads(content)
+            return FinancialProfileData(**data)
+            
+        except Exception as e:
+            logger.error(f"Error getting financial profile from Perplexity for {founder_name}: {e}")
+            return FinancialProfileData()  # Return empty model

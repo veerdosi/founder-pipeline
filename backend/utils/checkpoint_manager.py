@@ -388,19 +388,74 @@ class CheckpointedPipelineRunner:
                         else:
                             record[f'skill_{i+1}'] = ''
                     
+                    # Add media coverage data
+                    media_coverage = getattr(profile, 'media_coverage', None)
+                    if media_coverage:
+                        record['media_mentions_count'] = getattr(media_coverage, 'media_mentions_count', '')
+                        record['awards_and_recognitions'] = '; '.join(getattr(media_coverage, 'awards_and_recognitions', []) or [])
+                        record['speaking_engagements'] = '; '.join(getattr(media_coverage, 'speaking_engagements', []) or [])
+                        record['social_media_followers'] = getattr(media_coverage, 'social_media_followers', '')
+                        record['thought_leadership_score'] = getattr(media_coverage, 'thought_leadership_score', '')
+                        record['overall_sentiment'] = getattr(media_coverage, 'overall_sentiment', '')
+                    else:
+                        record['media_mentions_count'] = ''
+                        record['awards_and_recognitions'] = ''
+                        record['speaking_engagements'] = ''
+                        record['social_media_followers'] = ''
+                        record['thought_leadership_score'] = ''
+                        record['overall_sentiment'] = ''
+                    
+                    # Add financial profile data
+                    financial_profile = getattr(profile, 'financial_profile', None)
+                    if financial_profile:
+                        # Flatten companies founded
+                        companies_founded = getattr(financial_profile, 'companies_founded', []) or []
+                        record['companies_founded'] = '; '.join([
+                            f"{c.get('name', '')} ({c.get('founding_year', '')})" 
+                            for c in companies_founded if isinstance(c, dict)
+                        ])
+                        
+                        # Flatten investment activities
+                        investments = getattr(financial_profile, 'investment_activities', []) or []
+                        record['investment_activities'] = '; '.join([
+                            f"{inv.get('company', '')} - ${inv.get('amount', '')}" 
+                            for inv in investments if isinstance(inv, dict)
+                        ])
+                        
+                        # Flatten board positions
+                        board_positions = getattr(financial_profile, 'board_positions', []) or []
+                        record['board_positions'] = '; '.join([
+                            f"{pos.get('company', '')} ({pos.get('position', '')})" 
+                            for pos in board_positions if isinstance(pos, dict)
+                        ])
+                        
+                        record['notable_achievements'] = '; '.join(getattr(financial_profile, 'notable_achievements', []) or [])
+                        record['estimated_net_worth'] = getattr(financial_profile, 'estimated_net_worth', '')
+                        record['confidence_level'] = getattr(financial_profile, 'confidence_level', '')
+                    else:
+                        record['companies_founded'] = ''
+                        record['investment_activities'] = ''
+                        record['board_positions'] = ''
+                        record['notable_achievements'] = ''
+                        record['estimated_net_worth'] = ''
+                        record['confidence_level'] = ''
+                    
                     founder_records.append(record)
             
             if not founder_records:
                 logger.warning("No founders to export")
                 return
             
-            # Define CSV columns for founders including ranking columns
+            # Define CSV columns for founders including ranking and enhancement columns
             columns = [
                 'company_name', 'name', 'title', 'linkedin_url', 'location', 'about',
                 'estimated_age', 'extraction_date',
                 'experience_1_title', 'experience_1_company', 'experience_2_title', 'experience_2_company',
                 'experience_3_title', 'experience_3_company', 'education_1_school', 'education_1_degree',
                 'education_2_school', 'education_2_degree', 'skill_1', 'skill_2', 'skill_3', 'skill_4', 'skill_5',
+                'media_mentions_count', 'awards_and_recognitions', 'speaking_engagements', 'social_media_followers',
+                'thought_leadership_score', 'overall_sentiment', 'companies_founded', 'investment_activities',
+                'board_positions', 'notable_achievements', 'estimated_net_worth', 'confidence_level',
                 'l_level', 'reasoning', 'confidence_score'
             ]
             
