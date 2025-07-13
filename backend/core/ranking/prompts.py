@@ -158,40 +158,46 @@ Provide a structured JSON response with:
         
         return "\n".join(context_parts)
 
-    def create_founder_analysis_prompt(self, profile: Any, company_founding_year: int = None) -> str:
+    @staticmethod
+    def create_founder_analysis_prompt(founder_data: dict, company_data: dict = None) -> str:
         """Create the main analysis prompt for a founder with year context."""
         
-        # Build experience summary from LinkedIn profile
+        # Handle None or empty founder_data
+        if not founder_data:
+            founder_data = {}
+        
+        # Build experience summary from founder data
         experiences = []
-        experience_list = getattr(profile, 'experience', [])
-        for exp in experience_list[:3]:  # Take first 3 experiences
-            if exp.get('title') and exp.get('company'):
-                experiences.append(f"{exp['title']} at {exp['company']}")
+        for i in range(1, 4):  # Check experience_1, experience_2, experience_3
+            title = founder_data.get(f'experience_{i}_title', '')
+            company = founder_data.get(f'experience_{i}_company', '')
+            if title and company:
+                experiences.append(f"{title} at {company}")
         
         experience_text = "; ".join(experiences) if experiences else "No detailed experience listed"
         
-        # Build education summary from LinkedIn profile
+        # Build education summary from founder data
         education = []
-        education_list = getattr(profile, 'education', [])
-        for edu in education_list[:2]:  # Take first 2 educations
-            if edu.get('school'):
-                degree_text = f" - {edu.get('degree', '')}" if edu.get('degree') else ""
-                education.append(f"{edu['school']}{degree_text}")
+        for i in range(1, 3):  # Check education_1, education_2
+            school = founder_data.get(f'education_{i}_school', '')
+            degree = founder_data.get(f'education_{i}_degree', '')
+            if school:
+                degree_text = f" - {degree}" if degree else ""
+                education.append(f"{school}{degree_text}")
         
         education_text = "; ".join(education) if education else "No education details listed"
         
-        # Build skills summary from LinkedIn profile
-        skills = getattr(profile, 'skills', [])
-        skills_text = ", ".join(skills[:5]) if skills else "No skills listed"  # Take first 5 skills
+        # Build skills summary from founder data
+        skills_text = founder_data.get('skills', 'No skills listed')
         
         # Add year context if available
         year_context = ""
-        if company_founding_year:
+        if company_data and company_data.get('founded_year'):
             year_context = f"""
 YEAR CONTEXT:
-This founder's current company was founded in {company_founding_year}. 
-Consider their experience level relative to building a company in {company_founding_year}.
-Evaluate their track record and preparation leading up to {company_founding_year}.
+This founder's current company was founded in {company_data['founded_year']}. 
+Consider their experience level relative to building a company in {company_data['founded_year']}.
+Evaluate their track record and preparation leading up to {company_data['founded_year']}.
 """
         
         prompt = f"""
@@ -200,16 +206,13 @@ FOUNDER ANALYSIS REQUEST
 Analyze this founder and classify them using the L1-L10 framework:
 
 FOUNDER PROFILE:
-Name: {profile.name}
-Current Company: {profile.company_name}
-Current Title: {profile.title}
-Location: {profile.location or 'Not specified'}
-Estimated Age: {profile.estimated_age or 'Not specified'}
+Name: {founder_data.get('name', 'Unknown Founder')}
+Current Company: {founder_data.get('company_name', 'Unknown Company')}
+Current Title: {founder_data.get('title', 'Founder')}
+Location: {founder_data.get('location', 'Not specified')}
+About: {founder_data.get('about', 'No bio provided')}
 
-LinkedIn: {profile.linkedin_url or 'Not provided'}
-
-ABOUT/BIO:
-{profile.about or 'No bio provided'}
+LinkedIn: {founder_data.get('linkedin_url', 'Not provided')}
 
 EXPERIENCE HISTORY:
 {experience_text}
@@ -219,6 +222,11 @@ EDUCATION:
 
 SKILLS:
 {skills_text}
+
+DATA COMPLETENESS NOTE:
+- Some fields may be empty or missing due to limited LinkedIn data
+- Focus on available information and be explicit about confidence levels
+- Use "INSUFFICIENT_DATA" classification if critical information is missing
 {year_context}
 ANALYSIS INSTRUCTIONS:
 1. Carefully evaluate this founder's track record using the L1-L10 framework

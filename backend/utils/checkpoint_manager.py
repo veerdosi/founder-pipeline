@@ -318,23 +318,50 @@ class CheckpointedPipelineRunner:
             for ec in enriched_companies:
                 company_name = ec.company.name
                 for profile in ec.profiles:
-                    founder_records.append({
+                    # Extract separate experience, education, and skills columns
+                    record = {
                         'company_name': company_name,
                         'name': getattr(profile, 'name', ''),
                         'title': getattr(profile, 'title', ''),
                         'linkedin_url': getattr(profile, 'linkedin_url', ''),
                         'location': getattr(profile, 'location', ''),
-                        'experience': getattr(profile, 'experience', ''),
-                        'education': getattr(profile, 'education', ''),
-                        'skills': '|'.join(getattr(profile, 'skills', [])),
-                        'summary': getattr(profile, 'summary', ''),
-                        'connection_count': getattr(profile, 'connection_count', ''),
-                        'industry': getattr(profile, 'industry', ''),
+                        'about': getattr(profile, 'about', ''),
+                        'estimated_age': getattr(profile, 'estimated_age', ''),
                         'l_level': getattr(profile, 'l_level', ''),  # Ranking level
                         'confidence_score': getattr(profile, 'confidence_score', ''),  # Ranking confidence
                         'reasoning': getattr(profile, 'reasoning', ''),  # Ranking reasoning
                         'extraction_date': getattr(profile, 'extraction_date', '')
-                    })
+                    }
+                    
+                    # Add separate experience columns
+                    experiences = getattr(profile, 'experience', []) or []
+                    for i in range(3):  # Support up to 3 experiences
+                        if i < len(experiences) and experiences[i]:
+                            record[f'experience_{i+1}_title'] = experiences[i].get('title', '')
+                            record[f'experience_{i+1}_company'] = experiences[i].get('company', '')
+                        else:
+                            record[f'experience_{i+1}_title'] = ''
+                            record[f'experience_{i+1}_company'] = ''
+                    
+                    # Add separate education columns
+                    educations = getattr(profile, 'education', []) or []
+                    for i in range(2):  # Support up to 2 educations
+                        if i < len(educations) and educations[i]:
+                            record[f'education_{i+1}_school'] = educations[i].get('school', '')
+                            record[f'education_{i+1}_degree'] = educations[i].get('degree', '')
+                        else:
+                            record[f'education_{i+1}_school'] = ''
+                            record[f'education_{i+1}_degree'] = ''
+                    
+                    # Add separate skills columns
+                    skills = getattr(profile, 'skills', []) or []
+                    for i in range(5):  # Support up to 5 skills
+                        if i < len(skills):
+                            record[f'skill_{i+1}'] = skills[i]
+                        else:
+                            record[f'skill_{i+1}'] = ''
+                    
+                    founder_records.append(record)
             
             if not founder_records:
                 logger.warning("No founders to export")

@@ -126,13 +126,22 @@ class InitiationPipeline:
             if cached_data:
                 return cached_data
 
-        console.print("👤 Finding LinkedIn profiles...")
+        console.print("👤 Finding and enriching LinkedIn profiles...")
         enriched_companies = []
         for i, company in enumerate(companies):
             console.print(f"   👤 [{i+1}/{len(companies)}] Processing {company.name}...")
             try:
+                # Step 1: Find LinkedIn URLs
                 profiles = await self.profile_enrichment.find_profiles(company)
-                enriched_companies.append(EnrichedCompany(company=company, profiles=profiles))
+                
+                # Step 2: Enrich profiles with full LinkedIn data
+                if profiles:
+                    console.print(f"   🔍 Found {len(profiles)} profiles, enriching with full LinkedIn data...")
+                    enriched_profiles = await self.profile_enrichment.enrich_profiles_batch(profiles)
+                    enriched_companies.append(EnrichedCompany(company=company, profiles=enriched_profiles))
+                else:
+                    enriched_companies.append(EnrichedCompany(company=company, profiles=[]))
+                    
             except Exception as e:
                 logger.error(f"Error enriching {company.name}: {e}")
                 enriched_companies.append(EnrichedCompany(company=company, profiles=[]))

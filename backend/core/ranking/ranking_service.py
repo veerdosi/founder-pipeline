@@ -41,17 +41,21 @@ class ClaudeSonnet4RankingService:
         initial_ranking = await self._analyze_with_claude(founder_data, company_data)
         
         if not initial_ranking:
+            logger.warning(f"No initial ranking returned for {founder_name}")
             return self._create_fallback_result(founder_name)
+        
+        logger.debug(f"Initial ranking for {founder_name}: {initial_ranking}")
         
         # Step 2: Verification with Perplexity (if enabled)
         verification_data = {}
-        if use_verification and initial_ranking.get('experience_level'):
+        level_key = initial_ranking.get('level') or initial_ranking.get('experience_level')
+        if use_verification and level_key:
             try:
                 verifier = self._get_perplexity_verifier()
                 verification_data = await verifier.verify_founder_data(
                     founder_name=founder_name,
                     company_name=company_name,
-                    claimed_level=initial_ranking['experience_level'],
+                    claimed_level=level_key,
                     evidence=initial_ranking.get('evidence', [])
                 )
             except Exception as e:
@@ -63,11 +67,24 @@ class ClaudeSonnet4RankingService:
             initial_ranking, verification_data
         )
         
+        # Add safety checks for required fields
+        if not final_ranking or not isinstance(final_ranking, dict):
+            logger.error(f"Invalid final_ranking: {final_ranking}")
+            return self._create_fallback_result(founder_name)
+        
+        # Check for required fields and provide defaults
+        level = final_ranking.get('experience_level') or final_ranking.get('level', 'INSUFFICIENT_DATA')
+        confidence_score = final_ranking.get('confidence_score', 0.1)
+        reasoning = final_ranking.get('reasoning', 'Unable to analyze due to parsing error')
+        evidence = final_ranking.get('evidence', [])
+        
+        logger.debug(f"Final ranking for {founder_name}: level={level}, confidence={confidence_score}")
+        
         return LevelClassification(
-            level=final_ranking['experience_level'],
-            confidence_score=final_ranking['confidence_score'],
-            reasoning=final_ranking['reasoning'],
-            evidence=final_ranking['evidence'],
+            level=level,
+            confidence_score=confidence_score,
+            reasoning=reasoning,
+            evidence=evidence,
             verification_sources=verification_data.get('additional_sources', [])
         )
     
@@ -312,7 +329,7 @@ class FounderRankingService:
             # Create fallback results for all founders
             analysis_results = []
             for profile in founder_profiles:
-                fallback_result = self.claude_ranking_service._create_fallback_result(profile.name)
+                fallback_result = self.claude_ranking_service._create_fallback_result(getattr(profile, 'name', 'Unknown Founder'))
                 analysis_results.append(fallback_result)
         
         if len(analysis_results) != len(founder_profiles):
@@ -338,7 +355,7 @@ class FounderRankingService:
                 rankings.append(ranking)
                 
             except Exception as e:
-                logger.error(f"Error ranking {profile.name}: {e}")
+                logger.error(f"Error ranking {getattr(profile, 'name', 'Unknown Founder')}: {e}")
                 # Add fallback ranking
                 fallback_classification = LevelClassification(
                     level=ExperienceLevel.INSUFFICIENT_DATA,
@@ -359,18 +376,50 @@ class FounderRankingService:
     
     def _profile_to_ai_dict(self, profile: Any) -> Dict[str, Any]:
         """Convert LinkedInProfile to dict for AI ranking."""
-        # Convert LinkedInProfile to dict format
+        # Handle None profile
+        if profile is None:
+            return {
+                "name": "Unknown Founder",
+                "company_name": "",
+                "title": "Founder",
+                "about": "",
+                "location": "",
+                "linkedin_url": "",
+                "experience_1_title": "",
+                "experience_1_company": "",
+                "education_1_school": "",
+                "education_1_degree": "",
+                "overall_confidence": 0.1
+            }
+        
+        # Safely extract experience data
+        experience = getattr(profile, 'experience', [])
+        experience_1_title = ""
+        experience_1_company = ""
+        if experience and len(experience) > 0 and isinstance(experience[0], dict):
+            experience_1_title = experience[0].get('title', '') or ""
+            experience_1_company = experience[0].get('company', '') or ""
+        
+        # Safely extract education data
+        education = getattr(profile, 'education', [])
+        education_1_school = ""
+        education_1_degree = ""
+        if education and len(education) > 0 and isinstance(education[0], dict):
+            education_1_school = education[0].get('school', '') or ""
+            education_1_degree = education[0].get('degree', '') or ""
+        
+        # Convert LinkedInProfile to dict format with better null handling
         data = {
-            "name": getattr(profile, 'name', ''),
-            "company_name": getattr(profile, 'company_name', ''),
-            "title": getattr(profile, 'title', ''),
-            "about": getattr(profile, 'about', ''),
-            "location": getattr(profile, 'location', ''),
-            "linkedin_url": getattr(profile, 'linkedin_url', ''),
-            "experience_1_title": getattr(profile, 'experience', [{}])[0].get('title', '') if getattr(profile, 'experience', []) else '',
-            "experience_1_company": getattr(profile, 'experience', [{}])[0].get('company', '') if getattr(profile, 'experience', []) else '',
-            "education_1_school": getattr(profile, 'education', [{}])[0].get('school', '') if getattr(profile, 'education', []) else '',
-            "education_1_degree": getattr(profile, 'education', [{}])[0].get('degree', '') if getattr(profile, 'education', []) else '',
+            "name": getattr(profile, 'name', '') or "Unknown Founder",
+            "company_name": getattr(profile, 'company_name', '') or "",
+            "title": getattr(profile, 'title', '') or "Founder",
+            "about": getattr(profile, 'about', '') or "",
+            "location": getattr(profile, 'location', '') or "",
+            "linkedin_url": getattr(profile, 'linkedin_url', '') or "",
+            "experience_1_title": experience_1_title,
+            "experience_1_company": experience_1_company,
+            "education_1_school": education_1_school,
+            "education_1_degree": education_1_degree,
             "overall_confidence": 0.3 if getattr(profile, 'linkedin_url', '') else 0.1
         }
         return data

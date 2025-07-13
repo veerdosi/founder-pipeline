@@ -68,21 +68,23 @@ class Company(BaseModel):
 
 class LinkedInProfile(BaseModel):
     """LinkedIn profile data model."""
-    person_name: str
+    name: str  # Simplified from person_name
     company_name: Optional[str] = None
     linkedin_url: Optional[str] = None
-    current_position: Optional[str] = None
-    experience_years: Optional[int] = None
-    education: Optional[List[str]] = Field(default_factory=list)
-    skills: Optional[List[str]] = Field(default_factory=list)
-    previous_companies: Optional[List[str]] = Field(default_factory=list)
-    summary: Optional[str] = None
+    title: Optional[str] = None  # Simplified from current_position
+    about: Optional[str] = None  # Simplified from summary
     location: Optional[str] = None
-    connections_count: Optional[int] = None
-    followers_count: Optional[int] = None
-    profile_picture_url: Optional[str] = None
-    verified: bool = False
-    premium: bool = False
+    
+    # Founder identity mapping
+    founder_name: Optional[str] = None  # Original founder name from Company.founders that this profile matches
+    
+    # Structured data that ranking system expects
+    experience: Optional[List[Dict[str, str]]] = Field(default_factory=list)  # [{'title': '', 'company': ''}]
+    education: Optional[List[Dict[str, str]]] = Field(default_factory=list)   # [{'school': '', 'degree': ''}]
+    skills: Optional[List[str]] = Field(default_factory=list)
+    
+    # Optional metadata
+    estimated_age: Optional[int] = None
     confidence_score: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
