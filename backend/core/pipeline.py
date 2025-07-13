@@ -112,11 +112,27 @@ class InitiationPipeline:
         if not force_restart:
             cached_data = checkpoint_manager.load_checkpoint(self.job_id, stage_name)
             if cached_data:
+                # Export companies CSV when loading from checkpoint (50% complete)
+                try:
+                    runner = CheckpointedPipelineRunner(checkpoint_manager)
+                    await runner._export_companies_csv(cached_data, self.job_id)
+                    logger.info("📊 Companies CSV export completed from checkpoint")
+                except Exception as e:
+                    logger.error(f"Failed to export companies CSV from checkpoint: {e}")
                 return cached_data
 
         console.print("🔄 Enhancing companies with Crunchbase data fusion...")
         enhanced_companies = await self.data_fusion.batch_fuse_companies(companies, batch_size=min(3, settings.concurrent_requests))
         checkpoint_manager.save_checkpoint(self.job_id, stage_name, enhanced_companies)
+        
+        # Export companies CSV after enhancement (50% complete)
+        try:
+            runner = CheckpointedPipelineRunner(checkpoint_manager)
+            await runner._export_companies_csv(enhanced_companies, self.job_id)
+            logger.info("📊 Companies CSV export completed")
+        except Exception as e:
+            logger.error(f"Failed to export companies CSV: {e}")
+        
         return enhanced_companies
 
     async def _enrich_profiles_checkpointed(self, companies, force_restart):
@@ -147,6 +163,7 @@ class InitiationPipeline:
                 enriched_companies.append(EnrichedCompany(company=company, profiles=[]))
         
         checkpoint_manager.save_checkpoint(self.job_id, stage_name, enriched_companies)
+        logger.info(f"💾 Saved {len(enriched_companies)} enriched companies to checkpoint")
         return enriched_companies
 
     async def _rank_founders_checkpointed(self, enriched_companies, force_restart):
@@ -154,6 +171,13 @@ class InitiationPipeline:
         if not force_restart:
             cached_data = checkpoint_manager.load_checkpoint(self.job_id, stage_name)
             if cached_data:
+                # Export founders CSV when loading from checkpoint (100% complete)
+                try:
+                    runner = CheckpointedPipelineRunner(checkpoint_manager)
+                    await runner._export_founders_csv(cached_data, self.job_id)
+                    logger.info("📊 Founders CSV export completed from checkpoint")
+                except Exception as e:
+                    logger.error(f"Failed to export founders CSV from checkpoint: {e}")
                 return cached_data
 
         console.print("🏆 Ranking founders...")
@@ -167,6 +191,17 @@ class InitiationPipeline:
                     logger.error(f"Ranking failed for {enriched.company.name}: {e}")
 
         checkpoint_manager.save_checkpoint(self.job_id, stage_name, enriched_companies)
+        
+        # Export founders CSV with ranking data (100% complete)
+        try:
+            runner = CheckpointedPipelineRunner(checkpoint_manager)
+            await runner._export_founders_csv(enriched_companies, self.job_id)
+            logger.info("📊 Founders CSV export completed")
+        except Exception as e:
+            logger.error(f"Failed to export founders CSV: {e}")
+            import traceback
+            traceback.print_exc()
+        
         return enriched_companies
 
 

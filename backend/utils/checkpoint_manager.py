@@ -321,7 +321,7 @@ class CheckpointedPipelineRunner:
                     # Extract separate experience, education, and skills columns
                     record = {
                         'company_name': company_name,
-                        'name': getattr(profile, 'name', ''),
+                        'name': getattr(profile, 'person_name', ''),
                         'title': getattr(profile, 'title', ''),
                         'linkedin_url': getattr(profile, 'linkedin_url', ''),
                         'location': getattr(profile, 'location', ''),
@@ -369,9 +369,12 @@ class CheckpointedPipelineRunner:
             
             # Define CSV columns for founders including ranking columns
             columns = [
-                'company_name', 'name', 'title', 'linkedin_url', 'location',
-                'experience', 'education', 'skills', 'summary', 'connection_count',
-                'industry', 'l_level', 'confidence_score', 'reasoning', 'extraction_date'
+                'company_name', 'name', 'title', 'linkedin_url', 'location', 'about',
+                'estimated_age', 'extraction_date',
+                'experience_1_title', 'experience_1_company', 'experience_2_title', 'experience_2_company',
+                'experience_3_title', 'experience_3_company', 'education_1_school', 'education_1_degree',
+                'education_2_school', 'education_2_degree', 'skill_1', 'skill_2', 'skill_3', 'skill_4', 'skill_5',
+                'l_level', 'reasoning', 'confidence_score'
             ]
             
             with open(csv_path, 'w', newline='', encoding='utf-8') as csvfile:
