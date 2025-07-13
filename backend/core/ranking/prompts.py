@@ -81,8 +81,8 @@ CRITICAL ANALYSIS REQUIREMENTS:
 7. Account for age and career stage appropriately
 
 CONFIDENCE SCORING:
-- Only classify with confidence ">=0.75 (75%) for actionable results
-- If confidence <0.75, return "INSUFFICIENT_DATA" with reasoning
+- Only classify with confidence ">=0.60 (60%) for actionable results
+- If confidence <0.60, return "INSUFFICIENT_DATA" with reasoning
 - Higher levels (L6+) require stronger evidence and higher confidence
 - Consider data quality and verification possibilities in confidence scoring
 
@@ -95,7 +95,7 @@ VERIFICATION HIERARCHY:
 
 OUTPUT FORMAT:
 Provide a structured JSON response with:
-- level: L1-L10 classification OR "INSUFFICIENT_DATA" if confidence <0.75
+- level: L1-L10 classification OR "INSUFFICIENT_DATA" if confidence <0.60
 - confidence_score: 0.0-1.0 (how certain you are)
 - reasoning: Detailed explanation for the classification
 - evidence: List of specific achievements/facts supporting the level

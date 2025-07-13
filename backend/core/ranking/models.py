@@ -17,7 +17,7 @@ class ExperienceLevel(Enum):
     L8 = "L8"  
     L9 = "L9"  
     L10 = "L10"  
-    INSUFFICIENT_DATA = "INSUFFICIENT_DATA"  # Confidence <75%
+    INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
 
 
 @dataclass

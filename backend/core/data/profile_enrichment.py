@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import List, Optional
 from urllib.parse import urlparse
 import requests
+import logging
 
 from apify_client import ApifyClient
 from openai import AsyncOpenAI
@@ -18,10 +19,7 @@ from ...utils.rate_limiter import RateLimiter
 from ...utils.validators import validate_linkedin_url
 from ...models import Company, LinkedInProfile
 
-import logging
 logger = logging.getLogger(__name__)
-
-
 class ProfileSearchResult(BaseModel):
     """Search result for profile discovery."""
     name: str
@@ -72,7 +70,7 @@ class LinkedInEnrichmentService(ProfileEnrichmentService):
         """Internal method with timeout protection."""
         # Use different strategies based on available founder data
         founder_names = [name.strip() for name in company.founders if name.strip()]        
-        if len(founder_names) >= 3:
+        if len(founder_names) >= 4:
             # Use known names approach
             result = await self._find_profiles_by_names(company, founder_names)
         else:
@@ -97,7 +95,7 @@ class LinkedInEnrichmentService(ProfileEnrichmentService):
             cleaned_url = self._fix_linkedin_url(url)
             
             if not validate_linkedin_url(cleaned_url):
-                logger.warning(f"Invalid LinkedIn URL for {profile.name}: '{cleaned_url}'")
+                logger.warning(f"Invalid LinkedIn URL for {profile.person_name}: '{cleaned_url}'")
                 continue
                 
             # Update the profile with the cleaned URL if it was fixed
@@ -118,53 +116,13 @@ class LinkedInEnrichmentService(ProfileEnrichmentService):
             for i, profile in enumerate(valid_profiles):
                 if i < len(enriched_data_list) and enriched_data_list[i]:
                     enriched_data = enriched_data_list[i]
-                    
-                    # Map enriched data to profile fields (simplified)
-                    if enriched_data.get('about'):
-                        profile.about = enriched_data['about']
-                    if enriched_data.get('headline'):
-                        profile.title = enriched_data['headline']
-                    if enriched_data.get('location'):
-                        profile.location = enriched_data['location']
-                    if enriched_data.get('estimated_age'):
-                        profile.estimated_age = enriched_data['estimated_age']
-                    
-                    # Set experience data as a structured list
-                    experience_list = []
-                    for exp_idx in range(1, 6):  # Check experience_1 through experience_5
-                        title = enriched_data.get(f'experience_{exp_idx}_title')
-                        company = enriched_data.get(f'experience_{exp_idx}_company')
-                        if title or company:
-                            experience_list.append({
-                                'title': title or '',
-                                'company': company or ''
-                            })
-                    if experience_list:
-                        profile.experience = experience_list
-                    
-                    # Set education data as a structured list
-                    education_list = []
-                    for edu_idx in range(1, 4):  # Check education_1 through education_3
-                        school = enriched_data.get(f'education_{edu_idx}_school')
-                        degree = enriched_data.get(f'education_{edu_idx}_degree')
-                        if school or degree:
-                            education_list.append({
-                                'school': school or '',
-                                'degree': degree or ''
-                            })
-                    if education_list:
-                        profile.education = education_list
-                    
-                    # Set skills as a list
-                    skills_list = []
-                    for skill_idx in range(1, 6):  # Check skill_1 through skill_5
-                        skill = enriched_data.get(f'skill_{skill_idx}')
-                        if skill:
-                            skills_list.append(skill)
-                    if skills_list:
-                        profile.skills = skills_list
-                    
-                    logger.debug(f"Enriched profile for {profile.name}: about={bool(profile.about)}, title={bool(profile.title)}, location={bool(profile.location)}")
+                    # Update profile with enriched data
+                    for field, value in enriched_data.items():
+                        if hasattr(profile, field) and value is not None:
+                            setattr(profile, field, value)
+                        elif field.startswith(('experience_', 'education_', 'skill_')) and value:
+                            # Add individual fields as dynamic attributes for ranking compatibility
+                            setattr(profile, field, value)
             
             return profiles
             
@@ -197,8 +155,8 @@ class LinkedInEnrichmentService(ProfileEnrichmentService):
         return self._deduplicate_profiles(profiles)
     
     async def _find_profiles_mixed_approach(
-        self, 
-        company: Company, 
+        self,
+        company: Company,
         known_names: List[str]
     ) -> List[LinkedInProfile]:
         """Find profiles using mixed approach."""
@@ -302,8 +260,6 @@ class LinkedInEnrichmentService(ProfileEnrichmentService):
         known_names: List[str]
     ) -> List[LinkedInProfile]:
         """Extract profiles using known names."""
-        import json
-        
         if not results:
             logger.debug(f"No search results for {company.name} with known names")
             return []
@@ -368,29 +324,8 @@ Return a JSON object with this structure:
                 content = content[:-3]  # Remove ```
             content = content.strip()
             
-            # Handle cases where AI adds commentary after JSON
-            # Find the JSON portion by locating the first { and the last }
-            start_idx = content.find('{')
-            if start_idx == -1:
-                logger.warning("No JSON found in response for profiles with names")
-                return []
-            
-            # Find the matching closing brace
-            brace_count = 0
-            end_idx = start_idx
-            for i, char in enumerate(content[start_idx:], start_idx):
-                if char == '{':
-                    brace_count += 1
-                elif char == '}':
-                    brace_count -= 1
-                    if brace_count == 0:
-                        end_idx = i
-                        break
-            
-            # Extract just the JSON portion
-            json_content = content[start_idx:end_idx + 1]
-            
-            result = json.loads(json_content)
+            import json
+            result = json.loads(content)
             
             profiles = []
             for profile_data in result.get("linkedin", []):
@@ -405,15 +340,12 @@ Return a JSON object with this structure:
                 url = self._fix_linkedin_url(url)
                 
                 # Always create the profile - validation happens later in enrich_profile
-                # Map to the known founder name that this profile matches
-                matched_founder_name = self._find_matching_founder_name(name, known_names)
                 profile = LinkedInProfile(
-                    name=name,
+                    person_name=name,
                     linkedin_url=url,
                     company_name=company.name,
                     title=self._extract_title_from_result(url, combined),
-                    founder_name=matched_founder_name,
-                    about=""  # Will be enriched later
+                    role="Executive"  # Default role, will be enriched later if needed
                 )
                 profiles.append(profile)
             
@@ -435,8 +367,6 @@ Return a JSON object with this structure:
         titles: List[str]
     ) -> List[LinkedInProfile]:
         """Extract profiles using general search."""
-        import json
-        
         if not results:
             logger.debug(f"No search results for {company.name} general search")
             return []
@@ -502,29 +432,8 @@ Return a JSON object with this structure:
                 content = content[:-3]  # Remove ```
             content = content.strip()
             
-            # Handle cases where AI adds commentary after JSON
-            # Find the JSON portion by locating the first { and the last }
-            start_idx = content.find('{')
-            if start_idx == -1:
-                logger.warning("No JSON found in response for profiles general")
-                return []
-            
-            # Find the matching closing brace
-            brace_count = 0
-            end_idx = start_idx
-            for i, char in enumerate(content[start_idx:], start_idx):
-                if char == '{':
-                    brace_count += 1
-                elif char == '}':
-                    brace_count -= 1
-                    if brace_count == 0:
-                        end_idx = i
-                        break
-            
-            # Extract just the JSON portion
-            json_content = content[start_idx:end_idx + 1]
-            
-            result = json.loads(json_content)
+            import json
+            result = json.loads(content)
             
             profiles = []
             for profile_data in result.get("linkedin", []):
@@ -540,12 +449,11 @@ Return a JSON object with this structure:
                 
                 # Always create the profile - validation happens later in enrich_profile
                 profile = LinkedInProfile(
-                    name=name,
+                    person_name=name,
                     linkedin_url=url,
                     company_name=company.name,
                     title=self._extract_title_from_result(url, combined),
-                    founder_name=None,  # General search doesn't match specific founder names
-                    about=""  # Will be enriched later
+                    role="Executive"  # Default role, will be enriched later if needed
                 )
                 profiles.append(profile)
             
@@ -585,7 +493,7 @@ Return a JSON object with this structure:
             if not name or len(name) < 2:
                 continue
                 
-            # Extract role from title or snippet
+            # Extract role from title
             role = "Executive"
             title_lower = title.lower()
             if "ceo" in title_lower:
@@ -598,29 +506,15 @@ Return a JSON object with this structure:
                 role = "President"
             
             profile = LinkedInProfile(
-                name=clean_text(name),
+                person_name=clean_text(name),
                 linkedin_url=link,
                 company_name=company_name,
                 title=title,  # Use the extracted title from search results
-                founder_name=None  # Fallback method doesn't have founder name mapping
+                role=role
             )
             profiles.append(profile)
         
         return profiles
-    
-    def _extract_role_from_title(self, title: str) -> str:
-        """Extract role from LinkedIn title."""
-        title_lower = title.lower()
-        if "ceo" in title_lower or "chief executive" in title_lower:
-            return "CEO"
-        elif "cto" in title_lower or "chief technology" in title_lower:
-            return "CTO"
-        elif "founder" in title_lower:
-            return "Founder"
-        elif "president" in title_lower:
-            return "President"
-        else:
-            return "Executive"
     
     def _extract_title_from_result(self, url: str, search_results: str) -> str:
         """Extract title from search results for a specific URL."""
@@ -668,14 +562,14 @@ Return a JSON object with this structure:
         seen_urls = set()
         
         for i, profile in enumerate(profiles):
-            logger.debug(f"Processing profile {i+1}/{len(profiles)}: {profile.name}")
+            logger.debug(f"Processing profile {i+1}/{len(profiles)}: {profile.person_name}")
             url = str(profile.linkedin_url)
             if url and url not in seen_urls:
                 seen_urls.add(url)
                 unique_profiles.append(profile)
-                logger.debug(f"Added unique profile: {profile.name}")
+                logger.debug(f"Added unique profile: {profile.person_name}")
             else:
-                logger.debug(f"Skipped duplicate profile: {profile.name}")
+                logger.debug(f"Skipped duplicate profile: {profile.person_name}")
         
         logger.debug(f"Deduplication complete: {len(unique_profiles)} unique profiles")
         return unique_profiles
@@ -711,10 +605,6 @@ Return a JSON object with this structure:
             logger.error(f"Error batch scraping LinkedIn profiles: {e}")
             # Return fallback data for all URLs
             return [self._create_fallback_profile_data(url) for url in urls]
-    async def _scrape_linkedin_profile(self, url: str) -> Optional[dict]:
-        """Legacy single profile scraper - use _scrape_linkedin_profiles_batch instead."""
-        results = await self._scrape_linkedin_profiles_batch([url])
-        return results[0] if results else None
     
     def _create_fallback_profile_data(self, url: str) -> dict:
         """Create fallback profile data when scraping fails."""
@@ -732,7 +622,7 @@ Return a JSON object with this structure:
             return {}
         
         extracted = {
-            "headline": profile_data.get("headline"),
+            "title": profile_data.get("headline"),  # Map headline to title field
             "location": profile_data.get("addressWithCountry"),
             "about": profile_data.get("about"),
         }
@@ -760,19 +650,47 @@ Return a JSON object with this structure:
             else:
                 extracted["estimated_age"] = datetime.now().year - earliest_exp + 22
         
-        # Add experiences
-        for i, exp in enumerate(profile_data.get("experiences", [])[:5]):
+        # Add experiences as structured list
+        experiences = []
+        for exp in profile_data.get("experiences", [])[:5]:
+            if exp.get("title") or exp.get("subtitle"):
+                experiences.append({
+                    "title": exp.get("title", ""),
+                    "company": exp.get("subtitle", "")
+                })
+        extracted["experience"] = experiences
+        
+        # Add education as structured list
+        education = []
+        for edu in profile_data.get("educations", [])[:3]:
+            if edu.get("title") or edu.get("subtitle"):
+                education.append({
+                    "school": edu.get("title", ""),
+                    "degree": edu.get("subtitle", "")
+                })
+        extracted["education"] = education
+        
+        # Add skills as simple list
+        skills = []
+        for skill in profile_data.get("skills", [])[:5]:
+            if skill.get("title"):
+                skills.append(skill.get("title", ""))
+        extracted["skills"] = skills
+        
+        # Add individual experience fields that ranking service expects
+        for i, exp in enumerate(profile_data.get("experiences", [])[:3]):
             extracted[f"experience_{i+1}_title"] = exp.get("title", "")
             extracted[f"experience_{i+1}_company"] = exp.get("subtitle", "")
         
-        # Add education
-        for i, edu in enumerate(profile_data.get("educations", [])[:3]):
+        # Add individual education fields that ranking service expects
+        for i, edu in enumerate(profile_data.get("educations", [])[:2]):
             extracted[f"education_{i+1}_school"] = edu.get("title", "")
             extracted[f"education_{i+1}_degree"] = edu.get("subtitle", "")
         
-        # Add skills
+        # Add individual skill fields that ranking service expects
         for i, skill in enumerate(profile_data.get("skills", [])[:5]):
-            extracted[f"skill_{i+1}"] = skill.get("title", "")
+            if skill.get("title"):
+                extracted[f"skill_{i+1}"] = skill.get("title", "")
         
         return extracted
     
@@ -787,41 +705,3 @@ Return a JSON object with this structure:
         ]
         
         return min(year_matches) if year_matches else None
-    
-    def _find_matching_founder_name(self, profile_name: str, known_names: List[str]) -> Optional[str]:
-        """Find which founder name this profile most likely matches."""
-        if not profile_name or not known_names:
-            return None
-        
-        profile_name = profile_name.lower().strip()
-        
-        # Direct exact match
-        for founder_name in known_names:
-            if founder_name.lower().strip() == profile_name:
-                return founder_name
-        
-        # Check if profile name contains founder name parts
-        for founder_name in known_names:
-            founder_parts = founder_name.lower().split()
-            profile_parts = profile_name.lower().split()
-            
-            # Count matching parts (first name, last name)
-            matches = 0
-            for founder_part in founder_parts:
-                if len(founder_part) > 1:  # Skip single letters/initials
-                    for profile_part in profile_parts:
-                        if founder_part in profile_part or profile_part in founder_part:
-                            matches += 1
-                            break
-            
-            # If we match majority of name parts, consider it a match
-            if matches >= len(founder_parts) * 0.6:  # 60% threshold
-                return founder_name
-        
-        # Check reversed order (Last, First vs First Last)
-        for founder_name in known_names:
-            founder_reversed = ' '.join(reversed(founder_name.split()))
-            if founder_reversed.lower() in profile_name or profile_name in founder_reversed.lower():
-                return founder_name
-        
-        return None

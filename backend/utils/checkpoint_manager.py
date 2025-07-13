@@ -77,9 +77,9 @@ class PipelineCheckpointManager:
                 logger.warning(f"⚠️ Invalid checkpoint file: {checkpoint_file}")
                 return None
             
-            # Check if checkpoint is too old (24 hours)
+            # Check if checkpoint is too old (72 hours)
             age = datetime.now() - checkpoint['timestamp']
-            if age > timedelta(hours=24):
+            if age > timedelta(hours=72):
                 logger.warning(f"⚠️ Checkpoint expired (age: {age}): {checkpoint_file}")
                 return None
             

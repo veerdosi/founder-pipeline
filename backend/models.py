@@ -68,10 +68,11 @@ class Company(BaseModel):
 
 class LinkedInProfile(BaseModel):
     """LinkedIn profile data model."""
-    name: str  # Simplified from person_name
+    person_name: str  # Field expected by ranking system
     company_name: Optional[str] = None
     linkedin_url: Optional[str] = None
     title: Optional[str] = None  # Simplified from current_position
+    role: Optional[str] = None  # Role extracted from title (CEO, Founder, etc.)
     about: Optional[str] = None  # Simplified from summary
     location: Optional[str] = None
     
@@ -86,6 +87,10 @@ class LinkedInProfile(BaseModel):
     # Optional metadata
     estimated_age: Optional[int] = None
     confidence_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    
+    # Fields for ranking system compatibility
+    l_level: Optional[str] = None  # L1-L10 ranking result
+    reasoning: Optional[str] = None  # Ranking reasoning
 
 
 class MarketMetrics(BaseModel):

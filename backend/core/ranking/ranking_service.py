@@ -307,9 +307,8 @@ class FounderRankingService:
         founder_profiles: List[Any],  # LinkedInProfile objects
         batch_size: int = 5,
         use_enhanced: bool = True
-    ) -> List[Dict[str, Any]]:
-        """Simple ranking method without verification complexity."""
-        logger.info(f"🎯 Ranking {len(founder_profiles)} founders (simplified)")
+    ) -> List[Any]:
+        logger.info(f"🎯 Ranking {len(founder_profiles)} founders")
         
         # Convert profiles to founder data for AI analysis
         founders_data = [
@@ -329,7 +328,7 @@ class FounderRankingService:
             # Create fallback results for all founders
             analysis_results = []
             for profile in founder_profiles:
-                fallback_result = self.claude_ranking_service._create_fallback_result(getattr(profile, 'name', 'Unknown Founder'))
+                fallback_result = self.claude_ranking_service._create_fallback_result(getattr(profile, 'person_name', 'Unknown Founder'))
                 analysis_results.append(fallback_result)
         
         if len(analysis_results) != len(founder_profiles):
@@ -339,40 +338,26 @@ class FounderRankingService:
                 fallback_result = self.claude_ranking_service._create_fallback_result("Unknown Founder")
                 analysis_results.append(fallback_result)
         
-        # Create rankings dataset
-        rankings = []
+        # Attach ranking data directly to profiles
         for profile, analysis_result in zip(founder_profiles, analysis_results):
             try:
                 # Convert AI result to L-level classification
                 classification = self._convert_to_classification(analysis_result, profile)
                 
-                # Create simple ranking result
-                ranking = {
-                    'profile': profile,
-                    'classification': classification,
-                    'timestamp': datetime.now().isoformat()
-                }
-                rankings.append(ranking)
+                # Attach ranking data to profile object
+                profile.l_level = classification.level.value
+                profile.confidence_score = classification.confidence_score
+                profile.reasoning = classification.reasoning
                 
             except Exception as e:
-                logger.error(f"Error ranking {getattr(profile, 'name', 'Unknown Founder')}: {e}")
-                # Add fallback ranking
-                fallback_classification = LevelClassification(
-                    level=ExperienceLevel.INSUFFICIENT_DATA,
-                    confidence_score=0.1,
-                    reasoning=f"Ranking failed: {str(e)}",
-                    evidence=[],
-                    verification_sources=[]
-                )
-                ranking = {
-                    'profile': profile,
-                    'classification': fallback_classification,
-                    'timestamp': datetime.now().isoformat()
-                }
-                rankings.append(ranking)
+                logger.error(f"Error ranking {getattr(profile, 'person_name', 'Unknown Founder')}: {e}")
+                # Add fallback ranking data to profile
+                profile.l_level = ExperienceLevel.INSUFFICIENT_DATA.value
+                profile.confidence_score = 0.1
+                profile.reasoning = f"Ranking failed: {str(e)}"
         
-        logger.info(f"✅ Ranked {len(rankings)} founders")
-        return rankings
+        logger.info(f"✅ Ranked {len(founder_profiles)} founders")
+        return founder_profiles
     
     def _profile_to_ai_dict(self, profile: Any) -> Dict[str, Any]:
         """Convert LinkedInProfile to dict for AI ranking."""
@@ -392,25 +377,43 @@ class FounderRankingService:
                 "overall_confidence": 0.1
             }
         
-        # Safely extract experience data
-        experience = getattr(profile, 'experience', [])
+        # Try to extract from structured data first, then fall back to individual fields
         experience_1_title = ""
         experience_1_company = ""
+        
+        # Check for structured experience data
+        experience = getattr(profile, 'experience', [])
         if experience and len(experience) > 0 and isinstance(experience[0], dict):
             experience_1_title = experience[0].get('title', '') or ""
             experience_1_company = experience[0].get('company', '') or ""
         
-        # Safely extract education data
-        education = getattr(profile, 'education', [])
+        # Fall back to individual fields if structured data not available
+        if not experience_1_title:
+            experience_1_title = getattr(profile, 'experience_1_title', '') or ""
+        if not experience_1_company:
+            experience_1_company = getattr(profile, 'experience_1_company', '') or ""
+        
+        # Same approach for education
         education_1_school = ""
         education_1_degree = ""
+        
+        # Check for structured education data
+        education = getattr(profile, 'education', [])
         if education and len(education) > 0 and isinstance(education[0], dict):
             education_1_school = education[0].get('school', '') or ""
             education_1_degree = education[0].get('degree', '') or ""
         
+        # Fall back to individual fields if structured data not available
+        if not education_1_school:
+            education_1_school = getattr(profile, 'education_1_school', '') or ""
+        if not education_1_degree:
+            education_1_degree = getattr(profile, 'education_1_degree', '') or ""
+        
         # Convert LinkedInProfile to dict format with better null handling
+        profile_name = getattr(profile, 'person_name', '') or "Unknown Founder"
+        
         data = {
-            "name": getattr(profile, 'name', '') or "Unknown Founder",
+            "name": profile_name,
             "company_name": getattr(profile, 'company_name', '') or "",
             "title": getattr(profile, 'title', '') or "Founder",
             "about": getattr(profile, 'about', '') or "",
@@ -463,7 +466,7 @@ class FounderRankingService:
             "reasoning": classification.reasoning,
             
             # Core founder info
-            "name": getattr(profile, 'name', ''),
+            "name": getattr(profile, 'person_name', ''),
             "company_name": getattr(profile, 'company_name', ''),
             "title": getattr(profile, 'title', ''),
             "location": getattr(profile, 'location', ''),
