@@ -27,7 +27,6 @@ env/
 *.sqlite
 
 # Data files
-*.csv
 *.tsv
 *.parquet
 *.h5
