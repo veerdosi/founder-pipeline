@@ -1,109 +1,91 @@
-"""AI-powered sector classification service for accurate company categorization."""
+"""Centralized sector description service for consistent company categorization."""
 
 import json
-from typing import Dict, List, Optional
-from dataclasses import dataclass, field
-from datetime import datetime
-
+from typing import Optional
 from openai import AsyncOpenAI
-
 from ...core import settings
 from ...utils.rate_limiter import RateLimiter
-
 import logging
+
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class SectorClassification:
-    """Structured sector classification result."""
-    primary_sector: str = "unknown"
-    sub_sectors: List[str] = field(default_factory=list)
-    ai_focus: str = "unknown"
-    technology_stack: List[str] = field(default_factory=list)
-    business_model: str = "unknown"
-    target_market: str = "unknown"
-    confidence_score: float = 0.0
-    reasoning: str = "No classification performed"
-    classification_timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
-
-
-class SectorClassifier:
-    """AI-powered classification of companies into detailed sectors and categories."""
+class SectorDescriptionService:
+    """Service for generating detailed, searchable sector descriptions for companies."""
     
     def __init__(self):
         self.openai = AsyncOpenAI(api_key=settings.openai_api_key)
         self.rate_limiter = RateLimiter(max_requests=60, time_window=60)
     
-    async def classify_company(
+    async def get_sector_description(
         self, 
         company_name: str,
-        description: str,
+        company_description: str,
         website_content: str = "",
         additional_context: str = ""
-    ) -> SectorClassification:
-        """Classify a company into detailed sectors using AI analysis."""
+    ) -> Optional[str]:
+        """
+        Generate a detailed, searchable sector description for a company.
+        
+        The description will be:
+        - Detailed and accurate for market research
+        - Searchable online and in research reports
+        - Less than 10 words
+        - Suitable for running market analysis
+        """
         try:
-            combined_text = self._prepare_classification_text(
-                company_name, description, website_content, additional_context
+            combined_context = self._prepare_context(
+                company_name, company_description, website_content, additional_context
             )
             
-            ai_result = await self._get_ai_classification(company_name, combined_text)
+            sector_description = await self._generate_sector_description(company_name, combined_context)
             
-            if not ai_result:
-                return self._get_default_classification("AI classification returned no result.")
-
-            return SectorClassification(
-                primary_sector=ai_result.get("primary_sector", "unknown"),
-                sub_sectors=ai_result.get("sub_sectors", []),
-                ai_focus=ai_result.get("ai_focus", "unknown"),
-                technology_stack=ai_result.get("technology_stack", []),
-                business_model=ai_result.get("business_model", "unknown"),
-                target_market=ai_result.get("target_market", "unknown"),
-                confidence_score=ai_result.get("confidence_score", 0.0),
-                reasoning=ai_result.get("reasoning", "No reasoning provided."),
-                classification_timestamp=datetime.now().isoformat()
-            )
+            return sector_description
             
         except Exception as e:
-            logger.error(f"Error classifying company {company_name}: {e}")
-            return self._get_default_classification(str(e))
+            logger.error(f"Error generating sector description for {company_name}: {e}")
+            return "AI Software Solutions"  # Default fallback
     
-    def _prepare_classification_text(
+    def _prepare_context(
         self, 
         company_name: str, 
         description: str, 
         website_content: str, 
         additional_context: str
     ) -> str:
-        """Prepare combined text for classification."""
-        texts = [
+        """Prepare combined context for sector description generation."""
+        contexts = [
             f"Company: {company_name}",
             f"Description: {description}",
-            f"Website Content: {website_content[:1500]}" if website_content else "",
-            f"Additional Context: {additional_context[:500]}" if additional_context else ""
+            f"Website Content: {website_content[:1000]}" if website_content else "",
+            f"Additional Context: {additional_context[:300]}" if additional_context else ""
         ]
-        return "\n".join(filter(None, texts))
+        return "\n".join(filter(None, contexts))
     
-    async def _get_ai_classification(self, company_name: str, text: str) -> Optional[Dict]:
-        """Get AI-powered sector classification."""
+    async def _generate_sector_description(self, company_name: str, context: str) -> Optional[str]:
+        """Generate AI-powered sector description using the specified prompt requirements."""
+        
         prompt = f"""
-        Analyze the following information about '{company_name}' and classify it.
-        
-        Information:
-        {text}
-        
-        Provide a detailed classification in JSON format with the following fields:
-        - primary_sector: The main industry sector (e.g., 'ai_fintech', 'ai_healthcare').
-        - sub_sectors: A list of specific sub-categories.
-        - ai_focus: A detailed description of their AI application.
-        - technology_stack: A list of key technologies, languages, and platforms.
-        - business_model: The company's business model (e.g., 'b2b_saas', 'api_platform').
-        - target_market: The primary customer segment (e.g., 'enterprise', 'developers').
-        - confidence_score: Your confidence in this classification (0.0 to 1.0).
-        - reasoning: A brief explanation for your classification.
-        
-        Return only the JSON object.
+        I need a startup sector description that I can run a market research on so the description needs to be detailed and accurate and searchable online and in research reports. Recommend the best sector description for me. Make sure the output is less than 10 words.
+
+        Company Information:
+        {context}
+
+        Requirements:
+        - Must be less than 10 words
+        - Must be detailed and accurate
+        - Must be searchable online and in research reports
+        - Must be suitable for market research
+        - Should capture the specific niche/vertical the company operates in
+
+        Examples of good sector descriptions:
+        - "AI-Powered Healthcare Diagnostics Platform"
+        - "Enterprise Data Analytics Software"
+        - "Autonomous Vehicle Navigation Technology"
+        - "Fintech Payment Processing Solutions"
+        - "B2B Customer Support Automation"
+
+        Return only the sector description, nothing else.
         """
         
         try:
@@ -113,21 +95,31 @@ class SectorClassifier:
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
-                response_format={"type": "json_object"}
+                max_tokens=50
             )
             
             content = response.choices[0].message.content
             if content:
-                return json.loads(content)
+                sector_description = content.strip()
+                
+                # Validate word count
+                word_count = len(sector_description.split())
+                if word_count <= 10:
+                    return sector_description
+                else:
+                    logger.warning(f"Generated sector description exceeds 10 words ({word_count} words): {sector_description}")
+                    # Try to truncate while keeping meaning
+                    words = sector_description.split()[:10]
+                    return ' '.join(words)
+            
             return None
             
         except Exception as e:
-            logger.warning(f"AI classification request failed for {company_name}: {e}")
+            logger.warning(f"AI sector description generation failed for {company_name}: {e}")
             return None
-    
-    def _get_default_classification(self, reason: str) -> SectorClassification:
-        """Return default classification for error cases."""
-        return SectorClassification(
-            reasoning=f"Default classification due to analysis error: {reason}",
-            confidence_score=0.1
-        )
+
+
+# Global instance for easy import
+sector_description_service = SectorDescriptionService()
+
+

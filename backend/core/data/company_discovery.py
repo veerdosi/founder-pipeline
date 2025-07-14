@@ -17,6 +17,7 @@ from .. import (
 )
 from ...models import Company, FundingStage
 from ...utils.data_processing import clean_text
+from ..analysis.sector_classification import sector_description_service
 
 import logging
 import asyncio
@@ -581,7 +582,7 @@ REQUIRED JSON FORMAT (return exactly this structure):
     "region": "state/province",
     "country": "country name",
     "ai_focus": "specific AI area (NLP, computer vision, robotics, etc.)",
-    "sector": "industry sector (fintech, healthcare, etc.)",
+    "sector": "detailed searchable sector description (less than 10 words)",
     "website": "company website URL",
     "linkedin_url": "LinkedIn company URL"
 }}
@@ -761,6 +762,16 @@ If NO suitable early-stage startup found, return: null
                 # Get crunchbase URL using Perplexity
                 crunchbase_url = await self._get_crunchbase_url(company_name, website)
                 
+                # Get centralized sector description
+                sector_description = await sector_description_service.get_sector_description(
+                    company_name=company_name,
+                    company_description=safe_get("description", ""),
+                    website_content=content[:1000] if content else "",
+                    additional_context=f"AI Focus: {safe_get('ai_focus', '')}"
+                )
+                if not sector_description:
+                    sector_description = "AI Software Solutions"
+                
                 company = Company(
                     uuid=f"comp_{hash(company_name)}", # Generate simple UUID
                     name=clean_text(company_name),
@@ -776,7 +787,7 @@ If NO suitable early-stage startup found, return: null
                     region=clean_text(safe_get("region", "")),
                     country=clean_text(safe_get("country", "")),
                     ai_focus=clean_text(safe_get("ai_focus", "")),
-                    sector=clean_text(safe_get("sector", "")),
+                    sector=sector_description,
                     website=website,
                     linkedin_url=linkedin_url,
                     crunchbase_url=crunchbase_url,

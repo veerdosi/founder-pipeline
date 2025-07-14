@@ -523,12 +523,6 @@ async def export_companies():
                     "investors": "; ".join(getattr(c, 'investors', []) or []),
                     "categories": "; ".join(getattr(c, 'categories', []) or []),
                     "linkedin_url": getattr(c, 'linkedin_url', None),
-                    "employee_count": getattr(c, 'employee_count', None),
-                    "revenue_millions": getattr(c, 'revenue_millions', None),
-                    "valuation_millions": getattr(c, 'valuation_millions', None),
-                    "last_funding_date": getattr(c, 'last_funding_date', None),
-                    "tech_stack": "; ".join(getattr(c, 'tech_stack', []) or []),
-                    "competitors": "; ".join(getattr(c, 'competitors', []) or []),
                     "source_url": c.source_url,
                     "extraction_date": getattr(c, 'extraction_date', None),
                     "confidence_score": c.confidence_score,
@@ -636,8 +630,20 @@ async def export_rankings():
             raise HTTPException(status_code=404, detail="No rankings available to export. Run a ranking job first.")
 
         ranking_records = []
+        seen_founders = set()  # Track unique founders to avoid duplicates
+        
         for i, r in enumerate(rankings):
             try:
+                # Create unique key for founder (name + company combination)
+                founder_key = f"{r.profile.person_name}_{r.profile.company_name}".lower()
+                
+                # Skip if we've already processed this founder
+                if founder_key in seen_founders:
+                    logger.debug(f"Skipping duplicate founder: {r.profile.person_name} at {r.profile.company_name}")
+                    continue
+                
+                seen_founders.add(founder_key)
+                
                 record = {
                     "founder_name": r.profile.person_name,
                     "company_name": r.profile.company_name,

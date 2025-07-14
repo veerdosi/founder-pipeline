@@ -15,6 +15,7 @@ from .. import CompanyDiscoveryService, settings
 from .company_discovery import ExaCompanyDiscovery
 from ...models import Company, FundingStage
 from ...utils.data_processing import clean_text
+from ..analysis.sector_classification import sector_description_service
 
 logger = logging.getLogger(__name__)
 
@@ -407,6 +408,15 @@ class AcceleratorCompanyDiscovery(CompanyDiscoveryService):
             # Get crunchbase URL using Perplexity
             crunchbase_url = await self._get_crunchbase_url(company_name, website)
             
+            # Get centralized sector description
+            sector_description = await sector_description_service.get_sector_description(
+                company_name=company_name,
+                company_description=yc_company.get('long_description', ''),
+                additional_context=f"Y Combinator company. Industry: {yc_company.get('industry', '')}. Subindustry: {yc_company.get('subindustry', '')}"
+            )
+            if not sector_description:
+                sector_description = "AI Software Solutions"
+            
             # Create Company object
             company = Company(
                 uuid=f"yc_{yc_company.get('slug', hash(company_name))}",
@@ -423,7 +433,7 @@ class AcceleratorCompanyDiscovery(CompanyDiscoveryService):
                 region="",  # YC API doesn't include region
                 country="",  # YC API doesn't include country
                 ai_focus=clean_text(yc_company.get('industry', '')),
-                sector=clean_text(yc_company.get('subindustry', '')),
+                sector=sector_description,
                 website=website,
                 linkedin_url=None,
                 crunchbase_url=crunchbase_url,
@@ -469,6 +479,15 @@ class AcceleratorCompanyDiscovery(CompanyDiscoveryService):
             # Get crunchbase URL using Perplexity
             crunchbase_url = await self._get_crunchbase_url(company_name, website)
             
+            # Get centralized sector description
+            sector_description = await sector_description_service.get_sector_description(
+                company_name=company_name,
+                company_description=techstars_company.get('description', ''),
+                additional_context=f"Techstars company. Industry: {techstars_company.get('industry', '')}. Subindustry: {techstars_company.get('subindustry', '')}"
+            )
+            if not sector_description:
+                sector_description = "AI Software Solutions"
+            
             # Create Company object
             company = Company(
                 uuid=f"techstars_{techstars_company.get('slug', hash(company_name))}",
@@ -485,7 +504,7 @@ class AcceleratorCompanyDiscovery(CompanyDiscoveryService):
                 region=clean_text(region),
                 country=clean_text(country),
                 ai_focus=clean_text(techstars_company.get('industry', '')),
-                sector=clean_text(techstars_company.get('subindustry', '')),
+                sector=sector_description,
                 website=website,
                 linkedin_url=None,
                 crunchbase_url=crunchbase_url,
@@ -531,6 +550,15 @@ class AcceleratorCompanyDiscovery(CompanyDiscoveryService):
             # Get crunchbase URL using Perplexity
             crunchbase_url = await self._get_crunchbase_url(company_name, website)
 
+            # Get centralized sector description
+            sector_description = await sector_description_service.get_sector_description(
+                company_name=company_name,
+                company_description=company_500co.get('description', ''),
+                additional_context=f"500 Global company. Industry: {company_500co.get('industry', '')}. Subindustry: {company_500co.get('subindustry', '')}"
+            )
+            if not sector_description:
+                sector_description = "AI Software Solutions"
+
             # Create Company object
             company = Company(
                 uuid=f"500co_{company_500co.get('slug', hash(company_name))}",
@@ -547,7 +575,7 @@ class AcceleratorCompanyDiscovery(CompanyDiscoveryService):
                 region=clean_text(region),
                 country=clean_text(country),
                 ai_focus=clean_text(company_500co.get('industry', '')),
-                sector=clean_text(company_500co.get('subindustry', '')),
+                sector=sector_description,
                 website=website,
                 linkedin_url=None,
                 crunchbase_url=crunchbase_url,

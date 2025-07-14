@@ -11,7 +11,7 @@ from ...models import Company, EnrichedCompany
 import logging
 logger = logging.getLogger(__name__)
 from ..analysis.metrics_extraction import MetricsExtractor
-from ..analysis.sector_classification import SectorClassifier, SectorClassification
+from ..analysis.sector_classification import sector_description_service
 from .crunchbase_integration import CrunchbaseService, CrunchbaseCompany
 
 
@@ -72,7 +72,6 @@ class DataFusionService:
     
     def __init__(self):
         self.metrics_extractor = MetricsExtractor()
-        self.sector_classifier = SectorClassifier()
         
         # Confidence weights for different data sources
         self.source_weights = {
@@ -101,7 +100,7 @@ class DataFusionService:
         """Fuse data from multiple sources to create comprehensive company profile."""
         crunchbase_data = None
         enhanced_metrics = {}
-        sector_classification = None
+        sector_description = None
         
         try:
             logger.info(f"🔄 Fusing data for {base_company.name}")
@@ -137,27 +136,27 @@ class DataFusionService:
                 logger.warning(f"Enhanced metrics failed for {base_company.name}: {e}")
                 enhanced_metrics = {}
             
-            # Get sector classification
+            # Get sector description
             try:
-                sector_classification = await asyncio.wait_for(
-                    self.sector_classifier.classify_company(
+                sector_description = await asyncio.wait_for(
+                    sector_description_service.get_sector_description(
                         company_name=base_company.name,
-                        description=base_company.description or "",
+                        company_description=base_company.description or "",
                         website_content=website_content,
                         additional_context=f"AI Focus: {base_company.ai_focus or 'N/A'}"
                     ),
                     timeout=30
                 )
             except Exception as e:
-                logger.warning(f"Sector classification failed for {base_company.name}: {e}")
-                sector_classification = None
+                logger.warning(f"Sector description failed for {base_company.name}: {e}")
+                sector_description = None
             
             # Fuse all data sources
             fused_data = self._fuse_data_sources(
                 base_company=base_company,
                 crunchbase_data=crunchbase_data,
                 enhanced_metrics=enhanced_metrics,
-                sector_classification=sector_classification,
+                sector_description=sector_description,
                 website_content=website_content,
                 additional_sources=additional_sources or {},
                 target_year=target_year
@@ -258,7 +257,7 @@ class DataFusionService:
         base_company: Company,
         crunchbase_data: Optional[CrunchbaseCompany],
         enhanced_metrics: Dict[str, Any],
-        sector_classification: Optional[SectorClassification],
+        sector_description: Optional[str],
         website_content: str,
         additional_sources: Dict[str, Any],
         target_year: Optional[int] = None
@@ -272,7 +271,7 @@ class DataFusionService:
             data_sources.append('crunchbase')
         if enhanced_metrics:
             data_sources.append('website_extraction')
-        if sector_classification:
+        if sector_description:
             data_sources.append('ai_classification')
         
         # Core company information (with conflict resolution)
@@ -303,16 +302,16 @@ class DataFusionService:
         if founded_year is None and target_year is not None:
             founded_year = target_year
         
-        # Sector classification (prioritize AI classification)
-        if sector_classification:
-            primary_sector = sector_classification.primary_sector
-            sub_sectors = sector_classification.sub_sectors
-            ai_focus = sector_classification.ai_focus
-            technology_stack = sector_classification.technology_stack
-            business_model = sector_classification.business_model
-            target_market = sector_classification.target_market
+        # Sector classification (use centralized sector description)
+        if sector_description:
+            primary_sector = sector_description
+            sub_sectors = []
+            ai_focus = base_company.ai_focus or "Artificial Intelligence"
+            technology_stack = []
+            business_model = "b2b_saas"
+            target_market = "Enterprise"
         else:
-            primary_sector = base_company.ai_focus or "machine_learning"
+            primary_sector = base_company.sector or "AI Software Solutions"
             sub_sectors = []
             ai_focus = base_company.ai_focus or "Artificial Intelligence"
             technology_stack = []
@@ -379,7 +378,7 @@ class DataFusionService:
         data_quality_score = self._calculate_overall_data_quality(
             enhanced_metrics.get('data_quality_score', 0.0),
             crunchbase_data.data_quality_score if crunchbase_data else 0.0,
-            sector_classification.confidence_score if sector_classification else 0.0
+            0.8 if sector_description else 0.0  # Fixed confidence score for sector description
         )
         
         confidence_score = self._calculate_confidence_score(data_sources, data_quality_score)
