@@ -64,18 +64,42 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
                 content = content[:-3]
             content = content.strip()
             
+            # Remove any leading/trailing text that isn't JSON
+            # Find the first '{' and last '}'
+            start_idx = content.find('{')
+            end_idx = content.rfind('}')
+            
+            if start_idx != -1 and end_idx != -1 and start_idx < end_idx:
+                content = content[start_idx:end_idx + 1]
+            
             # Handle truncated JSON by finding the last complete object
             if not content.endswith('}') and not content.endswith(']'):
-                # Find the last complete object
+                # Find the last complete object by properly tracking braces
                 brace_count = 0
                 last_valid_pos = -1
+                in_string = False
+                escape_next = False
+                
                 for i, char in enumerate(content):
-                    if char == '{':
-                        brace_count += 1
-                    elif char == '}':
-                        brace_count -= 1
-                        if brace_count == 0:
-                            last_valid_pos = i + 1
+                    if escape_next:
+                        escape_next = False
+                        continue
+                    
+                    if char == '\\':
+                        escape_next = True
+                        continue
+                    
+                    if char == '"' and not escape_next:
+                        in_string = not in_string
+                        continue
+                    
+                    if not in_string:
+                        if char == '{':
+                            brace_count += 1
+                        elif char == '}':
+                            brace_count -= 1
+                            if brace_count == 0:
+                                last_valid_pos = i + 1
                 
                 if last_valid_pos > 0:
                     content = content[:last_valid_pos]
@@ -98,14 +122,16 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
         import re
         result = {}
         
-        # Extract string values
-        string_pattern = r'"([^"]+)":\s*"([^"]*)"'
-        for match in re.finditer(string_pattern, content):
+        # Extract string values (handling escaped quotes and multiline strings)
+        string_pattern = r'"([^"]+)":\s*"((?:[^"\\]|\\.)*)"'
+        for match in re.finditer(string_pattern, content, re.DOTALL):
             key, value = match.groups()
+            # Unescape common JSON escape sequences
+            value = value.replace('\\"', '"').replace('\\n', '\n').replace('\\t', '\t')
             result[key] = value
         
         # Extract numeric values  
-        number_pattern = r'"([^"]+)":\s*([0-9.]+)'
+        number_pattern = r'"([^"]+)":\s*([0-9.]+)(?:\s*[,}])'
         for match in re.finditer(number_pattern, content):
             key, value = match.groups()
             try:
@@ -113,16 +139,32 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
             except ValueError:
                 pass
         
-        # Extract array values (simplified)
-        array_pattern = r'"([^"]+)":\s*\[([^\]]*)\]'
-        for match in re.finditer(array_pattern, content):
+        # Extract array values (improved handling)
+        array_pattern = r'"([^"]+)":\s*\[((?:[^\]\\]|\\.)*)\]'
+        for match in re.finditer(array_pattern, content, re.DOTALL):
             key, array_content = match.groups()
-            # Simple array parsing for strings
+            # Parse array items more carefully
             items = []
-            for item in array_content.split(','):
-                item = item.strip().strip('"')
+            # Split on commas but handle quoted strings
+            current_item = ""
+            in_quotes = False
+            for char in array_content:
+                if char == '"' and (not current_item or current_item[-1] != '\\'):
+                    in_quotes = not in_quotes
+                elif char == ',' and not in_quotes:
+                    item = current_item.strip().strip('"')
+                    if item:
+                        items.append(item)
+                    current_item = ""
+                    continue
+                current_item += char
+            
+            # Don't forget the last item
+            if current_item.strip():
+                item = current_item.strip().strip('"')
                 if item:
                     items.append(item)
+            
             result[key] = items
         
         logger.warning(f"Used fallback parsing, extracted {len(result)} key-value pairs")
