@@ -89,26 +89,9 @@ class InitiationPipeline:
             regions=regions,
             founded_year=founded_after.year if founded_after else None,
         )
-        
-        if founded_after or founded_before:
-            companies = self._filter_by_date(companies, founded_after, founded_before)
 
         checkpoint_manager.save_checkpoint(self.job_id, stage_name, companies)
         return companies
-
-    def _filter_by_date(self, companies, founded_after, founded_before):
-        filtered_companies = []
-        for company in companies:
-            if company.founded_year:
-                company_date = date(company.founded_year, 1, 1)
-                if founded_after and company_date < founded_after:
-                    continue
-                if founded_before and company_date > founded_before:
-                    continue
-            filtered_companies.append(company)
-        
-        console.print(f"📅 Filtered to {len(filtered_companies)} companies in date range")
-        return filtered_companies
 
     async def _enhance_companies_checkpointed(self, companies, force_restart):
         stage_name = "enhanced_companies"

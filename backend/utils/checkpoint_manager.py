@@ -354,6 +354,11 @@ class CheckpointedPipelineRunner:
             for ec in enriched_companies:
                 company_name = ec.company.name
                 for profile in ec.profiles:
+                    # Format confidence score to 2 decimal places
+                    confidence_score = getattr(profile, 'confidence_score', '')
+                    if confidence_score and isinstance(confidence_score, (int, float)):
+                        confidence_score = f"{confidence_score:.2f}"
+                    
                     # Extract separate experience, education, and skills columns
                     record = {
                         'company_name': company_name,
@@ -364,7 +369,7 @@ class CheckpointedPipelineRunner:
                         'about': getattr(profile, 'about', ''),
                         'estimated_age': getattr(profile, 'estimated_age', ''),
                         'l_level': getattr(profile, 'l_level', ''),  # Ranking level
-                        'confidence_score': getattr(profile, 'confidence_score', ''),  # Ranking confidence
+                        'confidence_score': confidence_score,  # Ranking confidence (formatted to 2 decimal places)
                         'reasoning': getattr(profile, 'reasoning', ''),  # Ranking reasoning
                         'extraction_date': getattr(profile, 'extraction_date', '')
                     }

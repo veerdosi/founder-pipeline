@@ -13,19 +13,19 @@ const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab }) => {
         onClick={() => setActiveTab('pipeline')}
         className={`tab-button ${activeTab === 'pipeline' ? 'active' : ''}`}
       >
-        📊 Pipeline
+        Pipeline
       </button>
       <button
         onClick={() => setActiveTab('accelerators')}
         className={`tab-button ${activeTab === 'accelerators' ? 'active' : ''}`}
       >
-        🚀 Accelerators
+        Accelerators
       </button>
       <button
         onClick={() => setActiveTab('market-analysis')}
         className={`tab-button ${activeTab === 'market-analysis' ? 'active' : ''}`}
       >
-        📈 Market Analysis
+        Market Analysis
       </button>
     </div>
   );
