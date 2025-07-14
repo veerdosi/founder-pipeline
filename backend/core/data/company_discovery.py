@@ -48,19 +48,20 @@ class RateLimiter:
 
 
 logger = logging.getLogger(__name__)
-
-
 class ExaCompanyDiscovery(CompanyDiscoveryService):
-    """Enhanced company discovery using comprehensive 20+ source monitoring."""
+    """Enhanced company discovery using comprehensive 20+ source monitoring with better uniqueness."""
     
     def __init__(self):
         self.exa = Exa(settings.exa_api_key)
         self.openai = AsyncOpenAI(api_key=settings.openai_api_key)
         self.rate_limiter = RateLimiter(
-            max_requests=settings.requests_per_minute * 2,  # Double the rate limit for better throughput
+            max_requests=settings.requests_per_minute * 2,
             time_window=60
         )
         self.session: Optional[aiohttp.ClientSession] = None
+        # Track processed articles globally to avoid duplicates across queries
+        self.processed_urls = set()
+        self.processed_titles = set()  # Track similar titles
     
     async def discover_companies(
         self,
@@ -71,6 +72,10 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
     ) -> List[Company]:
         """Discover companies using comprehensive 20+ source monitoring."""
         logger.info(f"🚀 Starting discovery: {limit} companies from 20+ sources...")
+        
+        # Reset tracking for each discovery session
+        self.processed_urls.clear()
+        self.processed_titles.clear()
         
         companies = await self.find_companies(
             limit=limit,
@@ -88,90 +93,60 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
         regions: Optional[List[str]] = None,
         founded_year: Optional[int] = None
     ) -> List[Company]:
-        """Find AI companies using Exa search."""
+        """Find AI companies using Exa search with enhanced uniqueness."""
         start_time = time.time()
         year_context = f" (founded in {founded_year})" if founded_year else ""
         logger.info(f"🔍 Finding {limit} AI companies with Exa{year_context}...")
         
         categories = categories or settings.ai_categories
         
-        # Generate search queries with optional year filtering
-        queries = self._generate_search_queries(categories, regions, founded_year)
-        logger.info(f"📝 Running {len(queries)} search queries...")
+        # Generate more diverse search queries
+        queries = self._generate_diverse_search_queries(categories, regions, founded_year)
+        logger.info(f"📝 Running {len(queries)} diverse search queries...")
         
         all_companies = []
-        processed_urls = set()  # Track processed URLs to avoid duplicates
-        # Increase results per query significantly for better yield
-        results_per_query = max(12, (limit * 3) // len(queries))  # 3x multiplier for better coverage
+        # Reduce results per query but increase query diversity
+        results_per_query = max(8, (limit * 2) // len(queries))
         
-        # Execute searches with progress tracking
-        for i, query in enumerate(queries):
+        # Execute searches with staggered timing and different parameters
+        for i, query_config in enumerate(queries):
+            query = query_config["query"]
+            search_type = query_config.get("type", "neural")
+            time_filter = query_config.get("time_filter")
+            
             logger.info(f"🔍 [{i+1}/{len(queries)}] {query[:50]}...")
             print(f"🔍 [{i+1}/{len(queries)}] Searching: {query[:50]}...")
             
             try:
                 await self.rate_limiter.acquire()
                 
-                # Perform search with error handling
+                # Add small delay between queries to get different results
+                if i > 0:
+                    await asyncio.sleep(0.5)
+                
+                # Perform search with varied parameters
+                search_params = {
+                    "query": query,
+                    "type": search_type,
+                    "use_autoprompt": True,
+                    "num_results": results_per_query,
+                    "text": {"max_characters": 2000},
+                    "include_domains": self._get_diverse_domains(i)
+                }
+                
+                # Add time filter if specified
+                if time_filter:
+                    search_params["start_published_date"] = time_filter
+                
                 try:
-                    print(f"   📡 Executing search query...")
-                    result = self.exa.search_and_contents(
-                        query,
-                        type="neural",
-                        use_autoprompt=True,
-                        num_results=results_per_query,
-                        text={"max_characters": 2000},
-                        include_domains=[
-                            # Tech news and startup coverage
-                            "techcrunch.com", 
-                            "venturebeat.com", 
-                            "theverge.com",
-                            "wired.com",
-                            "arstechnica.com",
-                            "thenextweb.com",  
-                            "mashable.com",
-                            "engadget.com",
-                            
-                            # Business and funding news
-                            "bloomberg.com", 
-                            "reuters.com",  
-                            "forbes.com",
-                            "businessinsider.com",
-                            "inc.com",
-                            "fastcompany.com",
-                            "axios.com",
-                            "fortune.com",
-                            "wsj.com",
-                            
-                            # Startup databases and platforms
-                            "crunchbase.com",
-                            "pitchbook.com", 
-                            "producthunt.com",
-                            "angel.co", 
-                            "startupgrind.com",
-                            "founder.org",
-                            
-                            # Industry publications
-                            "theinformation.com",
-                            "protocol.com",  
-                            "stratechery.com",
-                            "recode.net",  
-                            "readwrite.com",
-                            
-                            # Accelerator and VC sites
-                            "500.co",
-                            "angellist.com",
-                            "antler.co", 
-                            "plugandplaytechcenter.com",
-                            "masschallenge.org"
-                        ]
-                    )
+                    print(f"   📡 Executing {search_type} search...")
+                    result = self.exa.search_and_contents(**search_params)
+                    
                     if result and result.results:
                         print(f"   📊 Found {len(result.results)} articles")
                         logger.info(f"  Found {len(result.results)} articles")
                     else:
                         print(f"   ⚠️  No results for query: {query}")
-                        logger.debug(f"  No results for query: {query}")
                         continue
                 except Exception as search_error:
                     logger.error(f"  Search failed: {search_error}")
@@ -180,19 +155,14 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
                 if not result or not result.results:
                     continue
                 
-                # Extract company data from results with individual error handling
-                companies_found_this_query = 0
-                print(f"   🔍 Processing {len(result.results)} articles for company data...")
+                # Filter out duplicate/similar articles before processing
+                unique_results = self._filter_unique_articles(result.results)
+                print(f"   🔍 Processing {len(unique_results)} unique articles...")
                 
-                for j, item in enumerate(result.results):
+                companies_found_this_query = 0
+                for j, item in enumerate(unique_results):
                     try:
-                        # Skip if we've already processed this URL
-                        if item.url in processed_urls:
-                            print(f"     ⏭️  [{j+1}/{len(result.results)}] Skipping duplicate: {item.title[:50]}...")
-                            continue
-                        
-                        processed_urls.add(item.url)
-                        print(f"     📄 [{j+1}/{len(result.results)}] Processing: {item.title[:50]}...")
+                        print(f"     📄 [{j+1}/{len(unique_results)}] Processing: {item.title[:50]}...")
                         company = await self._extract_company_data(
                             item.text,
                             item.url,
@@ -211,14 +181,17 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
                 if companies_found_this_query > 0:
                     print(f"   📊 {companies_found_this_query} companies found ({len(all_companies)} total)")
                     logger.info(f"  📊 {companies_found_this_query} companies found ({len(all_companies)} total)")
-                else:
-                    print(f"   ❌ No companies found in this query")
+                
+                # Early exit if we have enough companies
+                if len(all_companies) >= limit * 2:
+                    logger.info(f"🎯 Early exit: Found {len(all_companies)} companies (target: {limit})")
+                    break
                         
             except Exception as e:
                 logger.error(f"Unexpected error with query '{query}': {e}")
                 continue
         
-        # Deduplicate companies
+        # Enhanced deduplication
         print(f"🔄 Deduplicating {len(all_companies)} companies...")
         unique_companies = self._deduplicate_companies(all_companies)
         
@@ -228,153 +201,209 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
         
         return unique_companies[:limit]
     
-    def _generate_search_queries(
+    def _filter_unique_articles(self, results) -> List:
+        """Filter out duplicate and similar articles."""
+        unique_results = []
+        
+        for item in results:
+            # Skip if URL already processed
+            if item.url in self.processed_urls:
+                continue
+            
+            # Skip if title is too similar to existing ones
+            title_words = set(item.title.lower().split())
+            is_similar = False
+            
+            for existing_title in self.processed_titles:
+                existing_words = set(existing_title.lower().split())
+                # If 70% of words overlap, consider it similar
+                overlap = len(title_words & existing_words)
+                if overlap > 0.7 * min(len(title_words), len(existing_words)):
+                    is_similar = True
+                    break
+            
+            if not is_similar:
+                unique_results.append(item)
+                self.processed_urls.add(item.url)
+                self.processed_titles.add(item.title)
+        
+        return unique_results
+    
+    def _get_diverse_domains(self, query_index: int) -> List[str]:
+        """Get different domain sets for each query to increase diversity."""
+        domain_sets = [
+            # Tech news focused
+            [
+                "techcrunch.com", "venturebeat.com", "theverge.com",
+                "wired.com", "arstechnica.com", "thenextweb.com"
+            ],
+            # Business news focused
+            [
+                "bloomberg.com", "reuters.com", "forbes.com",
+                "businessinsider.com", "inc.com", "fastcompany.com"
+            ],
+            # Startup databases
+            [
+                "crunchbase.com", "pitchbook.com", "producthunt.com",
+                "angel.co", "startupgrind.com", "founder.org"
+            ],
+            # Industry publications
+            [
+                "theinformation.com", "protocol.com", "stratechery.com",
+                "recode.net", "readwrite.com", "axios.com"
+            ],
+            # Regional and niche
+            [
+                "siliconvalley.com", "sanfrancisco.com", "nyc.com",
+                "boston.com", "austin.com", "seattle.com"
+            ],
+            # AI-specific publications
+            [
+                "artificialintelligence-news.com", "venturebeat.com",
+                "technologyreview.com", "spectrum.ieee.org"
+            ]
+        ]
+        
+        # Rotate through domain sets
+        return domain_sets[query_index % len(domain_sets)]
+    
+    def _generate_diverse_search_queries(
         self, 
         categories: List[str], 
         regions: Optional[List[str]] = None,
         founded_year: Optional[int] = None
-    ) -> List[str]:
-        """Generate US-focused search queries for AI companies."""
+    ) -> List[dict]:
+        """Generate diverse search queries with different types and filters."""
         
         if founded_year:
-            # Year-specific queries - US market focused
-            logger.info(f"🇺🇸 Generating US-focused queries for companies founded in {founded_year}")
-            queries = [
-                # US funding announcements
-                f"US AI startups founded {founded_year} announced seed funding",
-                f"American artificial intelligence companies {founded_year} pre-seed",
-                f"Silicon Valley AI startups {founded_year} Series A funding",
-                f"US machine learning companies {founded_year} venture capital",
-                f"American AI companies {founded_year} raised seed round",
-                f"US startup funding {founded_year} artificial intelligence",
-                f"American generative AI companies {founded_year} investment",
-                f"US computer vision startups {founded_year} funding",
-                
-                # US-specific accelerators and VCs
-                f"Y Combinator AI startups {founded_year} batch",
-                f"Techstars US AI companies {founded_year} demo day",
-                f"500 Startups American AI batch {founded_year}",
-                f"Andreessen Horowitz AI investments {founded_year} a16z",
-                f"Sequoia Capital US AI startups {founded_year}",
-                f"Google Ventures American AI companies {founded_year}",
-                f"Microsoft Ventures US AI startups {founded_year}",
-                f"Intel Capital American AI investments {founded_year}",
-                f"NVIDIA Inception US AI startups {founded_year}",
-                f"Amazon Alexa Fund American AI companies {founded_year}",
-                f"Salesforce Ventures US AI startups {founded_year}",
-                
-                # US geographic hubs
-                f"Silicon Valley AI startups {founded_year} Palo Alto",
-                f"San Francisco AI companies {founded_year} Bay Area",
-                f"Seattle AI startups {founded_year} Washington",
-                f"New York AI companies {founded_year} NYC",
-                f"Boston AI startups {founded_year} Cambridge",
-                f"Austin AI companies {founded_year} Texas",
-                f"Los Angeles AI startups {founded_year} California",
-                f"Chicago AI companies {founded_year} Illinois",
-                f"Denver AI startups {founded_year} Colorado",
-                f"Atlanta AI companies {founded_year} Georgia",
-                
-                # US industry-specific
-                f"US healthcare AI startups {founded_year} medical",
-                f"American fintech AI companies {founded_year} financial",
-                f"US enterprise AI startups {founded_year} B2B",
-                f"American consumer AI apps {founded_year} B2C",
-                f"US AI infrastructure companies {founded_year} cloud",
-                f"American AI developer tools {founded_year} programming",
-                f"US cybersecurity AI startups {founded_year} security",
-                f"American autonomous vehicle AI {founded_year} self-driving",
-                f"US AI robotics companies {founded_year} automation",
-                f"American AI drug discovery {founded_year} biotech",
-                
-                # US universities and research
-                f"Stanford AI startups {founded_year} university spinoff",
-                f"MIT AI companies {founded_year} research spin-out",
-                f"Carnegie Mellon AI startups {founded_year} CMU",
-                f"UC Berkeley AI companies {founded_year} California",
-                f"Harvard AI startups {founded_year} Cambridge",
-                f"Caltech AI companies {founded_year} Pasadena"
-            ]
-            return queries[:35]
-        else:
-            # Current year searches - US market focused
+            logger.info(f"🇺🇸 Generating diverse US-focused queries for companies founded in {founded_year}")
+            
+            # Current date for time filters
             current_year = datetime.now().year
-            previous_year = current_year - 1
             
             queries = [
-                # US funding announcements
-                f"US AI startups announced pre-seed funding {current_year}",
-                f"American artificial intelligence companies raised seed {current_year}",
-                f"Silicon Valley AI startups Series A funding {current_year}",
-                f"US machine learning companies venture capital {current_year}",
-                f"American generative AI startups funding {current_year}",
-                f"US computer vision companies investment {current_year}",
-                f"American NLP startups funding {current_year}",
-                f"US AI robotics companies venture capital {current_year}",
+                # Recent funding announcements - neural search
+                {"query": f"US AI startups founded {founded_year} seed funding announcement", "type": "neural"},
+                {"query": f"American artificial intelligence companies {founded_year} Series A", "type": "neural"},
+                {"query": f"Silicon Valley AI startups {founded_year} venture capital", "type": "neural"},
                 
-                # US accelerators and VCs
-                f"Y Combinator AI startups demo day {current_year}",
-                f"Techstars US AI companies {current_year}",
-                f"500 Startups American AI batch {current_year}",
-                f"Andreessen Horowitz US AI investments {current_year}",
-                f"Sequoia Capital American AI startups {current_year}",
-                f"Google Ventures US AI companies {current_year}",
-                f"Microsoft Ventures American AI startups {current_year}",
-                f"Intel Capital US AI investments {current_year}",
-                f"NVIDIA Inception American AI startups {current_year}",
-                f"Amazon Alexa Fund US AI companies {current_year}",
-                f"Salesforce Ventures American AI startups {current_year}",
-                f"Founders Fund US AI companies {current_year}",
-                f"Kleiner Perkins American AI investments {current_year}",
-                f"Bessemer Venture Partners US AI {current_year}",
+                # Keyword search for specific terms
+                {"query": f"AI startup {founded_year} United States funding", "type": "keyword"},
+                {"query": f"machine learning company {founded_year} America investment", "type": "keyword"},
+                {"query": f"artificial intelligence {founded_year} US Series A", "type": "keyword"},
                 
-                # US geographic hubs
-                f"Silicon Valley AI startups seed funding {current_year}",
-                f"San Francisco AI companies Bay Area {current_year}",
-                f"Seattle AI startups Washington state {current_year}",
-                f"New York AI companies NYC funding {current_year}",
-                f"Boston AI startups Cambridge {current_year}",
-                f"Austin AI companies Texas {current_year}",
-                f"Los Angeles AI startups California {current_year}",
-                f"Chicago AI companies Illinois {current_year}",
-                f"Denver AI startups Colorado {current_year}",
-                f"Atlanta AI companies Georgia {current_year}",
-                f"Miami AI startups Florida {current_year}",
-                f"Phoenix AI companies Arizona {current_year}",
+                # Time-filtered recent news
+                {"query": f"AI companies founded {founded_year} funding news", "type": "neural", 
+                 "time_filter": f"{current_year-1}-01-01"},
+                {"query": f"American AI startups {founded_year} investment", "type": "neural",
+                 "time_filter": f"{current_year-1}-01-01"},
                 
-                # US industry verticals
-                f"US healthcare AI startups medical devices {current_year}",
-                f"American fintech AI companies financial {current_year}",
-                f"US enterprise AI startups B2B software {current_year}",
-                f"American consumer AI apps B2C {current_year}",
-                f"US AI infrastructure companies cloud {current_year}",
-                f"American AI developer tools programming {current_year}",
-                f"US cybersecurity AI startups security {current_year}",
-                f"American autonomous vehicle AI {current_year}",
-                f"US AI robotics companies automation {current_year}",
-                f"American AI drug discovery biotech {current_year}",
-                f"US logistics AI companies supply chain {current_year}",
-                f"American legal AI startups lawtech {current_year}",
+                # Geographic diversity
+                {"query": f"San Francisco AI startups {founded_year} Bay Area", "type": "neural"},
+                {"query": f"New York AI companies {founded_year} NYC tech", "type": "neural"},
+                {"query": f"Boston AI startups {founded_year} Cambridge MIT", "type": "neural"},
+                {"query": f"Austin AI companies {founded_year} Texas tech", "type": "neural"},
+                {"query": f"Seattle AI startups {founded_year} Washington", "type": "neural"},
+                {"query": f"Los Angeles AI companies {founded_year} California", "type": "neural"},
+                {"query": f"Chicago AI startups {founded_year} Illinois", "type": "neural"},
+                {"query": f"Denver AI companies {founded_year} Colorado tech", "type": "neural"},
                 
-                # US universities and research
-                f"Stanford AI startups university spinoff {current_year}",
-                f"MIT AI companies research commercialization {current_year}",
-                f"Carnegie Mellon AI startups CMU {current_year}",
-                f"UC Berkeley AI companies California {current_year}",
-                f"Harvard AI startups Cambridge {current_year}",
-                f"Caltech AI companies Pasadena {current_year}",
-                f"Georgia Tech AI startups Atlanta {current_year}",
-                f"University of Washington AI companies Seattle {current_year}",
+                # Accelerator and incubator specific
+                {"query": f"Y Combinator AI batch {founded_year} demo day", "type": "keyword"},
+                {"query": f"Techstars AI companies {founded_year} accelerator", "type": "keyword"},
+                {"query": f"500 Startups AI batch {founded_year}", "type": "keyword"},
+                {"query": f"Plug and Play AI startups {founded_year}", "type": "keyword"},
+                {"query": f"AngelList AI companies {founded_year}", "type": "keyword"},
                 
-                # US platform-specific
-                f"Product Hunt AI tools launched US {current_year}",
-                f"AngelList AI startups fundraising America {current_year}",
-                f"TechCrunch US AI companies {current_year}",
-                f"VentureBeat American AI startups {current_year}",
-                f"Crunchbase US AI funding {current_year}",
-                f"PitchBook American AI companies {current_year}"
+                # VC-specific searches
+                {"query": f"Andreessen Horowitz AI investments {founded_year}", "type": "keyword"},
+                {"query": f"Sequoia Capital AI startups {founded_year}", "type": "keyword"},
+                {"query": f"Google Ventures AI companies {founded_year}", "type": "keyword"},
+                {"query": f"Kleiner Perkins AI startups {founded_year}", "type": "keyword"},
+                {"query": f"Accel Partners AI investments {founded_year}", "type": "keyword"},
+                
+                # Industry verticals
+                {"query": f"healthcare AI startups {founded_year} United States", "type": "neural"},
+                {"query": f"fintech AI companies {founded_year} American", "type": "neural"},
+                {"query": f"enterprise AI startups {founded_year} B2B US", "type": "neural"},
+                {"query": f"consumer AI apps {founded_year} American B2C", "type": "neural"},
+                {"query": f"autonomous vehicle AI {founded_year} US self-driving", "type": "neural"},
+                {"query": f"cybersecurity AI startups {founded_year} American", "type": "neural"},
+                {"query": f"robotics AI companies {founded_year} US automation", "type": "neural"},
+                {"query": f"drug discovery AI {founded_year} American biotech", "type": "neural"},
+                
+                # University spinoffs
+                {"query": f"Stanford AI startup {founded_year} university", "type": "keyword"},
+                {"query": f"MIT AI company {founded_year} research", "type": "keyword"},
+                {"query": f"Carnegie Mellon AI startup {founded_year} CMU", "type": "keyword"},
+                {"query": f"UC Berkeley AI company {founded_year}", "type": "keyword"},
+                {"query": f"Harvard AI startup {founded_year}", "type": "keyword"},
+                
+                # Alternative search terms
+                {"query": f"generative AI startup {founded_year} United States", "type": "neural"},
+                {"query": f"computer vision company {founded_year} American", "type": "neural"},
+                {"query": f"natural language processing startup {founded_year} US", "type": "neural"},
+                {"query": f"deep learning company {founded_year} America", "type": "neural"},
+                {"query": f"AI infrastructure startup {founded_year} US cloud", "type": "neural"},
+                {"query": f"AI developer tools {founded_year} American programming", "type": "neural"},
+                
+                # Recent news angles
+                {"query": f"emerging AI companies {founded_year} United States", "type": "neural"},
+                {"query": f"AI unicorn startup {founded_year} American billion", "type": "neural"},
+                {"query": f"stealth AI company {founded_year} US launch", "type": "neural"},
+                {"query": f"AI acquisition {founded_year} American startup", "type": "neural"},
+                
+                # Product launches and announcements
+                {"query": f"AI product launch {founded_year} American startup", "type": "neural"},
+                {"query": f"AI beta launch {founded_year} US company", "type": "neural"},
+                {"query": f"AI platform launch {founded_year} American", "type": "neural"}
             ]
-            return queries[:40]
+            
+            return queries[:45]  # Return more diverse queries
+        
+        # Non-year specific queries (similar enhancement)
+        else:
+            return self._generate_general_queries(categories, regions)
+    
+    def _normalize_company_name(self, name: str) -> str:
+        """Normalize company name for comparison."""
+        # Remove common suffixes and prefixes
+        name = name.lower().strip()
+        name = re.sub(r'\b(inc|llc|corp|corporation|ltd|limited|ai|technologies|tech|systems|solutions|labs|lab)\b', '', name)
+        name = re.sub(r'[^\w\s]', '', name)  # Remove special characters
+        name = re.sub(r'\s+', ' ', name).strip()  # Normalize whitespace
+        return name
+    
+    def _is_similar_name(self, name: str, seen_names: set) -> bool:
+        """Check if name is similar to any seen names."""
+        name_words = set(name.split())
+        for seen_name in seen_names:
+            seen_words = set(seen_name.split())
+            if len(name_words) > 0 and len(seen_words) > 0:
+                # If 80% of words match, consider it similar
+                overlap = len(name_words & seen_words)
+                if overlap >= 0.8 * min(len(name_words), len(seen_words)):
+                    return True
+        return False
+    
+    def _is_similar_description(self, description: str, seen_descriptions: set) -> bool:
+        """Check if description is similar to any seen descriptions."""
+        desc_words = set(description.lower().split()[:20])  # First 20 words
+        for seen_desc in seen_descriptions:
+            seen_words = set(seen_desc.lower().split()[:20])
+            if len(desc_words) > 0 and len(seen_words) > 0:
+                overlap = len(desc_words & seen_words)
+                if overlap >= 0.7 * min(len(desc_words), len(seen_words)):
+                    return True
+        return False
+    
+    def _extract_domain(self, url: str) -> str:
+        """Extract domain from URL."""
+        try:
+            from urllib.parse import urlparse
+            return urlparse(url).netloc.lower()
+        except:
+            return url.lower()
     
     async def _is_company_alive(self, company_name: str, website: str = None) -> bool:
         """Use Perplexity to verify if a company is still active and operating."""
@@ -422,79 +451,6 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
         except Exception as e:
             logger.debug(f"Error checking if {company_name} is alive: {e}")
             # Default to including company if verification fails
-            return True
-        
-        return True
-    
-    async def _is_early_stage_startup(self, company_data: dict, content: str, target_year: Optional[int] = None) -> bool:
-        """Use Perplexity to determine if a company is an early-stage startup suitable for VC investment."""
-        
-        # Determine the context year for assessment
-        current_year = datetime.now().year
-        assessment_year = target_year if target_year else current_year
-        
-        # Calculate time-based context for what constitutes "early stage" at that time
-        if target_year:
-            # For historical searches, assess based on the target year context
-            founded_year = company_data.get('founded_year')
-            if founded_year and isinstance(founded_year, int):
-                years_since_founding = max(0, assessment_year - founded_year)
-                time_context = f"This analysis is for companies in {target_year}. A company founded in {founded_year} would be {years_since_founding} years old in {target_year}."
-            else:
-                time_context = f"This analysis is for companies in {target_year}. Company founding year is unknown."
-        else:
-            # For current searches, use present-day context
-            time_context = f"This analysis is for present-day ({current_year}) investment opportunities."
-        
-        prompt = f"""
-Analyze this company information and determine if it was an early-stage startup suitable for VC investment at the time of analysis.
-
-Company: {company_data.get('name', 'Unknown')}
-Description: {company_data.get('description', 'No description')}
-Founded Year: {company_data.get('founded_year', 'Unknown')}
-Funding Stage: {company_data.get('funding_stage', 'Unknown')}
-Funding Amount: {company_data.get('funding_amount_millions', 'Unknown')}
-
-{time_context}
-
-Context from article: {content[:800]}
-
-CLASSIFICATION CRITERIA:
-- EARLY-STAGE STARTUP: Pre-seed, seed, Series A, Series B, Series C (if recent), private company with growth potential, seeking venture capital, founded after 2015
-- MATURE/ESTABLISHED: Public companies, mega-unicorns (>$10B valuation), Big Tech (Google, Meta, Apple, Microsoft, Amazon, etc.), well-established enterprises with >10 years and >$100M revenue
-
-IMPORTANT: Be INCLUSIVE rather than exclusive. If unsure, classify as early-stage. Focus on excluding only obviously mature companies.
-
-Answer with ONLY "YES" if this is an early-stage startup suitable for VC investment, or "NO" if it's clearly a mature/established company.
-"""
-        
-        try:
-            # Import here to avoid circular imports
-            from openai import AsyncOpenAI
-            
-            # Use OpenAI client configured for Perplexity
-            perplexity_client = AsyncOpenAI(
-                api_key=settings.perplexity_api_key,
-                base_url="https://api.perplexity.ai"
-            )
-            
-            await self.rate_limiter.acquire()
-            
-            response = await perplexity_client.chat.completions.create(
-                model="sonar",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.1,
-                max_tokens=10,
-                timeout=15.0
-            )
-            
-            if response and response.choices:
-                answer = response.choices[0].message.content.strip().upper()
-                return answer == "YES"
-            
-        except Exception as e:
-            logger.debug(f"Error in maturity assessment for {company_data.get('name', 'Unknown')}: {e}")
-            # Default to including the company if AI assessment fails
             return True
         
         return True
@@ -723,12 +679,6 @@ If NO suitable early-stage startup found, return: null
                 logger.warning(f"No valid company name found for {url}")
                 return None
             
-            # Use AI to assess if this is a mature company vs early-stage startup
-            if not await self._is_early_stage_startup(result, content, target_year):
-                print(f"     🚫 Filtered out mature company: {result.get('name')}")
-                logger.debug(f"Filtered out mature/established company: {result.get('name')} for {url}")
-                return None
-            
             # Check if company is still alive and operating
             company_name = result.get('name')
             website = result.get('website')
@@ -857,48 +807,36 @@ If NO suitable early-stage startup found, return: null
             return None
     
     def _deduplicate_companies(self, companies: List[Company]) -> List[Company]:
-        """Remove duplicate companies based on name similarity and other factors."""
-        import difflib
+        """Enhanced deduplication with fuzzy matching and domain similarity."""
+        if not companies:
+            return []
         
         unique_companies = []
         seen_names = set()
-        seen_websites = set()
+        seen_domains = set()
+        seen_descriptions = set()
         
         for company in companies:
-            # Skip if no valid name
-            if not company.name or len(company.name.strip()) < 2:
-                continue
-                
-            name_lower = company.name.lower().strip()
+            # Normalize company name for comparison
+            normalized_name = self._normalize_company_name(company.name)
             
-            # Skip obvious duplicates by exact name match
-            if name_lower in seen_names:
+            # Skip if name is too similar to existing ones
+            if self._is_similar_name(normalized_name, seen_names):
                 continue
             
-            # Check for similar names (fuzzy matching)
-            is_duplicate = False
-            for existing_name in seen_names:
-                # Use difflib for similarity matching
-                similarity = difflib.SequenceMatcher(None, name_lower, existing_name).ratio()
-                if similarity > 0.85:  # 85% similarity threshold
-                    logger.debug(f"Filtering similar company name: {company.name} (similar to existing: {existing_name})")
-                    is_duplicate = True
-                    break
-            
-            if is_duplicate:
+            # Skip if domain is already seen
+            if company.website and self._extract_domain(company.website) in seen_domains:
                 continue
             
-            # Check for duplicate websites
-            if company.website:
-                website_str = str(company.website).lower()
-                if website_str in seen_websites:
-                    logger.debug(f"Filtering duplicate website: {company.name} ({website_str})")
-                    continue
-                seen_websites.add(website_str)
+            # Skip if description is too similar (for cases where same company has different names)
+            if company.description and self._is_similar_description(company.description, seen_descriptions):
+                continue
             
-            # Add to unique companies
-            seen_names.add(name_lower)
             unique_companies.append(company)
+            seen_names.add(normalized_name)
+            if company.website:
+                seen_domains.add(self._extract_domain(company.website))
+            if company.description:
+                seen_descriptions.add(company.description[:100])  # First 100 chars
         
-        logger.info(f"Deduplication: {len(companies)} → {len(unique_companies)} companies")
         return unique_companies
