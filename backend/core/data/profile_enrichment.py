@@ -393,26 +393,27 @@ Return a JSON object with this structure:
             return []
         
         prompt = f"""
-You are filtering LinkedIn profiles for company executives.
+        You are filtering LinkedIn profiles for a specific company.
 
-Company Name: {company.name}
-Company Description: {company.description or "N/A"}
-Target roles: {', '.join(titles)}
+        Company Name: {company.name}
+        Company Description: {company.description or "N/A"}
 
-Below are search results. Extract only LinkedIn profiles that:
-- Are likely employees of this company
-- Hold leadership roles like the ones mentioned
+        Below are search results. Extract only LinkedIn profiles that:
+        - Match the known names provided
+        - Are likely to belong to this company
+        - Have a valid LinkedIn URL (skip if it's missing or uncertain)
+        - Are not duplicates (remove repeated entries by name or URL)
 
-Search Results:
-{combined}
+        Search Results:
+        {combined}
 
-Return a JSON object with this structure:
-{{
-    "linkedin": [
-        {{"name": "Person Name", "url": "https://linkedin.com/in/profile"}}
-    ]
-}}
-"""
+        Return a JSON object with this structure:
+        {{
+            "linkedin": [
+                {{"name": "Person Name", "url": "https://linkedin.com/in/profile"}}
+            ]
+        }}
+        """
         
         try:
             await self.rate_limiter.acquire()
