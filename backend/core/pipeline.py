@@ -148,25 +148,53 @@ class InitiationPipeline:
         console.print("👤 Finding and enriching LinkedIn profiles...")
         enriched_companies = []
         for i, company in enumerate(companies):
-            console.print(f"   👤 [{i+1}/{len(companies)}] Processing {company.name}...")
+            # Handle both Company and EnrichedCompany objects
+            if hasattr(company, 'company'):
+                # This is an EnrichedCompany, get the nested company
+                comp = company.company
+                company_name = comp.name
+            else:
+                # This is a regular Company object
+                comp = company
+                company_name = comp.name
+                
+            console.print(f"   👤 [{i+1}/{len(companies)}] Processing {company_name}...")
             try:
                 # Step 1: Find LinkedIn URLs
-                profiles = await self.profile_enrichment.find_profiles(company)
+                profiles = await self.profile_enrichment.find_profiles(comp)
                 
                 # Step 2: Enrich profiles with full LinkedIn data
                 if profiles:
                     console.print(f"   🔍 Found {len(profiles)} profiles, enriching with full LinkedIn data...")
                     enriched_profiles = await self.profile_enrichment.enrich_profiles_batch(profiles)
-                    enriched_companies.append(EnrichedCompany(company=company, profiles=enriched_profiles))
+                    if hasattr(company, 'company'):
+                        # Update existing EnrichedCompany
+                        company.profiles = enriched_profiles
+                        enriched_companies.append(company)
+                    else:
+                        # Create new EnrichedCompany
+                        enriched_companies.append(EnrichedCompany(company=company, profiles=enriched_profiles))
                 else:
-                    enriched_companies.append(EnrichedCompany(company=company, profiles=[]))
+                    if hasattr(company, 'company'):
+                        # Update existing EnrichedCompany
+                        company.profiles = []
+                        enriched_companies.append(company)
+                    else:
+                        # Create new EnrichedCompany
+                        enriched_companies.append(EnrichedCompany(company=company, profiles=[]))
                     
             except Exception as e:
-                logger.error(f"Error enriching {company.name}: {e}")
-                enriched_companies.append(EnrichedCompany(company=company, profiles=[]))
+                logger.error(f"Error enriching {company_name}: {e}")
+                if hasattr(company, 'company'):
+                    # Update existing EnrichedCompany
+                    company.profiles = []
+                    enriched_companies.append(company)
+                else:
+                    # Create new EnrichedCompany
+                    enriched_companies.append(EnrichedCompany(company=company, profiles=[]))
         
         checkpoint_manager.save_checkpoint(self.job_id, stage_name, enriched_companies)
-        logger.info(f"💾 Saved {len(enriched_companies)} enriched companies to checkpoint")
+        logger.info(f"💾 Saved {len(enriched_companies)} profiles to checkpoint")
         return enriched_companies
 
     async def _rank_founders_checkpointed(self, enriched_companies, force_restart):

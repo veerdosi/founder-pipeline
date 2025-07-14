@@ -78,9 +78,9 @@ class MediaCoverageData(BaseModel):
 
 class FinancialProfileData(BaseModel):
     """Financial profile and investment data model."""
-    companies_founded: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
-    investment_activities: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
-    board_positions: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
+    companies_founded: Optional[List[str]] = Field(default_factory=list)
+    investment_activities: Optional[List[str]] = Field(default_factory=list)
+    board_positions: Optional[List[str]] = Field(default_factory=list)
     notable_achievements: Optional[List[str]] = Field(default_factory=list)
     estimated_net_worth: Optional[str] = None
     confidence_level: Optional[str] = None
@@ -111,6 +111,27 @@ class LinkedInProfile(BaseModel):
     # Enhanced data from Perplexity
     media_coverage: Optional[MediaCoverageData] = None
     financial_profile: Optional[FinancialProfileData] = None
+    
+    # Individual experience fields for ranking system compatibility
+    experience_1_title: Optional[str] = None
+    experience_1_company: Optional[str] = None
+    experience_2_title: Optional[str] = None
+    experience_2_company: Optional[str] = None
+    experience_3_title: Optional[str] = None
+    experience_3_company: Optional[str] = None
+    
+    # Individual education fields for ranking system compatibility
+    education_1_school: Optional[str] = None
+    education_1_degree: Optional[str] = None
+    education_2_school: Optional[str] = None
+    education_2_degree: Optional[str] = None
+    
+    # Individual skill fields for ranking system compatibility
+    skill_1: Optional[str] = None
+    skill_2: Optional[str] = None
+    skill_3: Optional[str] = None
+    skill_4: Optional[str] = None
+    skill_5: Optional[str] = None
     
     # Fields for ranking system compatibility
     l_level: Optional[str] = None  # L1-L10 ranking result

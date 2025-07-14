@@ -73,7 +73,6 @@ class DataFusionService:
     def __init__(self):
         self.metrics_extractor = MetricsExtractor()
         self.sector_classifier = SectorClassifier()
-        self.crunchbase = CrunchbaseService()
         
         # Confidence weights for different data sources
         self.source_weights = {
@@ -90,12 +89,7 @@ class DataFusionService:
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit - ensure all sessions are closed."""
-        try:
-            # Force cleanup any remaining sessions
-            if hasattr(self.crunchbase, 'session') and self.crunchbase.session:
-                await self.crunchbase.session.close()
-        except Exception as e:
-            logger.warning(f"Error closing sessions: {e}")
+        pass  # No persistent sessions to close since we use fresh CrunchbaseService instances
     
     async def fuse_company_data(
         self, 
@@ -114,11 +108,12 @@ class DataFusionService:
             
             # Get crunchbase data with proper session management
             try:
-                async with self.crunchbase as cb_service:
+                async with CrunchbaseService() as cb_service:
                     crunchbase_data = await asyncio.wait_for(
                         cb_service.enrich_existing_company(
                             base_company.name, 
-                            str(base_company.website) if base_company.website else None
+                            str(base_company.website) if base_company.website else None,
+                            base_company.crunchbase_url  # Pass existing Crunchbase URL if available
                         ),
                         timeout=30  # 30 second timeout for crunchbase
                     )
@@ -177,7 +172,7 @@ class DataFusionService:
     
     async def batch_fuse_companies(
         self, 
-        companies: List[Company], 
+        companies, 
         batch_size: int = 3,
         target_year: Optional[int] = None
     ) -> List[Company]:
@@ -188,9 +183,17 @@ class DataFusionService:
             batch = companies[i:i + batch_size]
             batch_tasks = []
             
-            for company in batch:
+            for company_item in batch:
+                # Handle both Company and EnrichedCompany objects
+                if hasattr(company_item, 'company'):
+                    # This is an EnrichedCompany object
+                    base_company = company_item.company
+                else:
+                    # This is a Company object
+                    base_company = company_item
+                
                 task = self.fuse_company_data(
-                    base_company=company,
+                    base_company=base_company,
                     website_content="",
                     additional_sources=None,
                     target_year=target_year
@@ -202,12 +205,28 @@ class DataFusionService:
             
             for j, result in enumerate(batch_results):
                 if isinstance(result, Exception):
-                    logger.error(f"Failed to fuse data for {batch[j].name}: {result}")
+                    # Get the company name safely for logging
+                    company_item = batch[j]
+                    if hasattr(company_item, 'company'):
+                        company_name = company_item.company.name
+                        base_company = company_item.company
+                    else:
+                        company_name = company_item.name
+                        base_company = company_item
+                    
+                    logger.error(f"Failed to fuse data for {company_name}: {result}")
                     # Keep original company if fusion fails
-                    enhanced_companies.append(batch[j])
+                    enhanced_companies.append(base_company)
                 else:
+                    # Get the original company for conversion
+                    company_item = batch[j]
+                    if hasattr(company_item, 'company'):
+                        original_company = company_item.company
+                    else:
+                        original_company = company_item
+                    
                     # Convert FusedCompanyData back to Company model
-                    enhanced_company = self._convert_fused_to_company(result, batch[j])
+                    enhanced_company = self._convert_fused_to_company(result, original_company)
                     enhanced_companies.append(enhanced_company)
         
         return enhanced_companies
@@ -347,10 +366,14 @@ class DataFusionService:
         
         # Social presence
         linkedin_url = self._resolve_field([
+            base_company.linkedin_url,
             crunchbase_data.linkedin_url if crunchbase_data else None
         ])
         
-        crunchbase_url = crunchbase_data.crunchbase_url if crunchbase_data else None
+        crunchbase_url = self._resolve_field([
+            base_company.crunchbase_url,
+            crunchbase_data.crunchbase_url if crunchbase_data else None
+        ])
         
         # Calculate data quality and confidence scores
         data_quality_score = self._calculate_overall_data_quality(

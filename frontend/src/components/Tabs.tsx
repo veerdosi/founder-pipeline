@@ -2,8 +2,8 @@ import React from 'react';
 import './Tabs.css';
 
 interface TabsProps {
-  activeTab: 'pipeline' | 'market-analysis';
-  setActiveTab: (tab: 'pipeline' | 'market-analysis') => void;
+  activeTab: 'pipeline' | 'accelerators' | 'market-analysis';
+  setActiveTab: (tab: 'pipeline' | 'accelerators' | 'market-analysis') => void;
 }
 
 const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab }) => {
@@ -14,6 +14,12 @@ const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab }) => {
         className={`tab-button ${activeTab === 'pipeline' ? 'active' : ''}`}
       >
         📊 Pipeline
+      </button>
+      <button
+        onClick={() => setActiveTab('accelerators')}
+        className={`tab-button ${activeTab === 'accelerators' ? 'active' : ''}`}
+      >
+        🚀 Accelerators
       </button>
       <button
         onClick={() => setActiveTab('market-analysis')}

@@ -796,14 +796,14 @@ Return a JSON object with this structure:
         prompt = f"""Provide comprehensive financial profile information for {founder_name}.
         
         Please include:
-        1. Companies founded: name, founding year, role, current status, industry, valuation/exit details
-        2. Investment activities: companies invested in, amounts, years, types, current status
-        3. Board positions: companies, position titles, start years, current status, industries
-        4. Notable achievements: awards, recognitions, milestones with years and categories
+        1. Companies founded: list of company names and brief details (e.g., "TechCorp - Founded 2015, AI startup, $50M valuation")
+        2. Investment activities: list of investment details (e.g., "Invested $100k in StartupX (2020)", "Angel investor in 15+ companies")
+        3. Board positions: list of board positions (e.g., "Board member at TechFoundation since 2018", "Advisory board - FinanceAI")
+        4. Notable achievements: list of achievements and recognitions
         5. Estimated net worth: provide range or specific amount if publicly known
         6. Confidence level: "high", "medium", "low" based on data availability
         
-        Focus on verified, factual information. Use specific numbers where available."""
+        Focus on verified, factual information. Format as simple strings in lists."""
         
         try:
             await self.perplexity_rate_limiter.acquire()

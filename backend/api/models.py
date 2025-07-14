@@ -13,6 +13,19 @@ class CompanyDiscoveryRequest(BaseModel):
     founded_after: Optional[date] = None
     founded_before: Optional[date] = None
 
+class AcceleratorDiscoveryRequest(BaseModel):
+    """Request model for accelerator-based company discovery."""
+    limit: int = 50
+    accelerators: List[str] = ["yc", "techstars", "500co"]  # Which accelerators to search
+    
+    @validator('accelerators')
+    def validate_accelerators(cls, v):
+        valid_accelerators = {"yc", "ycombinator", "techstars", "500co", "500global"}
+        for accelerator in v:
+            if accelerator.lower() not in valid_accelerators:
+                raise ValueError(f'Invalid accelerator: {accelerator}. Valid options: {valid_accelerators}')
+        return [acc.lower() for acc in v]
+
 class YearBasedRequest(BaseModel):
     """Request model for year-based company discovery."""
     year: int

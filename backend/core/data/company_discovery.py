@@ -500,59 +500,84 @@ Answer with ONLY "YES" if this is an early-stage startup suitable for VC investm
         return True
     
     async def _get_crunchbase_url(self, company_name: str, website: str = None) -> Optional[str]:
-        """Use Perplexity to find the crunchbase URL for a company."""
+        """Use Serper (Google Search) to find the crunchbase URL for a company."""
         try:
-            # Import here to avoid circular imports
-            from openai import AsyncOpenAI
+            if not self.session:
+                self.session = aiohttp.ClientSession()
             
-            # Use OpenAI client configured for Perplexity
-            perplexity_client = AsyncOpenAI(
-                api_key=settings.perplexity_api_key,
-                base_url="https://api.perplexity.ai"
-            )
+            # Try multiple search strategies
+            search_queries = [
+                f"{company_name} crunchbase",  # Basic search
+                f'"{company_name}" site:crunchbase.com',  # Exact match on Crunchbase
+                f"{company_name} crunchbase.com organization"  # More specific
+            ]
             
-            query = f"What is the Crunchbase URL for {company_name}?"
+            # If website provided, add site-specific search but as fallback only
             if website:
-                query += f" Their website is {website}"
-            query += " Please provide the exact Crunchbase URL."
+                domain = website.replace("https://", "").replace("http://", "").replace("www.", "").split("/")[0]
+                search_queries.append(f"{company_name} crunchbase site:{domain}")
             
-            response = await perplexity_client.chat.completions.create(
-                model="sonar",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a business research assistant. Find the exact Crunchbase URL for companies. Return only the URL if found, or 'NOT_FOUND' if you cannot find it."
-                    },
-                    {
-                        "role": "user", 
-                        "content": query
-                    }
-                ],
-                max_tokens=100,
-                temperature=0.1
-            )
+            for query in search_queries:
+                logger.info(f"Searching Google for Crunchbase URL: {query}")
+                
+                # Serper API call
+                url = "https://google.serper.dev/search"
+                payload = {
+                    "q": query,
+                    "num": 10
+                }
+                headers = {
+                    "X-API-KEY": settings.serper_api_key,
+                    "Content-Type": "application/json"
+                }
+                
+                async with self.session.post(url, json=payload, headers=headers) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        logger.debug(f"Search response keys: {list(data.keys())}")
+                        
+                        # Look for Crunchbase URLs in organic results
+                        organic_results = data.get("organic", [])
+                        logger.debug(f"Found {len(organic_results)} organic results")
+                        
+                        for i, result in enumerate(organic_results):
+                            link = result.get("link", "")
+                            title = result.get("title", "")
+                            logger.debug(f"  {i+1}. {title[:50]}... - {link}")
+                            
+                            if "crunchbase.com/organization/" in link:
+                                # Clean up the URL
+                                crunchbase_url = link.split("?")[0]  # Remove query parameters
+                                logger.debug(f"✅ Found Crunchbase URL for {company_name}: {crunchbase_url}")
+                                return crunchbase_url
+                        
+                        # Also check knowledge graph if available
+                        knowledge_graph = data.get("knowledgeGraph", {})
+                        if knowledge_graph:
+                            logger.debug(f"Knowledge graph found: {knowledge_graph.keys()}")
+                            kg_links = knowledge_graph.get("links", [])
+                            for link_obj in kg_links:
+                                if isinstance(link_obj, dict):
+                                    link = link_obj.get("link", "")
+                                    if "crunchbase.com/organization/" in link:
+                                        crunchbase_url = link.split("?")[0]
+                                        logger.debug(f"✅ Found Crunchbase URL in knowledge graph for {company_name}: {crunchbase_url}")
+                                        return crunchbase_url
+                        
+                        logger.debug(f"No Crunchbase URL found with query: {query}")
+                    else:
+                        logger.warning(f"Serper search failed for query '{query}': {response.status}")
+                        response_text = await response.text()
+                        logger.debug(f"Error response: {response_text[:200]}...")
+                        continue
             
-            if response and response.choices:
-                answer = response.choices[0].message.content.strip()
-                
-                # Extract URL from the response
-                import re
-                url_pattern = r'https?://(?:www\.)?crunchbase\.com/[^\s<>"\']*'
-                urls = re.findall(url_pattern, answer)
-                
-                if urls:
-                    return urls[0]
-                elif "NOT_FOUND" in answer.upper():
-                    return None
-                else:
-                    return None
+            logger.info(f"❌ No Crunchbase URL found for {company_name} after trying {len(search_queries)} search strategies")
+            return None
                     
         except Exception as e:
-            logger.debug(f"Error getting crunchbase URL for {company_name}: {e}")
-            return None
-        
-        return None
-    
+            logger.error(f"Error getting crunchbase URL for {company_name}: {e}")
+            return None  
+          
     async def _extract_company_data(
         self, 
         content: str, 

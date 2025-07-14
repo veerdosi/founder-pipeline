@@ -285,7 +285,7 @@ class CheckpointedPipelineRunner:
                 'name', 'description', 'short_description', 'founded_year',
                 'funding_total_usd', 'funding_stage', 'founders', 'investors',
                 'categories', 'city', 'region', 'country', 'ai_focus', 'sector',
-                'website', 'linkedin_url', 'source_url', 'extraction_date'
+                'website', 'linkedin_url', 'crunchbase_url', 'source_url', 'extraction_date'
             ]
             
             with open(csv_path, 'w', newline='', encoding='utf-8') as csvfile:
@@ -293,30 +293,39 @@ class CheckpointedPipelineRunner:
                 writer.writeheader()
                 
                 for company in companies:
+                    # Handle both Company and EnrichedCompany objects
+                    if hasattr(company, 'company'):
+                        # This is an EnrichedCompany, access the nested company
+                        comp = company.company
+                    else:
+                        # This is a regular Company object
+                        comp = company
+                    
                     # Use target_year as fallback if founded_year is None
-                    founded_year = getattr(company, 'founded_year', None)
+                    founded_year = getattr(comp, 'founded_year', None)
                     if founded_year is None and target_year is not None:
                         founded_year = target_year
                     
                     row = {
-                        'name': getattr(company, 'name', ''),
-                        'description': getattr(company, 'description', ''),
-                        'short_description': getattr(company, 'short_description', ''),
+                        'name': getattr(comp, 'name', ''),
+                        'description': getattr(comp, 'description', ''),
+                        'short_description': getattr(comp, 'short_description', ''),
                         'founded_year': founded_year if founded_year is not None else '',
-                        'funding_total_usd': getattr(company, 'funding_total_usd', ''),
-                        'funding_stage': getattr(company, 'funding_stage', ''),
-                        'founders': '|'.join(getattr(company, 'founders', [])),
-                        'investors': '|'.join(getattr(company, 'investors', [])),
-                        'categories': '|'.join(getattr(company, 'categories', [])),
-                        'city': getattr(company, 'city', ''),
-                        'region': getattr(company, 'region', ''),
-                        'country': getattr(company, 'country', ''),
-                        'ai_focus': getattr(company, 'ai_focus', ''),
-                        'sector': getattr(company, 'sector', ''),
-                        'website': getattr(company, 'website', ''),
-                        'linkedin_url': getattr(company, 'linkedin_url', ''),
-                        'source_url': getattr(company, 'source_url', ''),
-                        'extraction_date': getattr(company, 'extraction_date', '')
+                        'funding_total_usd': getattr(comp, 'funding_total_usd', ''),
+                        'funding_stage': getattr(comp, 'funding_stage', ''),
+                        'founders': '|'.join(getattr(comp, 'founders', [])),
+                        'investors': '|'.join(getattr(comp, 'investors', [])),
+                        'categories': '|'.join(getattr(comp, 'categories', [])),
+                        'city': getattr(comp, 'city', ''),
+                        'region': getattr(comp, 'region', ''),
+                        'country': getattr(comp, 'country', ''),
+                        'ai_focus': getattr(comp, 'ai_focus', ''),
+                        'sector': getattr(comp, 'sector', ''),
+                        'website': getattr(comp, 'website', ''),
+                        'linkedin_url': getattr(comp, 'linkedin_url', ''),
+                        'crunchbase_url': getattr(comp, 'crunchbase_url', ''),
+                        'source_url': getattr(comp, 'source_url', ''),
+                        'extraction_date': getattr(comp, 'extraction_date', '')
                     }
                     writer.writerow(row)
             

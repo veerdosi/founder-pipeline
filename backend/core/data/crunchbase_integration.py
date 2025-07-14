@@ -43,7 +43,8 @@ class CrunchbaseService:
     def __init__(self):
         self.api_key = settings.crunchbase_api_key
         self.base_url = "https://api.crunchbase.com/v4"
-        self.rate_limiter = RateLimiter(max_requests=200, time_window=60)  # Crunchbase limits
+        # Conservative rate limiting: 150 requests per minute (75% of 200 limit) with buffer
+        self.rate_limiter = RateLimiter(max_requests=150, time_window=60)
         self.session: Optional[aiohttp.ClientSession] = None
         
         # Crunchbase category UUIDs for AI companies
@@ -76,242 +77,81 @@ class CrunchbaseService:
         if self.session:
             await self.session.close()
     
-    async def search_ai_companies(
-        self, 
-        limit: int = 50,
-        funding_stages: Optional[List[str]] = None,
-        location_filter: Optional[str] = None,
-        founded_after: Optional[int] = None
-    ) -> List[CrunchbaseCompany]:
-        """Search for AI companies using Crunchbase API."""
-        try:
-            logger.info(f"🔍 Searching Crunchbase for {limit} AI companies")
-            
-            # Prepare search query
-            query_payload = self._build_search_query(
-                limit=limit,
-                funding_stages=funding_stages,
-                location_filter=location_filter,
-                founded_after=founded_after
-            )
-            
-            # Execute search
-            search_results = await self._execute_search(query_payload)
-            
-            # Process and enrich results
-            companies = []
-            for item in search_results.get('entities', []):
-                try:
-                    company = await self._process_company_data(item)
-                    if company:
-                        companies.append(company)
-                except Exception as e:
-                    logger.warning(f"Error processing company data: {e}")
-                    continue
-            
-            logger.info(f"✅ Found {len(companies)} Crunchbase AI companies")
-            return companies
-            
-        except Exception as e:
-            logger.error(f"Error searching Crunchbase: {e}")
-            return []
     
     async def enrich_existing_company(
         self, 
         company_name: str, 
-        website: Optional[str] = None
+        website: Optional[str] = None,
+        crunchbase_url: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
-        """Enrich an existing company with Crunchbase data."""
-        try:
-            # Search for the company by name
-            search_query = {
-                "field_ids": self.field_ids,
-                "query": [
-                    {
-                        "type": "predicate",
-                        "field_id": "facet_ids",
-                        "operator_id": "includes",
-                        "values": ["company"]
-                    }
-                ],
-                "order": [
-                    {
-                        "field_id": "rank_org",
-                        "sort": "asc"
-                    }
-                ],
-                "limit": 10
-            }
-            
-            # Use autocomplete API for name-based search instead of contains operator
-            if company_name:
-                autocomplete_results = await self._autocomplete_search(company_name)
-                if autocomplete_results:
-                    # Get the best match UUID and fetch detailed data
-                    best_match_uuid = autocomplete_results[0].get('uuid')
-                    if best_match_uuid:
-                        return await self._get_company_by_uuid(best_match_uuid)
-            
-            # Fallback to category/website search without name filter
-            search_query = {
-                "field_ids": self.field_ids,
-                "query": [
-                    {
-                        "type": "predicate",
-                        "field_id": "facet_ids",
-                        "operator_id": "includes",
-                        "values": ["company"]
-                    }
-                ],
-                "limit": 10
-            }
-            
-            results = await self._execute_search(search_query)
-            
-            # Find best match
-            best_match = self._find_best_company_match(
-                results.get('entities', []), 
-                company_name, 
-                website
-            )
-            
-            if best_match:
-                return await self._process_company_data(best_match)
-            
+        """Enrich an existing company with Crunchbase data using direct URL lookup only."""
+        logger.info(f"🔍 Enriching Crunchbase data for: {company_name}")
+        
+        # Validate API key
+        if not self.api_key:
+            logger.error("Crunchbase API key is not configured")
             return None
-            
+        
+        # Only proceed if we have a Crunchbase URL
+        if not crunchbase_url:
+            logger.info(f"❌ No Crunchbase URL provided for: {company_name}")
+            return None
+        
+        logger.info(f"📋 Using Crunchbase URL: {crunchbase_url}")
+        try:
+            # Extract UUID from URL like https://www.crunchbase.com/organization/company-name
+            import re
+            uuid_match = re.search(r'/organization/([^/?]+)', crunchbase_url)
+            if uuid_match:
+                uuid = uuid_match.group(1)
+                logger.info(f"📋 Extracted UUID: {uuid}")
+                company_data = await self._get_company_by_uuid(uuid)
+                if company_data:
+                    logger.info(f"✅ Successfully enriched {company_name} from Crunchbase")
+                    return company_data
+                else:
+                    logger.info(f"❌ Failed to fetch data for UUID: {uuid}")
+                    return None
+            else:
+                logger.warning(f"Failed to extract UUID from URL: {crunchbase_url}")
+                return None
         except Exception as e:
             logger.error(f"Error enriching company {company_name}: {e}")
             return None
     
-    def _build_search_query(
-        self,
-        limit: int,
-        funding_stages: Optional[List[str]],
-        location_filter: Optional[str],
-        founded_after: Optional[int]
-    ) -> Dict[str, Any]:
-        """Build Crunchbase search query."""
-        current_year = datetime.now().year
-        founded_after = founded_after or (current_year - 6)  # Last 6 years by default
-        
-        query = {
-            "field_ids": self.field_ids,
-            "query": [
-                {
-                    "type": "predicate",
-                    "field_id": "facet_ids",
-                    "operator_id": "includes",
-                    "values": ["company"]
-                },
-                {
-                    "type": "predicate", 
-                    "field_id": "categories",
-                    "operator_id": "includes",
-                    "values": list(self.ai_category_uuids.values())
-                },
-                {
-                    "type": "predicate",
-                    "field_id": "founded_on",
-                    "operator_id": "gte",
-                    "values": [f"{founded_after}-01-01"]
-                }
-            ],
-            "order": [
-                {
-                    "field_id": "last_funding_at",
-                    "sort": "desc"
-                }
-            ],
-            "limit": min(limit, 1000)  # Crunchbase limit
-        }
-        
-        # Add funding stage filter
-        if funding_stages:
-            stage_map = {
-                'seed': 'seed',
-                'series-a': 'series_a',
-                'series-b': 'series_b', 
-                'series-c': 'series_c',
-                'pre-seed': 'pre_seed'
-            }
-            
-            cb_stages = [stage_map.get(stage, stage) for stage in funding_stages]
-            query["query"].append({
-                "type": "predicate",
-                "field_id": "last_equity_funding_type",
-                "operator_id": "includes", 
-                "values": cb_stages
-            })
-        
-        # Add location filter
-        if location_filter:
-            query["query"].append({
-                "type": "predicate",
-                "field_id": "location_identifiers",
-                "operator_id": "includes",
-                "values": [self._get_location_uuid(location_filter)]
-            })
-        
-        return query
-    
-    async def _autocomplete_search(self, query: str) -> List[Dict]:
-        """Search companies using Crunchbase Autocomplete API."""
-        try:
-            url = f"{self.base_url}/data/autocompletes"
-            params = {
-                'user_key': self.api_key,
-                'query': query,
-                'collection_ids': 'organization.companies',
-                'limit': 5
-            }
-            
-            async with self.session.get(url, params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return data.get('entities', [])
-                else:
-                    logger.warning(f"Autocomplete search failed {response.status}: {await response.text()}")
-                    return []
-        except Exception as e:
-            logger.error(f"Error in autocomplete search: {e}")
-            return []
     
     async def _get_company_by_uuid(self, uuid: str) -> Optional[CrunchbaseCompany]:
         """Get detailed company data by UUID."""
         try:
+            await self.rate_limiter.acquire()
+            
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+                
             url = f"{self.base_url}/data/entities/organizations/{uuid}"
             params = {
                 'user_key': self.api_key,
                 'field_ids': ','.join(self.field_ids)
             }
             
+            logger.debug(f"Fetching company data for UUID: {uuid}")
+            
             async with self.session.get(url, params=params) as response:
                 if response.status == 200:
                     data = await response.json()
                     properties = data.get('properties', {})
-                    return await self._process_company_data({'properties': properties})
+                    company_data = await self._process_company_data({'properties': properties, 'uuid': uuid})
+                    if company_data:
+                        logger.info(f"✅ Successfully fetched Crunchbase data for UUID: {uuid}")
+                    return company_data
                 else:
-                    logger.warning(f"Company lookup failed {response.status}: {await response.text()}")
+                    error_text = await response.text()
+                    logger.warning(f"Company lookup failed {response.status} for UUID {uuid}: {error_text}")
                     return None
         except Exception as e:
-            logger.error(f"Error getting company by UUID: {e}")
+            logger.error(f"Error getting company by UUID {uuid}: {e}")
             return None
 
-    async def _execute_search(self, query_payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute Crunchbase search API call."""
-        await self.rate_limiter.acquire()
-        
-        url = f"{self.base_url}/data/searches/organizations"
-        params = {'user_key': self.api_key}
-        
-        async with self.session.post(url, params=params, json=query_payload) as response:
-            if response.status == 200:
-                return await response.json()
-            else:
-                error_text = await response.text()
-                logger.error(f"Crunchbase search failed {response.status}: {error_text}")
-                return {}
     
     async def _process_company_data(self, entity_data: Dict[str, Any]) -> Optional[CrunchbaseCompany]:
         """Process raw Crunchbase entity data into structured format."""
@@ -376,7 +216,7 @@ class CrunchbaseService:
             elif isinstance(linkedin_data, str):
                 linkedin_url = linkedin_data
             
-            return CrunchbaseCompany(
+            company = CrunchbaseCompany(
                 name=name,
                 description=props.get('short_description', '') or props.get('description', ''),
                 website=website,
@@ -396,58 +236,13 @@ class CrunchbaseService:
                 data_quality_score=quality_score
             )
             
+            logger.debug(f"Processed company data for: {name}")
+            return company
+            
         except Exception as e:
             logger.error(f"Error processing company data: {e}")
             return None
     
-    def _find_best_company_match(
-        self, 
-        entities: List[Dict], 
-        target_name: str, 
-        target_website: Optional[str]
-    ) -> Optional[Dict]:
-        """Find the best matching company from search results."""
-        if not entities:
-            return None
-        
-        target_name_lower = target_name.lower()
-        best_match = None
-        best_score = 0
-        
-        for entity in entities:
-            props = entity.get('properties', {})
-            if not isinstance(props, dict):
-                continue
-            
-            name = props.get('name', '').lower()
-            
-            # Safe website extraction
-            website = ''
-            website_data = props.get('website')
-            if isinstance(website_data, dict):
-                website = website_data.get('value', '')
-            elif isinstance(website_data, str):
-                website = website_data
-            
-            score = 0
-            
-            # Exact name match
-            if name == target_name_lower:
-                score += 100
-            # Partial name match
-            elif target_name_lower in name or name in target_name_lower:
-                score += 50
-            
-            # Website match
-            if target_website and website:
-                if target_website.lower() in website.lower() or website.lower() in target_website.lower():
-                    score += 30
-            
-            if score > best_score:
-                best_score = score
-                best_match = entity
-        
-        return best_match if best_score > 25 else None  # Minimum threshold
     
     def _safe_extract_funding(self, funding_data: Optional[Dict]) -> Optional[float]:
         """Safely extract funding amount from Crunchbase data."""
@@ -525,13 +320,3 @@ class CrunchbaseService:
         available_fields = sum(1 for field in important_fields if props.get(field) is not None)
         return available_fields / len(important_fields)
     
-    def _get_location_uuid(self, location: str) -> str:
-        """Get Crunchbase UUID for location (simplified mapping)."""
-        location_map = {
-            'united states': 'f110fca2-1055-99f6-996d-011c198b3928',
-            'california': 'eb879a83-c91a-121e-95a8-e65bad1f1f3c', 
-            'new york': 'f6c74c55-be0b-4adf-9e0e-7d7fa4c94d43',
-            'united kingdom': '8b04f56e-b3ec-400a-b2b7-3f2c2e077eba',
-            'canada': '2cc3f133-e929-5bb7-5eef-4f5bd0fb0c28'
-        }
-        return location_map.get(location.lower(), location_map['united states'])

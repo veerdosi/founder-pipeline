@@ -6,7 +6,7 @@ This version is updated to match the API endpoints expected by the frontend.
 import io
 import csv
 import logging
-from typing import List, Dict, Any
+from typing import Optional, Dict, Any
 from datetime import datetime
 from urllib.parse import urlparse
 
@@ -14,7 +14,7 @@ import pandas as pd
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 
-from .models import CompanyDiscoveryRequest, PipelineJobResponse, YearBasedRequest
+from .models import CompanyDiscoveryRequest, PipelineJobResponse, YearBasedRequest, AcceleratorDiscoveryRequest
 from .dependencies import get_pipeline_service, get_ranking_service
 from ..core.ranking import FounderRankingService
 from ..models import LinkedInProfile
@@ -156,7 +156,7 @@ async def health_check():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
 @app.get("/api/checkpoints")
-async def get_available_checkpoints():
+async def get_available_checkpoints(job_type: Optional[str] = None):
     """Get list of available checkpoints."""
     try:
         jobs = checkpoint_manager.list_active_jobs()
@@ -164,9 +164,11 @@ async def get_available_checkpoints():
         
         for job_progress in jobs:
             job_id = job_progress['job_id']
+            logger.info(f"Processing checkpoint for job_id: {job_id}")
             
             # Find all completed stages
             completed_stages = [(stage, data) for stage, data in job_progress['stages'].items() if data.get('completed')]
+            logger.info(f"Completed stages for {job_id}: {[stage for stage, _ in completed_stages]}")
             
             if completed_stages:
                 # Get foundation year (default to 2025 for current checkpoints)
@@ -191,6 +193,11 @@ async def get_available_checkpoints():
                         stage_index = stage_order.index(stage)
                         completion_percentage = ((stage_index + 1) / len(stage_order)) * 100
                         
+                        # Determine job type based on job_id prefix
+                        if job_id.startswith(("yc_job", "techstars_job", "500co_job")):
+                            classified_job_type = "accelerator"
+                        else:
+                            classified_job_type = "main_pipeline"                        
                         checkpoints.append({
                             "id": f"{job_id}_{stage}",
                             "job_id": job_id,
@@ -199,8 +206,13 @@ async def get_available_checkpoints():
                             "foundation_year": foundation_year,
                             "latest_stage": stage,
                             "completion_percentage": completion_percentage,
-                            "stages_completed": stage_index + 1
+                            "stages_completed": stage_index + 1,
+                            "job_type": classified_job_type
                         })
+        
+        # Filter by job type if specified
+        if job_type:
+            checkpoints = [cp for cp in checkpoints if cp.get('job_type') == job_type]
         
         # Sort by creation date, newest first
         checkpoints.sort(key=lambda x: x['created_at'], reverse=True)
@@ -330,6 +342,131 @@ async def discover_companies_only(
         )
     except Exception as e:
         logger.error(f"Discovery failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/accelerators/discover", response_model=PipelineJobResponse)
+async def discover_accelerator_companies(
+    params: AcceleratorDiscoveryRequest,
+):
+    """Discover AI/ML companies from accelerators (YC, Techstars, 500.co) and run full pipeline."""
+    try:
+        from ..core.data.accelerator_discovery import AcceleratorCompanyDiscovery
+        
+        # Create accelerator discovery service
+        accelerator_service = AcceleratorCompanyDiscovery()
+        
+        # Discover companies from selected accelerators
+        logger.info(f"🚀 Starting accelerator discovery for: {params.accelerators}")
+        try:
+            companies = await accelerator_service.discover_companies(
+                sources=params.accelerators
+            )
+        finally:
+            # Ensure session is properly closed
+            if accelerator_service.session:
+                await accelerator_service.session.close()
+        
+        if not companies:
+            return PipelineJobResponse(
+                jobId=f"accelerator_job_{datetime.now().timestamp()}",
+                status="completed",
+                companiesFound=0,
+                foundersFound=0,
+                message="No AI/ML companies found from selected accelerators."
+            )
+        
+        # Now run these companies through the full pipeline (data fusion + profile enrichment + ranking)
+        pipeline_params = {
+            'accelerators': params.accelerators,
+            'source': 'accelerators'
+        }
+        
+        # Create accelerator-specific job ID
+        accelerator_prefix = "_".join(params.accelerators)
+        base_job_id = checkpoint_manager.create_job_id(pipeline_params)
+        # Replace "job_" prefix with accelerator-specific prefix
+        job_id = base_job_id.replace("job_", f"{accelerator_prefix}_job_")
+        
+        # Initialize pipeline
+        from ..core.pipeline import InitiationPipeline
+        pipeline = InitiationPipeline(job_id=job_id)
+        
+        # Run pipeline starting from data fusion stage
+        logger.info(f"🔄 Running full pipeline for {len(companies)} accelerator companies...")
+        
+        # Convert Company objects to the enriched format expected by pipeline
+        from ..models import EnrichedCompany
+        enriched_companies = [EnrichedCompany(company=company, profiles=[]) for company in companies]
+        
+        # Save initial companies to checkpoint BEFORE starting data fusion
+        logger.info(f"💾 Saving {len(enriched_companies)} companies to checkpoint before data fusion...")
+        checkpoint_manager.save_checkpoint(job_id, 'companies', enriched_companies)
+        logger.info(f"✅ Companies checkpoint saved successfully")
+        
+        # Run data fusion
+        logger.info(f"🔄 Starting data fusion for {len(enriched_companies)} companies...")
+        # Extract Company objects for data fusion (it expects Company objects, not EnrichedCompany)
+        company_objects = [ec.company for ec in enriched_companies]
+        
+        # Use data fusion service as async context manager to ensure proper cleanup
+        async with pipeline.data_fusion:
+            enhanced_company_objects = await pipeline.data_fusion.batch_fuse_companies(
+                company_objects, 
+                batch_size=3,  # Reduce batch size to avoid overwhelming Crunchbase API
+                target_year=None
+            )
+        
+        # Convert back to EnrichedCompany objects
+        enhanced_companies = [EnrichedCompany(company=comp, profiles=[]) for comp in enhanced_company_objects]
+        checkpoint_manager.save_checkpoint(job_id, 'enhanced_companies', enhanced_companies)
+        logger.info(f"✅ Data fusion complete: {len(enhanced_companies)} companies enhanced")
+        
+        # Run profile enrichment
+        logger.info(f"🔄 Starting profile enrichment for {len(enhanced_companies)} companies...")
+        profiled_companies = []
+        for company in enhanced_companies:
+            try:
+                # Find profiles for each company
+                profiles = await pipeline.profile_enrichment.find_profiles(company.company)
+                # Enrich the profiles
+                enriched_profiles = await pipeline.profile_enrichment.enrich_profiles_batch(profiles)
+                # Update company with enriched profiles
+                company.profiles = enriched_profiles
+                profiled_companies.append(company)
+            except Exception as e:
+                logger.warning(f"Profile enrichment failed for {company.company.name}: {e}")
+                # Keep company without profiles
+                profiled_companies.append(company)
+        
+        checkpoint_manager.save_checkpoint(job_id, 'profiles', profiled_companies)
+        logger.info(f"✅ Profile enrichment complete: {sum(len(ec.profiles) for ec in profiled_companies)} profiles found")
+        
+        # Run ranking
+        logger.info(f"🔄 Starting founder ranking...")
+        rankings = await pipeline.ranking_service.rank_companies_batch(
+            profiled_companies,
+            batch_size=5
+        )
+        checkpoint_manager.save_checkpoint(job_id, 'rankings', rankings)
+        logger.info(f"✅ Ranking complete: {len(rankings)} founders ranked")
+        
+        # Store results
+        latest_results["companies"] = profiled_companies
+        latest_results["rankings"] = rankings
+        latest_results["last_job_id"] = job_id
+        
+        total_founders = sum(len(ec.profiles) for ec in profiled_companies)
+        
+        return PipelineJobResponse(
+            jobId=job_id,
+            status="completed",
+            companiesFound=len(profiled_companies),
+            foundersFound=total_founders,
+            message=f"Accelerator pipeline complete: {len(profiled_companies)} companies from {params.accelerators}, {total_founders} founders ranked."
+        )
+        
+    except Exception as e:
+        logger.error(f"Accelerator discovery pipeline failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/companies")
