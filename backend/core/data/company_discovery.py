@@ -398,13 +398,17 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
                     return True
         return False
     
-    def _extract_domain(self, url: str) -> str:
+    def _extract_domain(self, url) -> str:
         """Extract domain from URL."""
         try:
             from urllib.parse import urlparse
-            return urlparse(url).netloc.lower()
+            # Convert HttpUrl object to string if needed
+            url_str = str(url) if url else ""
+            return urlparse(url_str).netloc.lower()
         except:
-            return url.lower()
+            # Fallback: convert to string and extract domain
+            url_str = str(url) if url else ""
+            return url_str.lower()
     
     async def _is_company_alive(self, company_name: str, website: str = None) -> bool:
         """Use Perplexity to verify if a company is still active and operating."""

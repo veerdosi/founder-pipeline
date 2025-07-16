@@ -108,6 +108,25 @@ class LinkedInProfile(BaseModel):
     estimated_age: Optional[int] = None
     confidence_score: float = Field(default=0.0, ge=0.0, le=1.0)
     
+    @classmethod
+    def from_csv_row(cls, row: dict) -> "LinkedInProfile":
+        """Create LinkedInProfile from CSV row data."""
+        return cls(
+            person_name=row.get("founder_name", ""),
+            company_name=row.get("company_name"),
+            linkedin_url=row.get("linkedin_url"),
+            title=row.get("title"),
+            role=row.get("role"),
+            about=row.get("about"),
+            location=row.get("location"),
+            founder_name=row.get("founder_name"),
+            experience=[],  # These would need to be parsed from complex CSV format
+            education=[],   # These would need to be parsed from complex CSV format
+            skills=[],      # These would need to be parsed from complex CSV format
+            estimated_age=int(row["estimated_age"]) if row.get("estimated_age") else None,
+            confidence_score=float(row.get("confidence_score", 0.0))
+        )
+    
     # Enhanced data from Perplexity
     media_coverage: Optional[MediaCoverageData] = None
     financial_profile: Optional[FinancialProfileData] = None
