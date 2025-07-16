@@ -1,0 +1,106 @@
+[
+  {
+    "name": "The Graph",
+    "description": "The Graph powers blockchain apps by indexing decentralized data from top chains like Ethereum, Solana, and more. It's the go-to source for smooth access to web3 information.",
+    "industry": "Blockchain / Cryptocurrency",
+    "funding": "Unicorn",
+    "year": "2018",
+    "location": "San Francisco",
+    "slug": "/companies/the-graph",
+    "website": "https://thegraph.com/en/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Compound",
+    "description": "Compound Labs is a blockchain platform where they help clients monetize and borrow crypto tokens for various financial applications, leveraging tech to manage digital assets efficiently.",
+    "industry": "Blockchain / Cryptocurrency",
+    "funding": "Unicorn",
+    "year": "2018",
+    "location": "San Francisco",
+    "slug": "/companies/compound",
+    "website": "https://compound.finance/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Syndicate",
+    "description": "Syndicate is paving a path for a community-owned future by creating decentralized solutions that empower people to take control, collaborate, and build vibrant, inclusive asset ecosystems.",
+    "industry": "Blockchain / Cryptocurrency",
+    "funding": "Series B",
+    "year": "2021",
+    "location": "San Francisco",
+    "slug": "/companies/syndicate",
+    "website": "https://syndicate.io/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "LootRush",
+    "description": "A privacy-friendly platform for you to have fun with all gaming NFTs",
+    "industry": "Blockchain / Cryptocurrency",
+    "funding": "Series A",
+    "year": "2021",
+    "location": "San Francisco",
+    "slug": "/companies/lootrush",
+    "website": "https://www.lootrush.com",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Blackwing Finance",
+    "description": "Blackwing Finance offers liquidation-free margin trading platform that works seamlessly with any asset.",
+    "industry": "Blockchain / Cryptocurrency",
+    "funding": "Seed",
+    "year": "2021",
+    "location": "New York",
+    "slug": "/companies/blackwing-finance",
+    "website": "https://blackwing.fi/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Inco",
+    "description": "Inco is the go-to for privacy on Web3. Using fully homomorphic encryption and Ethereum security, Inco powers secure dApps and confidential blockchain solutions fueling next-gen adoption.",
+    "industry": "Blockchain / Cryptocurrency",
+    "funding": "Seed",
+    "year": "2022",
+    "location": "New York",
+    "slug": "/companies/inco",
+    "website": "https://www.inco.org/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Particle",
+    "description": "A decentralized leverage trading protocol permissionless for any digital asset.",
+    "industry": "Blockchain / Cryptocurrency",
+    "funding": "Seed",
+    "year": "2023",
+    "location": "San Francisco",
+    "slug": "/companies/particle",
+    "website": "https://www.particle.trade/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Spindl (Acq. Coinbase)",
+    "description": "Spindl offers smart attribution tools for web3, empowering companies to navigate data easily and optimize their strategies for smarter, data-driven decisions in the digital arena.",
+    "industry": "Blockchain / Cryptocurrency",
+    "funding": "Acquired",
+    "year": "2022",
+    "location": "San Francisco",
+    "slug": "/companies/spindl",
+    "website": "https://www.spindl.xyz/",
+    "founders": [
+      "Founded By"
+    ]
+  }
+]

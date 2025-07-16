@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Kangarootime",
+    "description": "Kangarootime is a leading software platform for childcare service providers to automate processes and connect seamlessly with families. The company raised a $26M Series B in June 2022.",
+    "industry": "Software",
+    "location": "Los Angeles, US",
+    "founder(s)": "Scott Wayman",
+    "website": "http://www.kangarootime.com"
+  },
+  {
+    "name": "Expando",
+    "description": "Expando® is an AI-powered referral software for B2B SaaS companies to leverage APAC's largest partner ecosystem to build a predictable referral pipeline. The company has raised $175k as the first investment in 2023.",
+    "industry": "Software",
+    "location": "Hong Kong, Hong Kong",
+    "founder(s)": "Xavier Roso",
+    "website": "https://expando.world/"
+  },
+  {
+    "name": "Rever",
+    "description": "Rever is a connected frontline worker engagement and innovation enterprise software platform, for people-driven operational excellence. The company has raised more than $4M+ in funding.",
+    "industry": "Software",
+    "location": "Silicon Valley, US",
+    "founder(s)": "Errette Dunn",
+    "website": "http://reverscore.com"
+  },
+  {
+    "name": "Climber RMS",
+    "description": "Climber is a fast-growing Revenue Management Software platform for independent hotel chains. The company has raised more than $800k+ in funding.",
+    "industry": "Software",
+    "location": "Lisbon, Portugal",
+    "founder(s)": "Mario Mouraz",
+    "website": "http://www.climberrms.com"
+  }
+]

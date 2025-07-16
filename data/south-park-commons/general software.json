@@ -1,0 +1,249 @@
+[
+  {
+    "name": "Gamma",
+    "description": "Gamma reimagines how ideas are shared by tapping into AI, creating engaging, fresh presentations that effortlessly bring creative concepts to life in a whole new way.",
+    "industry": "General Software",
+    "funding": "Series A",
+    "year": "2020",
+    "location": "San Francisco",
+    "slug": "/companies/gamma",
+    "website": "https://gamma.app/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Imbue",
+    "description": "Imbue builds AI systems that reason, powering smart agents to safely handle complex tasks and reimagine personal computing as an empowering tool in our everyday lives.",
+    "industry": "General Software",
+    "funding": "Unicorn",
+    "year": "2021",
+    "location": "San Francisco",
+    "slug": "/companies/imbue",
+    "website": "https://imbue.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Luma",
+    "description": "Luma Labs helps people turn ideas into stunning visuals, powered by innovative research on image and video foundation models.",
+    "industry": "General Software",
+    "funding": "Growth",
+    "year": "2021",
+    "location": "San Francisco",
+    "slug": "/companies/luma",
+    "website": "https://lumalabs.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Cognition AI",
+    "description": "Cognition is developing smart, collaborative AI agentsâlike Devin, the first AI software engineerâthat let engineering teams focus on creative challenges and build more ambitious software solutions.",
+    "industry": "General Software",
+    "funding": "Unicorn",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/cognition-ai",
+    "website": "https://www.cognition.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Goodfire",
+    "description": "Goodfire is an AI interpretability research lab focused on understanding and intentionally designing advanced AI systems.",
+    "industry": "General Software",
+    "funding": "Series A",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/goodfire",
+    "website": "https://goodfire.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Metarch",
+    "description": "Metarch is pioneering Frontier AI systems capable of continual learning, planning, and autonomous action across complex, open ended, multimodal environments to realize the ChatGPT moment for applications like Autonomous AI Agents.",
+    "industry": "General Software",
+    "funding": "Seed",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/metarch",
+    "website": "https://metarch.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Deep Cogito",
+    "description": "Developing intelligence models",
+    "industry": "General Software",
+    "funding": "Seed",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/deep-cogito",
+    "website": "https://www.deepcogito.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Common Sense",
+    "description": "Common Sense is building AI agents that that perform the tedious but critical tasks for municipal\ngovernments to increase efficiency by 100x while delighting citizens.",
+    "industry": "General Software",
+    "funding": "Seed",
+    "year": "2025",
+    "location": "Other",
+    "slug": "/companies/common-sense-ai",
+    "website": "http://www.linkedin.com/company/common-sense-tech",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Koah Labs",
+    "description": "Koah Labs is a native advertising platform built on top of AI search assistants.",
+    "industry": "General Software",
+    "funding": "Seed",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/koah-labs",
+    "website": "https://koahlabs.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Lica",
+    "description": "Lica turns recorded messages into polished, AI-driven videos, helping sales, customer success, and product teams engage their audience efficiently while cutting down on meetings and lengthy reads.",
+    "industry": "General Software",
+    "funding": "Seed",
+    "year": "2023",
+    "location": "San Francisco",
+    "slug": "/companies/lica",
+    "website": "https://www.lica.world/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Swoop",
+    "description": "Swoop simplifies ground transportationâfrom daily commutes to major eventsâusing a fast-growing SaaS platform that digitizes back-office operations for private transit operators worldwide.",
+    "industry": "General Software",
+    "funding": "Seed",
+    "year": "2018",
+    "location": "Other",
+    "slug": "/companies/swoop",
+    "website": "https://www.swoopapp.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Partly",
+    "description": "Partly is a streamlined platform that manages projects built with contractors and agencies. It handles onboarding, agreements, milestone tracking, invoicing, and vendor payments seamlessly.",
+    "industry": "General Software",
+    "funding": "Pre-seed",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/partly",
+    "website": "https://withpartly.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Vitrus",
+    "description": "Vitrus uses a multi-modal AI platform to transform architecture and construction by streamlining designs, automating tasks, and boosting project efficiency with smart, data-driven insights.",
+    "industry": "General Software",
+    "funding": "Pre-seed",
+    "year": "2024",
+    "location": "New York",
+    "slug": "/companies/vitrus",
+    "website": "https://www.vitrus.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Symphonic Labs",
+    "description": "Symphonic Labs crafts a super-quiet, high-speed interfaceâthree times faster than typingâto seamlessly reinvent digital communication and boost everyday interaction efficiency.",
+    "industry": "General Software",
+    "funding": "Pre-seed",
+    "year": "2024",
+    "location": "Other",
+    "slug": "/companies/symphonic-labs",
+    "website": "https://symphoniclabs.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Common Knowledge",
+    "description": "An HCI lab dedicated to reimagining the document in the age of intelligence",
+    "industry": "General Software",
+    "funding": "Pre-seed",
+    "year": "2025",
+    "location": "San Francisco",
+    "slug": "/companies/common-knowledge",
+    "website": "https://commonknowled.ge/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Beem",
+    "description": "Beem is a new computing interface designed for humans.",
+    "industry": "General Software",
+    "funding": "Pre-seed",
+    "year": "2025",
+    "location": "San Francisco",
+    "slug": "/companies/beem",
+    "website": "https://beem.computer/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Vmax",
+    "description": "Vmax is building RL environments for long-horizon tasks that capture and simulate the ineffable.",
+    "industry": "General Software",
+    "funding": "Pre-seed",
+    "year": "2025",
+    "location": "San Francisco",
+    "slug": "/companies/vmax",
+    "website": "https://vmax-ai.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Weave Technologies",
+    "description": "Weave is reimagining online apparel shopping.",
+    "industry": "General Software",
+    "funding": "Pre-seed",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/weave-technologies",
+    "website": "https://weave.gl/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Smithery",
+    "description": "Smithery is the the AI gateway to grow and orchestrate the new era of AI-native services for AI agents.",
+    "industry": "General Software",
+    "funding": "Pre-seed",
+    "year": "2025",
+    "location": "San Francisco",
+    "slug": "/companies/smithery",
+    "website": "https://smithery.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  }
+]

@@ -1,0 +1,1003 @@
+[
+  {
+    "name": "Rox AI",
+    "description": "Rox AI helps top sales teams grow revenue with on-demand Agent Swarms",
+    "industry": "B2B",
+    "funding": "Series A",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/rox-ai",
+    "website": "https://www.rox.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Render",
+    "description": "Render offers a modern, user-friendly cloud platform for developers and software teams of all sizes, making it simple to build, deploy, and scale applications with ease.",
+    "industry": "B2B",
+    "funding": "Growth",
+    "year": "2018",
+    "location": "San Francisco",
+    "slug": "/companies/render",
+    "website": "https://render.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Profound",
+    "description": "Profound helps enterprise brands shine in AI Search by offering an innovative analytics platform that reveals insights on their online discovery across platforms like ChatGPT and Perplexity.",
+    "industry": "B2B",
+    "funding": "Series A",
+    "year": "2024",
+    "location": "New York",
+    "slug": "/companies/profound",
+    "website": "https://www.tryprofound.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Pilot",
+    "description": "Pilot offers reliable accounting, CFO, and tax services to startups and small businesses, partnering with thousands to drive sustainable growth and help streamline operations.",
+    "industry": "B2B",
+    "funding": "Unicorn",
+    "year": "2016",
+    "location": "San Francisco",
+    "slug": "/companies/pilot",
+    "website": "https://pilot.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Unit21",
+    "description": "Unit21 offers an easy-to-use API and dashboard, helping businesses spot and manage risks like money laundering, fraud, and other complex threats across various industries.",
+    "industry": "B2B",
+    "funding": "Growth",
+    "year": "2018",
+    "location": "San Francisco",
+    "slug": "/companies/unit21",
+    "website": "https://www.unit21.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Material Security",
+    "description": "Material Security offers a one-stop solution for keeping Google Workspace and Microsoft 365 safe, delivering easy-to-use email security, data governance, and posture management tools all in one platform.",
+    "industry": "B2B",
+    "funding": "Unicorn",
+    "year": "2017",
+    "location": "San Francisco",
+    "slug": "/companies/material-security",
+    "website": "https://material.security/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Transcend",
+    "description": "Transcend is a privacy platform that helps brands stay ahead of evolving regulations while building customer trust through transparent data practices and smart, respectful consent management.",
+    "industry": "B2B",
+    "funding": "Series B",
+    "year": "2018",
+    "location": "San Francisco",
+    "slug": "/companies/transcend",
+    "website": "https://transcend.io/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Doppel",
+    "description": "Doppel uses generative AI and expert analysis to outsmart social engineering attacks. Their platform adapts in real-time to neutralize phishing, impersonation, and disinformation threats, keeping customers one step ahead.",
+    "industry": "B2B",
+    "funding": "Series B",
+    "year": "2022",
+    "location": "San Francisco",
+    "slug": "/companies/doppel",
+    "website": "https://www.doppel.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Orb",
+    "description": "Orb delivers a modern billing infrastructure that seamlessly powers revenue workflows for cutting-edge AI and software companies, simplifying financial processes so they can focus on innovation.",
+    "industry": "B2B",
+    "funding": "Series B",
+    "year": "2021",
+    "location": "San Francisco",
+    "slug": "/companies/orb",
+    "website": "https://www.withorb.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Baseten",
+    "description": "Baseten delivers streamlined infrastructure for ML model deployment, offering fast, efficient, and cost-effective inference that scales effortlessly from prototype to production-ready systems.",
+    "industry": "B2B",
+    "funding": "Growth",
+    "year": "2019",
+    "location": "San Francisco",
+    "slug": "/companies/baseten",
+    "website": "https://baseten.co/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Socket",
+    "description": "Socket is a cybersecurity platform that shields companies from supply chain attacks, keeping their software applications and essential services safe from malware and open source threats.",
+    "industry": "B2B",
+    "funding": "Series B",
+    "year": "2020",
+    "location": "San Francisco",
+    "slug": "/companies/socket",
+    "website": "https://socket.dev/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Pulley",
+    "description": "Pulley streamlines permits for retailers, developers, contractors, and architects by accurately pinpointing permit needs while unifying project tracking, team collaboration, and city feedback in one accessible hub.",
+    "industry": "B2B",
+    "funding": "Series A",
+    "year": "2021",
+    "location": "San Francisco",
+    "slug": "/companies/pulley",
+    "website": "https://withpulley.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Clerk",
+    "description": "Clerk offers a full suite of toolsâembeddable UIs, flexible APIs, and admin dashboardsâto help businesses easily manage authentication and user access.",
+    "industry": "B2B",
+    "funding": "Series B",
+    "year": "2019",
+    "location": "San Francisco",
+    "slug": "/companies/clerk",
+    "website": "https://clerk.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Airtable",
+    "description": "Airtable is a low-code platform that makes it easy for teams to build and customize collaborative apps, bringing data and workflows together seamlessly.",
+    "industry": "B2B",
+    "funding": "Unicorn",
+    "year": "2013",
+    "location": "San Francisco",
+    "slug": "/companies/airtable",
+    "website": "https://www.airtable.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Eightfold",
+    "description": "Eightfold AI empowers enterprises to transform talent into a competitive advantage using deep learning to upskill, reskill, and retain top performers while modernizing recruitment globally.",
+    "industry": "B2B",
+    "funding": "Unicorn",
+    "year": "2016",
+    "location": "San Francisco",
+    "slug": "/companies/eightfold",
+    "website": "https://eightfold.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Vanta",
+    "description": "Vanta simplifies security by centralizing trust management, helping organizations manage and showcase transparency in real time with an all-in-one platform, trusted by companies across the globe.",
+    "industry": "B2B",
+    "funding": "Unicorn",
+    "year": "2017",
+    "location": "San Francisco",
+    "slug": "/companies/vanta",
+    "website": "https://www.vanta.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Planetscale",
+    "description": "PlanetScale delivers a MySQL-compatible, horizontally sharded database that combines incredible scale and performance with a seamless developer experience built by industry veterans.",
+    "industry": "B2B",
+    "funding": "Growth",
+    "year": "2018",
+    "location": "San Francisco",
+    "slug": "/companies/planetscale",
+    "website": "https://planetscale.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Forethought",
+    "description": "Forethought modernizes customer support using advanced generative AI trained on unique data. It instantly resolves issues, predicts ticket trends, and equips agents with smart, evolving insights.",
+    "industry": "B2B",
+    "funding": "Growth",
+    "year": "2018",
+    "location": "San Francisco",
+    "slug": "/companies/forethought",
+    "website": "https://forethought.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Sparrow",
+    "description": "Sparrow offers an end-to-end leave management solution that automates and simplifies employee leave processes with specialist support across the U.S. and Canada, helping companies boost care and cut costs.",
+    "industry": "B2B",
+    "funding": "Series B",
+    "year": "2018",
+    "location": "San Francisco",
+    "slug": "/companies/sparrow",
+    "website": "https://trysparrow.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Regie.ai",
+    "description": "RegieOne is the world's first AI-native prospecting platform, blending smart AI agents and human reps in one streamlined workflow to deliver personalized, efficient outreach for every lead.",
+    "industry": "B2B",
+    "funding": "Series B",
+    "year": "2020",
+    "location": "San Francisco",
+    "slug": "/companies/regieai",
+    "website": "https://www.regie.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Centari",
+    "description": "Centari is a deal intelligence platform that blends secure language models with trusted precedent data to simplify transactions, paving the way for a data-powered future in dealmaking.",
+    "industry": "B2B",
+    "funding": "Series A",
+    "year": "2023",
+    "location": "New York",
+    "slug": "/companies/centari",
+    "website": "https://www.centari.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Momentum",
+    "description": "Momentum uses AI and automation to turn customer interactions into vital sales insights, saving reps time and giving leaders a clear viewâall without disrupting your favorite tools.",
+    "industry": "B2B",
+    "funding": "Series A",
+    "year": "2020",
+    "location": "San Francisco",
+    "slug": "/companies/momentum",
+    "website": "https://momentum.io/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Vori",
+    "description": "Vori is a modern operating system for grocery stores, integrating inventory and point-of-sale systems to streamline operations and deliver actionable insights for smarter decision-making.",
+    "industry": "B2B",
+    "funding": "Series A",
+    "year": "2019",
+    "location": "San Francisco",
+    "slug": "/companies/vori",
+    "website": "https://www.vori.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Vultron",
+    "description": "Vultron harnesses generative AI to modernize federal proposal development, streamlining workflows and boosting efficiency through innovative, user-friendly solutions.",
+    "industry": "B2B",
+    "funding": "Series A",
+    "year": "2023",
+    "location": "San Francisco",
+    "slug": "/companies/vultron",
+    "website": "https://vultron.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Siteline",
+    "description": "Siteline reimagines construction finance for contractors, streamlining billing for faster payments and empowering teams to focus on innovation, growth, and building a better future.",
+    "industry": "B2B",
+    "funding": "Series A",
+    "year": "2019",
+    "location": "San Francisco",
+    "slug": "/companies/siteline",
+    "website": "https://www.siteline.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Expo",
+    "description": "Expo makes building native apps and websites a breeze.",
+    "industry": "B2B",
+    "funding": "Series A",
+    "year": "2015",
+    "location": "San Francisco",
+    "slug": "/companies/expo",
+    "website": "https://expo.dev/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "System2",
+    "description": "System2 collaborates with elite fitness influencers to boost digital impact and spread accessible, engaging fitness coaching worldwide, making expert health guidance a global passion.",
+    "industry": "B2B",
+    "funding": "Series A",
+    "year": "2018",
+    "location": "San Francisco",
+    "slug": "/companies/system2",
+    "website": "https://www.getsystem2.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Durable",
+    "description": "Durable is an AI-powered website builder and business platform that helps entrepreneurs launch and grow their ventures, making business ownership easier and more accessible worldwide.",
+    "industry": "B2B",
+    "funding": "Series A",
+    "year": "2021",
+    "location": "Other",
+    "slug": "/companies/durable",
+    "website": "https://durable.co/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "AskWonder",
+    "description": "Wonder blends AI speed with human creativity for quick, incisive business research covering market trends, competitive analysis, and due diligence, delivering quality insights in under 24 hours.",
+    "industry": "B2B",
+    "funding": "Series A",
+    "year": "2012",
+    "location": "Other",
+    "slug": "/companies/wonder",
+    "website": "https://askwonder.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Zingage",
+    "description": "Ava automates home care agencies' back office tasks with smart software that boosts engagement and cuts turnover, letting providers focus on delivering exceptional care.",
+    "industry": "B2B",
+    "funding": "Series A",
+    "year": "2022",
+    "location": "New York",
+    "slug": "/companies/zingage",
+    "website": "https://zingage.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Breez Security",
+    "description": "Breez transforms cloud security with behavioral detection and identity-powered investigations, spotting threats and automating incident response to save companies time and resources.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2023",
+    "location": "New York",
+    "slug": "/companies/breez-security",
+    "website": "https://breezsecurity.io/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "CodeComet",
+    "description": "CodeComet goes beyond alerts and diagnoses issues in APIs and backends, recommending specific code fixes. Powered by LLMs, our App Copilot analyzes production telemetry to provide your team with targeted resolutions for faster issue recovery.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2022",
+    "location": "San Francisco",
+    "slug": "/companies/codecomet",
+    "website": "https://www.codecomet.io/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Zerg AI",
+    "description": "Epoch is a game development platform that streamlines building, deploying, iterating, and automating game creation, helping developers and studios bring their titles to market faster.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2021",
+    "location": "San Francisco",
+    "slug": "/companies/epoch",
+    "website": "http://www.linkedin.com/company/epoch-ai",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Rooted",
+    "description": "Rooted is unlocking the full potential of agricultural land by enabling regenerative practices.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2024",
+    "location": "New York",
+    "slug": "/companies/rooted",
+    "website": "https://rooted.ag/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Vantara",
+    "description": "Vantara is an AI-native product analytics platform.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2025",
+    "location": "San Francisco",
+    "slug": "/companies/vantara",
+    "website": "http://www.linkedin.com/company/vantara-ai",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "DoubleLoop",
+    "description": "DoubleLoop is a platform that helps teams visually align and develop strategies, making it simple to craft clear plans and drive impactful results.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2020",
+    "location": "San Francisco",
+    "slug": "/companies/doubleloop",
+    "website": "https://doubleloop.app/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Orbital",
+    "description": "Orbital helps businesses scale their pipeline by smartly identifying, qualifying, and enriching leadsâan ideal match for those underserved by platforms like ZoomInfo.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2021",
+    "location": "San Francisco",
+    "slug": "/companies/orbital",
+    "website": "https://withorbital.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Benbase",
+    "description": "Benefits for Builders",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2023",
+    "location": "San Francisco",
+    "slug": "/companies/benbase",
+    "website": "https://benbase.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Foam",
+    "description": "Foam keeps digital experiences glitch-free by tracking application errors, investigating issues, and delivering streamlined solutions that make tech headaches a thing of the past.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/foam",
+    "website": "https://foam.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Alhena",
+    "description": "Shopping & support bottom-line concierge for your online store.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2022",
+    "location": "San Francisco",
+    "slug": "/companies/alhena",
+    "website": "https://alhena.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Vamana AI",
+    "description": "AI-native video infrastructure reimagines how videos are processed, analyzed, and served.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/vamana-ai",
+    "website": "https://vamana.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Convogo",
+    "description": "Convogo automates the time-consuming work of analyzing interviews, surveys, and other feedback data, so coaches, consultants, and talent leaders can focus on what matters most: growing your practice while you grow your clients.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2023",
+    "location": "San Francisco",
+    "slug": "/companies/encore-intelligence",
+    "website": "https://encore.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "InstaBooks",
+    "description": "Accounting software for US small businesses. Use tax calculators, tracker apps & templates for quotes, tax invoices, bills, receipts, expenses, payments and bank reconciliation",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2024",
+    "location": "New York",
+    "slug": "/companies/instabooks",
+    "website": "https://instabooks.co/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Mesa",
+    "description": "Mesa is an AI-powered repository for living codebases. It enables teams to ship faster by automating\nmanual work and removing bottlenecks from the dev cycle, starting with code review.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/mesa",
+    "website": "http://withmesa.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Tonita",
+    "description": "Tonita is an early-stage AI startup revolutionizing commerce search with its ground-up technical stack powered by natural language understanding, making online shopping smarter and easier for everyone.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2021",
+    "location": "San Francisco",
+    "slug": "/companies/tonita",
+    "website": "https://www.tonita.co/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Dataland",
+    "description": "Dataland streamlines data for frontline teams by unifying business insights into one source, making it easy to search, analyze, and get AI-powered answers quickly.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2020",
+    "location": "New York",
+    "slug": "/companies/dataland",
+    "website": "https://dataland.io/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Surfboard",
+    "description": "Surfboard delivers modern governance SaaS, empowering founders and teams to simplify decision-making and achieve success by aligning board insights with investor interests.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2020",
+    "location": "San Francisco",
+    "slug": "/companies/surfboard",
+    "website": "https://www.surfboard.team/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Inflight",
+    "description": "Inflight is the feedback tool made for modern product teams. Get quality feedback from peers, users,\ninvestors, and more â in hours, not days.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2024",
+    "location": "Other",
+    "slug": "/companies/inflight-software",
+    "website": "https://www.inflight.co/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Abstract Ops",
+    "description": "AbstractOps streamlines remote companies' state compliance by automating registrations, filings, and more. They digitize important mail and send proactive alerts to help avoid costly surprises.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2019",
+    "location": "San Francisco",
+    "slug": "/companies/abstract-ops",
+    "website": "https://www.abstractops.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Hyperline",
+    "description": "Build data-powered Web3 apps in days, not months.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2022",
+    "location": "San Francisco",
+    "slug": "/companies/hyperline",
+    "website": "https://www.hyperline.xyz/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Flowstate",
+    "description": "Powerful AI-driven visual understanding for enterprise-scale video management and discovery.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2023",
+    "location": "San Francisco",
+    "slug": "/companies/flowstate",
+    "website": "https://flowstatehq.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Noto",
+    "description": "Noto is a modern business management solution for tutoring, music, and art centers that simplifies admin tasks like registration, rescheduling, and payments so professionals can focus on teaching.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2024",
+    "location": "New York",
+    "slug": "/companies/noto",
+    "website": "https://www.noto.nyc/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Fulcrum",
+    "description": "Fulcrum streamlines tedious insurance workflows with AI, letting agencies create proposals, check policies, and compare coverages in minutes instead of hoursâfreeing them up to grow their business.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2023",
+    "location": "San Francisco",
+    "slug": "/companies/fulcrum",
+    "website": "https://www.withfulcrum.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Bauplan",
+    "description": "Bauplan is a programmable data lake that makes it easy to load, transform, query, and schedule intricate SQL and Python pipelines, handling the tech so you can focus on your data.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2022",
+    "location": "San Francisco",
+    "slug": "/companies/bauplan",
+    "website": "https://www.bauplanlabs.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Sesame Labs AI",
+    "description": "Sesame Labs offers an AI-powered marketing platform that gamifies community engagement using custom AI models, turning members into champions while saving time and ramping up activity.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2022",
+    "location": "San Francisco",
+    "slug": "/companies/sesame-labs",
+    "website": "https://www.sesamelabs.io/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Codeyam",
+    "description": "Codeyam is building the first robust software simulator for software teams, enabling realistic testing and experimentation to boost innovation and performance in a user-friendly digital environment.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2021",
+    "location": "Other",
+    "slug": "/companies/codeyam",
+    "website": "https://codeyam.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Tezi",
+    "description": "Tezi builds an autonomous AI solution that streamlines complete process managementâfrom initial contact to final reviewâensuring every step is handled flawlessly with smart, expert-guided technology.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2023",
+    "location": "San Francisco",
+    "slug": "/companies/tezi",
+    "website": "https://tezi.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Town",
+    "description": "Town delivers top-tier tax expertise to small businessesâaffordable, seamless, and personalized.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2025",
+    "location": "San Francisco",
+    "slug": "/companies/town",
+    "website": "https://town.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Substrate Labs",
+    "description": "Substrate is a next-gen API for generative AI, offering a fully loaded inference engine and SDKs that make building and running multi-step AI workloads fast and easy for powerful platforms like Substack.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2023",
+    "location": "New York",
+    "slug": "/companies/substrate-labs",
+    "website": "https://www.substrate.run/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "VLM Run",
+    "description": "VLM Run builds robust AI infrastructure powering autonomous systems for smarter, safer machine-augmented solutions, paving the way toward a highly intelligent and efficient future in technology.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2023",
+    "location": "San Francisco",
+    "slug": "/companies/vlm-run",
+    "website": "https://vlm.run/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Kay",
+    "description": "Kay streamlines repetitive back-office workflows with enterprise-grade solutions, fine-tuning automation for insurance processes to boost efficiency and simplify operations for large-scale businesses.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2022",
+    "location": "New York",
+    "slug": "/companies/kay",
+    "website": "https://www.kay.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "PixelTable",
+    "description": "Pixeltable is a declarative data infrastructure for building multimodal AI applications, enabling incremental storage, transformation, indexing, and orchestration of your data.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/pixeltable",
+    "website": "https://pixeltable.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Keplar",
+    "description": "Keplar is a customer simulation platform that uses machine learning to transform data into interactive models, helping companies test creative ideas and co-design products at scale.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2022",
+    "location": "San Francisco",
+    "slug": "/companies/keplar",
+    "website": "https://www.keplar.io/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Reduct Video",
+    "description": "Reduct.Video helps professionals, creatives, and communities quickly uncover, edit, and share valuable video insights from recorded conversations using a transcript-driven platform that makes workflows smooth and impactful.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2017",
+    "location": "San Francisco",
+    "slug": "/companies/reduct-video",
+    "website": "https://reduct.video/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "New Generation",
+    "description": "Instantly turn your brand website into an AI storefront that intelligently adapts to every customer.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/new-generation",
+    "website": "https://www.new-gen.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Wayfaster",
+    "description": "Wayfaster streamlines decision-making by focusing on prime, high-quality opportunitiesâeliminating less promising options to boost efficiency and drive success.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2022",
+    "location": "New York",
+    "slug": "/companies/wayfaster",
+    "website": "https://www.wayfaster.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Further AI",
+    "description": "FurtherAI integrates generative AI into the insurance industry, boosting team efficiency and unlocking substantial value by working seamlessly alongside internal operations.",
+    "industry": "B2B",
+    "funding": "Seed",
+    "year": "2023",
+    "location": "San Francisco",
+    "slug": "/companies/further-ai",
+    "website": "https://www.furtherai.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Channel Labs",
+    "description": "Channel is building product analytics for AI products. We help teams design their AIâs capabilities and personality in a data driven manner so they know what converts and what churns.",
+    "industry": "B2B",
+    "funding": "Pre-seed",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/channel-labs",
+    "website": "https://channellabs.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "CBCatalyst",
+    "description": "CB Catalysts simplifies and accelerates custom component sourcing",
+    "industry": "B2B",
+    "funding": "Pre-seed",
+    "year": "2024",
+    "location": "Bengaluru",
+    "slug": "/companies/cbcatalyst",
+    "website": "http://www.linkedin.com/company/cbcatalyst",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Dashworks (Acq Hubspot)",
+    "description": "Dashworks simplifies access to internal knowledge by breaking down data silos, delivering fast and reliable insights from diverse work applications, making information retrieval easier than ever.",
+    "industry": "B2B",
+    "funding": "Acquired",
+    "year": "2020",
+    "location": "San Francisco",
+    "slug": "/companies/dashworks",
+    "website": "https://www.dashworks.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "DealLoop",
+    "description": "DealLoop builds AI agents that give automotive dealerships real-time visibility into every conversation happening across sales, F&I, and service.",
+    "industry": "B2B",
+    "funding": "Pre-seed",
+    "year": "2025",
+    "location": "San Francisco",
+    "slug": "/companies/dealloop",
+    "website": "https://www.dealloop.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "June",
+    "description": "Design your event\nwith just a few words",
+    "industry": "B2B",
+    "funding": "Pre-seed",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/june",
+    "website": "https://www.tryjune.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "RallyBoard",
+    "description": "RallyBoard partners with forward-thinking associations to deliver peer-powered learning programs.",
+    "industry": "B2B",
+    "funding": "Pre-seed",
+    "year": "2025",
+    "location": "New York",
+    "slug": "/companies/rallyboard",
+    "website": "https://twitter.com/southpkcommons",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Galileo AI (Acq. Google)",
+    "description": "Galileo AI revolutionizes UI design by using advanced generative AI to transform natural language prompts into high-quality, innovative interfaces that empower creative thinkers to push boundaries.",
+    "industry": "B2B",
+    "funding": "Acquired",
+    "year": "2022",
+    "location": "San Francisco",
+    "slug": "/companies/galileo-ai",
+    "website": "https://www.usegalileo.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "CaseX",
+    "description": "Case X simplifies crime reporting for communities and police departments, making the process faster, more accurate, and more accessible.",
+    "industry": "B2B",
+    "funding": "Pre-seed",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/casex",
+    "website": "https://casex.io/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Junior AI",
+    "description": "Junior leverages generative AI to empower consulting teams to collaborate seamlessly, unlock deeper insights, and speed up their process for delivering impactful results.",
+    "industry": "B2B",
+    "funding": "Pre-seed",
+    "year": "2022",
+    "location": "New York",
+    "slug": "/companies/junior-ai",
+    "website": "https://www.myjunior.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Satsuma (Acq. Alchemly)",
+    "description": "Reliable blockchain indexing & querying for web3 engineering teams.",
+    "industry": "B2B",
+    "funding": "Acquired",
+    "year": "2021",
+    "location": "San Francisco",
+    "slug": "/companies/satsuma-acq-alchemly",
+    "website": "https://www.alchemy.com/",
+    "founders": [
+      "Founded By"
+    ]
+  }
+]

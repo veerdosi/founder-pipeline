@@ -1,0 +1,114 @@
+[
+  {
+    "name": "Peerby",
+    "description": "Peerby is a leading application in the 'sharing economy', enabling people to borrow the things they need from others in their neighborhood. They have raised more than $4.7M in funding.",
+    "industry": "Mobile Technology",
+    "location": "Amsterdam, Netherlands",
+    "founder(s)": "Daan Weddepohl",
+    "website": "http://www.peerby.com"
+  },
+  {
+    "name": "Unito",
+    "description": "Unito is a no-code integration solution that allows you to connect your apps and automate your workflows in minutes. They raised a $20M Series B round in October 2022 led by CDPQ's Equity 253 fund.",
+    "industry": "Mobile Technology",
+    "location": "Montreal, Canada",
+    "founder(s)": "Marc Boscher",
+    "website": "http://unito.io"
+  },
+  {
+    "name": "CINETPAY",
+    "description": "CinetPay lets merchants across Francophone Africa accept Mobile Money and other payments forms. They announced $2.4M in funding from 4DX Ventures and Flutterwave in December 2021.",
+    "industry": "Mobile Technology",
+    "location": "Abidjan, Ivory Coast",
+    "founder(s)": "Idriss Marcial MONTHE DJOMBISSIE",
+    "website": "http://www.cinetpay.com"
+  },
+  {
+    "name": "TESPIRE LLC",
+    "description": "Tespire developed a web/mobile app to help primary & secondary school owners in semi-urban Africa to boost income, block revenue leakages through a tablet device. They raised an undisclosed amount in October 2024.",
+    "industry": "Mobile Technology",
+    "location": "Abuja, Nigeria",
+    "founder(s)": "Abdulkadir Suleiman",
+    "website": "https://tespire.co"
+  },
+  {
+    "name": "ShapShap",
+    "description": "ShapShap is a mobile marketplace app for ordering food, groceries, and more within your city for pickup or same day parcel delivery. They raised seed funding from GreenTec Capital in 2021.",
+    "industry": "Mobile Technology",
+    "location": "Abuja, Nigeria",
+    "founder(s)": "N/A",
+    "website": "https://shapshap.com/"
+  },
+  {
+    "name": "Checkbox",
+    "description": "Checkbox is a no-code app builder for legal, HR, risk and compliance teams. They raised AUD $6.3M in a January 2022 pre-Series A led by Sequoia scale-up program Surge, and Tidal Ventures.",
+    "industry": "Mobile Technology",
+    "location": "Sydney, Australia",
+    "founder(s)": "Evan Wong",
+    "website": "http://checkbox.ai"
+  },
+  {
+    "name": "APPOTA Corp",
+    "description": "Appota is a pioneer in providing technology solutions and platforms for digital entertainment industry, and an industry leader in Southeast Asia. The company has raised series C funding.",
+    "industry": "Mobile Technology",
+    "location": "Hanoi, Vietnam",
+    "founder(s)": "Do Tuan Anh",
+    "website": "http://appota.com"
+  },
+  {
+    "name": "Comparamejor.com",
+    "description": "ComparaMejor is a leading LATAM site to find and apply for financial products. The company raised $5M+ in funding, and was acquired in 2019 by ComparaOnline.",
+    "industry": "Mobile Technology",
+    "location": "Bogota, Colombia",
+    "founder(s)": "Erick Brimen, Fernando Sucre",
+    "website": "http://www.comparamejor.com"
+  },
+  {
+    "name": "Ceres Robotics Inc",
+    "description": "Ceres Robotics designs and builds robotic landers for lunar and planetary surface space missions. The company is approved by NASA to participate in commercial lunar payload Artemis missions.",
+    "industry": "Mobile Technology",
+    "location": "Silicon Valley, US",
+    "founder(s)": "Michael Sims",
+    "website": "http://www.ceresrobotics.com"
+  },
+  {
+    "name": "Padash",
+    "description": "Padash helps you deliver to customers at 5x cheaper commission than other apps by fulfilling the delivery yourself, especially to customers who live close to you. They raised $115k in Angel investment",
+    "industry": "Mobile Technology",
+    "location": "Amman, Jordan",
+    "founder(s)": "Ahmed Jamal",
+    "website": "https://midient.space"
+  },
+  {
+    "name": "MyTM Private Limited",
+    "description": "MyTM is a mass transit e-ticketing platform to search and buy tickets directly for air, bus, and cinema through the MyTM mobile app or network of retailers. They have raised $7.2M+ in funding.",
+    "industry": "Mobile Technology",
+    "location": "Lahore, Pakistan",
+    "founder(s)": "Zain Farooq",
+    "website": "http://www.mytm.pk"
+  },
+  {
+    "name": "Capsl Entertainment",
+    "description": "CAPSL Entertainment is the developer of mobile esports tournament platform BAASH. The company raised more than USD $400k, and announced BAASH was acquired by Coda Payments in Q4 2021.",
+    "industry": "Mobile Technology",
+    "location": "Hong Kong, Hong Kong",
+    "founder(s)": "Paddy Markham",
+    "website": "https://linktr.ee/capsl"
+  },
+  {
+    "name": "PaySika",
+    "description": "PaySika is the first neo-bank in Africa to offer banking services on popular messengers such as WhatsApp, Messenger and Telegram. They announced a €300k pre-seed angel in October 2021.",
+    "industry": "Mobile Technology",
+    "location": "Paris, France",
+    "founder(s)": "Nengwe Roger",
+    "website": "https://paysika.co/"
+  },
+  {
+    "name": "Foodini",
+    "description": "Foodini is a mobile app for people with special dietary needs to discover the best restaurants, with dietitian reviewed menus tailored to your personal needs. They raised a $700k pre-seed in October 2022.",
+    "industry": "Mobile Technology",
+    "location": "Sydney, Australia",
+    "founder(s)": "Dylan Mc Donnell, Timo Kugler",
+    "website": "https://www.getfoodini.com/"
+  }
+]

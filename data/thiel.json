@@ -1,0 +1,834 @@
+[
+  {
+    "name": "Acorn Genetics",
+    "slug": "acorngenetics",
+    "website": "https://acorngenetics.com/",
+    "description": "Acorn Genetics is an at-home DNA testing company, focused on delivering consumers affordable and accurate genetic results while keeping data private.",
+    "founder": "Ana Cornell",
+    "status": "Alive"
+  },
+  {
+    "name": "AirGarage",
+    "slug": "airgarage",
+    "website": "https://www.airgarage.com/",
+    "description": "AirGarage has developed a suite of technical solutions for parking lot management: enforcement, payment collection, visitor registration, customer support, and more.",
+    "founder": "Scott Fitsimones",
+    "status": "Alive"
+  },
+  {
+    "name": "Alloy Automation",
+    "slug": "alloyautomation",
+    "website": "https://runalloy.com/",
+    "description": "Alloy is a next- generation iPaaS used by the likes of Amazon, Burberry, and others. Alloy is Series A, backed by a1Gz and Bain Capital Ventures.",
+    "founder": "Sara Du",
+    "status": "Alive"
+  },
+  {
+    "name": "Anchor",
+    "slug": "anchor",
+    "website": "https://www.anchorprotocol.com/",
+    "description": "Anchor is a DeFi savings protocol that offers stable and attractive",
+    "founder": "Ryan Park",
+    "status": "Alive"
+  },
+  {
+    "name": "Arist",
+    "slug": "arist",
+    "website": "https://www.arist.co/",
+    "description": "Arist helps leading companies deliver learning, training, and nudges in the flow of work via Teams, Slack, and text message-based courses. Used by over 10% of the Fortune 500, Arist is a pioneer in meeting learners where they are.",
+    "founder": "Michael Ioffe",
+    "status": "Alive"
+  },
+  {
+    "name": "Aunt Flow",
+    "slug": "auntflow",
+    "website": "https://goauntflow.com/",
+    "description": "Aunt Flow supplies free- vend dispensers and 100% organic cotton menstrual products to businesses and schools to ensure that everyone has access to healthy, sustainable wellness products wherever they are.",
+    "founder": "Claire Coder",
+    "status": "Alive"
+  },
+  {
+    "name": "Automorphic",
+    "slug": "automorphic",
+    "website": "https://cts.businesswire.com/ct/CT?id=smartlink&url=https%3A%2F%2Fautomorphic.ai&esheet=53U1315U&newsitemid=2024032074234G&lan=en-US&anchor=Automorphic&index=U&md5=dcUe0b5G8b50001U7ffffd2U01e24bb5",
+    "description": "Automorphic is creating AI models that learn new information more efficiently than humans.",
+    "founder": "Govind Gnanaku",
+    "status": ""
+  },
+  {
+    "name": "Axiome",
+    "slug": "axiome",
+    "website": "https://axiome.bio/",
+    "description": "Axiome is building the next generation of biosensors for low-cost molecular diagnostics.",
+    "founder": "Samarth Athreya",
+    "status": "Alive"
+  },
+  {
+    "name": "Biodock",
+    "slug": "biodock",
+    "website": "https://www.biodock.ai/",
+    "description": "Biodock is a computer vision platform for scientists, helping them more effectively understand their experiments and discover new insights by identifying and quantifying biological objects through no-install, GPU- powered AI modules.",
+    "founder": "Michael Lee",
+    "status": "Alive"
+  },
+  {
+    "name": "Biofire",
+    "slug": "biofire",
+    "website": "https://smartgun.com/",
+    "description": "Biofire is building smart guns that use advanced biometric technology to enable radically safer ownership of firearms.",
+    "founder": "Kai Kloepfer",
+    "status": "Alive"
+  },
+  {
+    "name": "BlockScore",
+    "slug": "blockscore",
+    "website": "https://cognitohq.com/?ref=blockscore",
+    "description": "BlockScore builds software that helps businesses to verify their customers’ identities, fighting fraud and smoothly complying with regulations.",
+    "founder": "John Backus",
+    "status": "Alive"
+  },
+  {
+    "name": "Bloom",
+    "slug": "bloom",
+    "website": "https://www.bloomapp.com/",
+    "description": "We are empowering the next generation of Americans to start building wealth earlier.",
+    "founder": "Sonny Mo",
+    "status": "Alive"
+  },
+  {
+    "name": "BoardRE",
+    "slug": "boardre",
+    "website": "https://accept.inc/board-redirect",
+    "description": "BoardRE is a new type of mortgage company that upgrades any offer to a cash offer, giving every buyer who can afford a mortgage a better shot at winning their dream home.",
+    "founder": "Adam Pollack",
+    "status": "Alive"
+  },
+  {
+    "name": "Branch.gg",
+    "slug": "branch.gg",
+    "website": "https://branch.gg/",
+    "description": "Branch.gg is a socialgaming platform focused on creating, sharing and monetizing instantly playable games and experiences in the metaverse.",
+    "founder": "Dayton Mills",
+    "status": "Alive"
+  },
+  {
+    "name": "Brinc Drones",
+    "slug": "brincdrones",
+    "website": "https://brincdrones.com/",
+    "description": "Brinc Drones designs and manufactures advanced aerial robots that help tactical teams respond to barricade, hostage, and active shooter situations.",
+    "founder": "Blake Resnick",
+    "status": "Alive"
+  },
+  {
+    "name": "Cainary",
+    "slug": "cainary",
+    "website": "https://www.canairy.ai/",
+    "description": "Canairy’s software platform tracks and monitors chronic respiratory diseases by using signal processing and machine learning to evaluate qualities and changes in a person’s cough or voice.",
+    "founder": "Emily Wang",
+    "status": "Alive"
+  },
+  {
+    "name": "Clay.io",
+    "slug": "clay.io",
+    "website": "https://www.afternic.com/forsale/clay.io",
+    "description": "Clay.io, a startup that publishes popular games to mobile web platforms. With Clay.io,",
+    "founder": "Zoli Kahan",
+    "status": "Alive"
+  },
+  {
+    "name": "CodeGem",
+    "slug": "codegem",
+    "website": "https://www.codegem.app/",
+    "description": "CodeGem integrates with existing workflows to analyze a software team's productivity, collaboration, and engagement.",
+    "founder": "Stephanie Mills",
+    "status": "Alive"
+  },
+  {
+    "name": "Coder",
+    "slug": "coder",
+    "website": "https://coder.com/",
+    "description": "Coder eliminates the limitations of the local machine for software engineers by moving software development to the cloud.",
+    "founder": "John Andrew En",
+    "status": "Alive"
+  },
+  {
+    "name": "Cognition AI",
+    "slug": "cognitionai",
+    "website": "https://www.cognition-labs.com/introducing-devin",
+    "description": "Cognition AI is an applied AI lab focused on reasoning. Their flagship product Devin, an AI software engineer and teammate, is ushering in a new era of economic",
+    "founder": "Walden Yan",
+    "status": ""
+  },
+  {
+    "name": "CoMind",
+    "slug": "comind",
+    "website": "https://comind.io/",
+    "description": "CoMind is developing non- invasive neuroimaging tools to detect a range of signals and create a seamless interface to the brain.",
+    "founder": "James Dacombe",
+    "status": "Alive"
+  },
+  {
+    "name": "Copysmith",
+    "slug": "copysmith",
+    "website": "https://copysmith.ai/",
+    "description": "When she’s not working on Copysmith, a service that uses AI to turn keywords into written copy, Jasmine is writing a speculative fiction novel.",
+    "founder": "Jasmine Wang",
+    "status": "Alive"
+  },
+  {
+    "name": "Corecircle",
+    "slug": "corecircle",
+    "website": "https://corecircle.com/",
+    "description": "Corecircle is a social fitness app empowering individuals to document and track their  fitness journey in a like-minded community.",
+    "founder": "Nastassia Pono",
+    "status": "Alive"
+  },
+  {
+    "name": "CropSafe",
+    "slug": "cropsafe",
+    "website": "https://cropsafe.io/",
+    "description": "CropSafe automates farm banking, monitoring, and production forecasting using AI and satellite data.",
+    "founder": "John McElhone",
+    "status": "Alive"
+  },
+  {
+    "name": "Cryopets",
+    "slug": "cryopets",
+    "website": "https://cryopets.com/",
+    "description": "Cryopets is developing whole-body cryopreservation for pets.",
+    "founder": "Kai Micah Mills",
+    "status": "Alive"
+  },
+  {
+    "name": "Dandy",
+    "slug": "dandy",
+    "website": "https://www.meetdandy.com/",
+    "description": "Dandy is a business-in-a- box for dentists, and aims to become the operating system for dentistry in America as the dental industry digitizes.",
+    "founder": "Toni Oloko",
+    "status": "Alive"
+  },
+  {
+    "name": "Dark Forest",
+    "slug": "darkforest",
+    "website": "https://zkga.me/",
+    "description": "Dark Forest is the world's first decentralized real-time strategy game, built on Ethereum with zkSNARKs.",
+    "founder": "Brian Gu",
+    "status": "Alive"
+  },
+  {
+    "name": "Delphi Labs",
+    "slug": "delphilabs",
+    "website": "https://delphilabs.io/",
+    "description": "Delphi Labs is a frontier tech research and advisory firm.",
+    "founder": "Markie Wagner",
+    "status": "Alive"
+  },
+  {
+    "name": "Depict.ai",
+    "slug": "depict.ai",
+    "website": "https://depict.ai/",
+    "description": "Depict.ai provides online retailers with a product recommendation system allowing them to focus on continuing to make and curate exceptional products.",
+    "founder": "Oliver Edholm",
+    "status": "Alive"
+  },
+  {
+    "name": "Doppler",
+    "slug": "doppler",
+    "website": "https://www.doppler.com/",
+    "description": "Doppler is a modern configuration and secrets management tool that helps teams and businesses secure, store and manage API keys, tokens, database credentials, and other sensitive information.",
+    "founder": "Phillip Chao",
+    "status": "Alive"
+  },
+  {
+    "name": "Dream Hustle Code",
+    "slug": "dreamhustlecode",
+    "website": "https://www.dreamhustlecode.com/",
+    "description": "Dream Hustle Code is creating a three-tiered approach toward a sustainable Gen Z workforce development pipeline.",
+    "founder": "Ian Michael Broc",
+    "status": "Alive"
+  },
+  {
+    "name": "Dreambound",
+    "slug": "dreambound",
+    "website": "https://dreambound.com/",
+    "description": "Dreambound provides low- income Americans with planning tools and financing for workforce training courses, starting with a certified nursing assistant (CNA) program.",
+    "founder": "Brandon Wang",
+    "status": "Alive"
+  },
+  {
+    "name": "e",
+    "slug": "e",
+    "website": "lovenocode.com/",
+    "description": "is the largest no- code marketplace that connects 5,000 companies and 3G,000 no-code developers. The company is headquartered in San Francisco and has already raised $3M in funding.",
+    "founder": "Nik Shevchenko",
+    "status": "Alive"
+  },
+  {
+    "name": "Endex",
+    "slug": "endex",
+    "website": "https://endex.ai/",
+    "description": "Endex is building the first autonomous and super-intelligent financial analyst.",
+    "founder": "Tarun Amasa",
+    "status": ""
+  },
+  {
+    "name": "Epic Aerospace",
+    "slug": "epicaerospace",
+    "website": "https://epic-aerospace.com/",
+    "description": "Epic Aerospace is building a last- mile delivery service for rockets and satellites.",
+    "founder": "Ignacio Belieres",
+    "status": "Alive"
+  },
+  {
+    "name": "Etched",
+    "slug": "etched",
+    "website": "https://www.etched.com/",
+    "description": "Etched is building the hardware for superintelligence\n, starting with transformer- specific AI chips that run models at unprecedented",
+    "founder": "Christopher Zhu Gavin Uberti Robert Wachen",
+    "status": ""
+  },
+  {
+    "name": "Evervault",
+    "slug": "evervault",
+    "website": "https://evervault.com/",
+    "description": "Evervault is building a data protection solution that helps developers encrypt sensitive data as soon as it leaves a user’s device.",
+    "founder": "Shane Curran",
+    "status": "Alive"
+  },
+  {
+    "name": "Examedi",
+    "slug": "examedi",
+    "website": "https://examedi.com/",
+    "description": "Examedi is a healthcare-at- home marketplace in Latin America connecting patients to nurses to perform clinical lab tests at home.",
+    "founder": "Ian Lee",
+    "status": "Alive"
+  },
+  {
+    "name": "Explore Interfaces",
+    "slug": "exploreinterfaces",
+    "website": "https://exploreinterfaces.com/",
+    "description": "Explore Interfaces is developing a contextual LLM- based operating system, enabling hyper- personalized applications and challenging long- held  assumptions about the interaction between computers, devices, and our daily lives, ushering in a new era of human- computer",
+    "founder": "Joseph Semrai",
+    "status": ""
+  },
+  {
+    "name": "Fleet",
+    "slug": "fleet",
+    "website": "https://cms.gokoho.com/",
+    "description": "Fleet is an easy- to-use freight shipping platform that provides reliable shipments, fair pricing, and an unparalleled customer experience for shippers of any size -- particularly the small- to medium-sized companies traditionally underserved by the global freight industry.",
+    "founder": "Max Lock",
+    "status": "Alive"
+  },
+  {
+    "name": "Foxtrot Systems",
+    "slug": "foxtrotsystems",
+    "website": "https://foxtrotsystems.com/",
+    "description": "Foxtrot Systems is a logistics software platform that helps distributors execute better last-mile deliveries.\nFoxtrot uses traffic and weather information, in- house route- optimization algorithms, and machine learning to boost customers’ fleets’ efficiency and delivery success",
+    "founder": "Patrick Coughra",
+    "status": "Alive"
+  },
+  {
+    "name": "Fresco News",
+    "slug": "fresconews",
+    "website": "https://www.fresconews.com/",
+    "description": "Fresco News a startup that builds 21st century newsroom tools. Fresco helps news organizations mobilize the smartphone users who are capturing",
+    "founder": "John Meyer",
+    "status": "Alive"
+  },
+  {
+    "name": "Fund Platform",
+    "slug": "fundplatform",
+    "website": "https://fundplatform.io/",
+    "description": "Fund Platform helps to create funds without pouring huge amounts of money into marketing and creating website. And for ordinary users F.P. provides a simple tool for investing money in cryptocurrency. Fund Platform users will exchange tokens of all project exchanges for any cryptocurrency using FUND token.",
+    "founder": "Nik Shevchenko",
+    "status": "Alive"
+  },
+  {
+    "name": "Glorify",
+    "slug": "glorify",
+    "website": "https://glorify-app.com/",
+    "description": "Glorify is a Christian daily",
+    "founder": "Edward Beccle",
+    "status": "Alive"
+  },
+  {
+    "name": "hackEDU",
+    "slug": "hackedu",
+    "website": "https://hackclub.com/",
+    "description": "hackEDU is a national nonprofit that brings coding clubs to high schools nationwide.\nStudents who love music can join band; students who love sports can join an athletic team; but students who want to code have to go home and do it alone. Zach’s goal is to spread the hacker ethos (and programming skills) to every student in the nation",
+    "founder": "Zach Latta",
+    "status": "Alive"
+  },
+  {
+    "name": "Hightouch",
+    "slug": "hightouch",
+    "website": "https://hightouch.com/",
+    "description": "Hightouch provides the necessary tools for companies to supercharge their marketing and sales initiatives by syncing data from warehouses into the tools business teams rely on including Salesforce, HubSpot, Marketo, and Facebook ads.",
+    "founder": "Tejas Manohar",
+    "status": "Alive"
+  },
+  {
+    "name": "Hyper",
+    "slug": "hyper",
+    "website": "https://hyper.co/",
+    "description": "Hyper allows anyone to start an online business and begin accepting payments in a matter of minutes.",
+    "founder": "Ben Botvinick",
+    "status": "Alive"
+  },
+  {
+    "name": "Hyperia",
+    "slug": "hyperia",
+    "website": "https://hyperia.co.jp/",
+    "description": "Hyperia is the first",
+    "founder": "Kenta Iwasaki",
+    "status": "Alive"
+  },
+  {
+    "name": "Hyperplane",
+    "slug": "hyperplane",
+    "website": "https://hyperpl",
+    "description": "Hyperplane is a",
+    "founder": "Felipe Meneses",
+    "status": ""
+  },
+  {
+    "name": "Immutable",
+    "slug": "immutable",
+    "website": "https://www.immutable.com/",
+    "description": "Immutable develops software that powers the world's most popular blockchain games.",
+    "founder": "Robbie Ferguso",
+    "status": "Alive"
+  },
+  {
+    "name": "Januus",
+    "slug": "januus",
+    "website": "https://januus.io/",
+    "description": "Januus is mapping cryptowallets to physical locations and people on a global scale.",
+    "founder": "Peter Hansen",
+    "status": ""
+  },
+  {
+    "name": "LayerCI",
+    "slug": "layerci",
+    "website": "https://webapp.io/",
+    "description": "LayerCI’s cloud- based SaaS provides software developers with efficient CI/CD + staging environments so they can build full-stack web apps faster.",
+    "founder": "Lyn Chen",
+    "status": "Alive"
+  },
+  {
+    "name": "Lily Devices",
+    "slug": "lilydevices",
+    "website": "https://twitter.com/lilydevices?lang=en",
+    "description": "Lily Devices is developing medical devices to prevent hair loss during chemotherapy.",
+    "founder": "Aaron Hannon",
+    "status": "Dead"
+  },
+  {
+    "name": "Luminai",
+    "slug": "luminai",
+    "website": "https://www.luminai.com/",
+    "description": "Helping customer service organizations automate internal workflows by making any kind of multi-click process one click",
+    "founder": "Kesava Kirupa D",
+    "status": "Alive"
+  },
+  {
+    "name": "Mach Industries",
+    "slug": "machindustries",
+    "website": "https://www.machindustries.com/",
+    "description": "Mach Industries is pioneering a suite of defense systems to support unparalleled capability using new inventions in the hydrogen space.",
+    "founder": "Ethan Thornton",
+    "status": "Dead"
+  },
+  {
+    "name": "Medella Health",
+    "slug": "medellahealth",
+    "website": "http://medella.ca/",
+    "description": "Medella Health is a startup that is creating a smart contact lens platform for continuous and",
+    "founder": "Harry Gandhi",
+    "status": "Alive"
+  },
+  {
+    "name": "MEDU",
+    "slug": "medu",
+    "website": "https://meduprotection.com/",
+    "description": "MEDU is a sustainable medical apparel producer providing healthcare professionals with the recyclable and innovative garments they need to remain protected while on the job.",
+    "founder": "Tamara Chayo R",
+    "status": "Alive"
+  },
+  {
+    "name": "Mercor",
+    "slug": "mercor",
+    "website": "https://mercor.com/",
+    "description": "Mercor is building AI vetting infrastructure to understand the exact tasks people are good at. Mercor’s AI interviewer conducts superhuman interviews by asking questions tailored to every candidate’s individual background.",
+    "founder": "Adarsh Hiremath Brendan Foody Surya Midha",
+    "status": ""
+  },
+  {
+    "name": "Namebase",
+    "slug": "namebase",
+    "website": "https://www.namebase.io/",
+    "description": "Namebase is a domain registrar and exchange for the Handshake blockchain; Handshake is a decentralized, permissionless naming protocol.",
+    "founder": "Tieshun Roquerr",
+    "status": "Alive"
+  },
+  {
+    "name": "Neusleep",
+    "slug": "neusleep",
+    "website": "https://www.neusleep.com/",
+    "description": "Neusleep is building a next- generation wearable device that induces and improves sleep through personalized neurostimulation.",
+    "founder": "Jake Adler",
+    "status": "Alive"
+  },
+  {
+    "name": "Nohbo",
+    "slug": "nohbo",
+    "website": "https://nohbo.com/",
+    "description": "Nohbo aims to eliminate single- use plastic bottles in the hospitality industry by manufacturing water soluble drops containing shampoo, soap, and other personal care items.",
+    "founder": "Ben Stern",
+    "status": "Alive"
+  },
+  {
+    "name": "Nowports",
+    "slug": "nowports",
+    "website": "https://www.nowports.com/",
+    "description": "Nowports facilitates the import and",
+    "founder": "Alfonso de los R",
+    "status": "Alive"
+  },
+  {
+    "name": "Nucleus",
+    "slug": "nucleus",
+    "website": "https://mynucleus.com/",
+    "description": "Nucleus is reimagining consumer genetic testing and analysis. We see a world where there’s a human genome on every smartphone",
+    "founder": "Kian Sadeghi",
+    "status": "Alive"
+  },
+  {
+    "name": "Nurture and Reset",
+    "slug": "nurtureandreset",
+    "website": "https://www.nurtureandreset.com/",
+    "description": "Nurture and Reset sells highly nutritious moringa teas and powder, sourced from partner farmers in Kenya who receive fair wages and benefits.",
+    "founder": "Margaret Nyawir",
+    "status": "Dead"
+  },
+  {
+    "name": "Oligo",
+    "slug": "oligo",
+    "website": "https://www.oligo.space/",
+    "description": "Oligo is revolutionizing the production of space-grade hardware and orbit-ready spacecraft through making the process as efficient and accessible as manufacturing car parts.",
+    "founder": "Jacob Rodrigue",
+    "status": ""
+  },
+  {
+    "name": "Optivolt",
+    "slug": "optivolt",
+    "website": "https://optivolt.com/",
+    "description": "Optivolt Labs develops remarkably efficient solar arrays that easily integrate to power existing devices like drones, scooters, and robotics.",
+    "founder": "Rohit Kalyanpur",
+    "status": "Alive"
+  },
+  {
+    "name": "Orb Aerospace",
+    "slug": "orbaerospace",
+    "website": "https://www.orb.aero/",
+    "description": "Turning diesel fuel into globally decentralized infrastructure.\nLess like the flying taxies, more like the flying cowboys. Accessible aviation for all mankind.",
+    "founder": "Alex Taylor",
+    "status": "Alive"
+  },
+  {
+    "name": "Orchard Robotics",
+    "slug": "orchardrobotics",
+    "website": "https://cts.businesswire.com/ct/CT?id=smartlink&url=https%3A%2F%2Fwww.orchard-robotics.com&esheet=53U1315U&newsitemid=2024032074234G&lan=en-US&anchor=Orchard+Robotics&index=5&md5=Gbb83Ga1U22fd1UG0bcafa3aU44a805c",
+    "description": "Orchard Robotics is putting eyes on each of the billions of fruit in orchards, and using AI to help farmers feed the world with the best food they've ever grown.",
+    "founder": "Charlie Wu",
+    "status": ""
+  },
+  {
+    "name": "Palitronica",
+    "slug": "palitronica",
+    "website": "https://www.palitronica.com/",
+    "description": "Palitronica builds software that protect critical infrastructure and military systems, by detecting compromised parts in the supply chain and monitoring for cyber attacks and tampering.",
+    "founder": "Griffin Barnicutt",
+    "status": "Alive"
+  },
+  {
+    "name": "Pareto",
+    "slug": "pareto",
+    "website": "https://hellopareto.com/",
+    "description": "Pareto is a human API for business operations, helping entrepreneurs to outsource repetitive tasks.",
+    "founder": "Phoebe Yao",
+    "status": "Alive"
+  },
+  {
+    "name": "Perch",
+    "slug": "perch",
+    "website": "https://www.altro.io/",
+    "description": "Perch helps users instantly boost their credit scores by using recurring expenses such as streaming subscriptions and rent payments.",
+    "founder": "Michael Brought",
+    "status": "Alive"
+  },
+  {
+    "name": "PiinPoint",
+    "slug": "piinpoint",
+    "website": "https://www.piinpoint.com/",
+    "description": "PiinPoint is a software that uses demographic, real estate, and traffic data to help retailers decide where to open new locations.",
+    "founder": "Liam Horne",
+    "status": "Alive"
+  },
+  {
+    "name": "Prepared",
+    "slug": "prepared",
+    "website": "https://www.preparedU11.com/",
+    "description": "Prepared makes software that provides comprehensive support for educators and law enforcement during emergencies at",
+    "founder": "Michael Chime",
+    "status": "Alive"
+  },
+  {
+    "name": "Profitboss",
+    "slug": "profitboss",
+    "website": "https://www.owner.com/",
+    "description": "Profitboss makes online ordering and marketing software for independent restaurants, helping restaurant owners increase sales and maximize profitability while keeping their customer data",
+    "founder": "Adam Guild",
+    "status": "Alive"
+  },
+  {
+    "name": "Purple",
+    "slug": "purple",
+    "website": "https://www.withpurple.com/",
+    "description": "Purple builds financial products that enable people with disabilities to spend, save and invest.",
+    "founder": "John Ciocca",
+    "status": "Alive"
+  },
+  {
+    "name": "QueenBee",
+    "slug": "queenbee",
+    "website": "https://www.the-queenbee.com/",
+    "description": "QueenBee sustainably creates wellness products utilizing honeybee byproducts.",
+    "founder": "Raina Jain",
+    "status": "Alive"
+  },
+  {
+    "name": "Rainmaker",
+    "slug": "rainmaker",
+    "website": "https://cts.businesswire.com/ct/CT?id=smartlink&url=https%3A%2F%2Fwww.makerain.com&esheet=53U1315U&newsitemid=2024032074234G&lan=en-US&anchor=Rainmaker&index=3&md5=e0bfeeb3c5GebUbd1c80U45a0e782ad0",
+    "description": "Rainmaker is fulfilling humanity's role as responsible stewards of the Earth through pioneering advanced cloud- seeding technology to combat drought and transform deserts into habitable landscapes.",
+    "founder": "Augustus Dorick",
+    "status": ""
+  },
+  {
+    "name": "Ramp USA",
+    "slug": "rampusa",
+    "website": "https://ramp.us/",
+    "description": "Ramp USA is expanding mobility for wheelchair users by developing a conversion kit that turns a normal wheelchair into an easy-to-use, off-road capable electric vehicle.",
+    "founder": "Mel Du",
+    "status": "Alive"
+  },
+  {
+    "name": "Ranomics",
+    "slug": "ranomics",
+    "website": "https://www.ranomics.com/",
+    "description": "Ranomics is a biotech startup that is improving the accuracy of genetic testing by determining the consequences of all variants in hereditary disease genes before they are seen in patients. Ranomics aims to revolutionize preventative medicine by determining with unparalleled precision whether a person is prone to a hereditary condition as a result of their individual genetic variations.",
+    "founder": "Cathy Tie",
+    "status": "Alive"
+  },
+  {
+    "name": "Rather",
+    "slug": "rather",
+    "website": "https://www.kiaranirghin.com/",
+    "description": "Rather is building financial technology to improve access to net worth",
+    "founder": "Kiara Nirghin",
+    "status": ""
+  },
+  {
+    "name": "Red Leader",
+    "slug": "redleader",
+    "website": "https://redleadertech.com/",
+    "description": "Red Leader is building a software-defined Lidar system that uses a fundamentally new architecture and modern digital signal processing to dramatically improve point density.",
+    "founder": "Jake Hillard",
+    "status": "Alive"
+  },
+  {
+    "name": "Saily",
+    "slug": "saily",
+    "website": "https://www.saily.co/",
+    "description": "Saily is a local marketplace that helps neighbors buy, sell, and swap secondhand products quickly and seamlessly from their mobile phones.",
+    "founder": "Jihad Kawas",
+    "status": "Alive"
+  },
+  {
+    "name": "Saturn",
+    "slug": "saturn",
+    "website": "https://www.joinsaturn.com/",
+    "description": "Saturn is an app that builds community",
+    "founder": "Dylan Diamond",
+    "status": "Alive"
+  },
+  {
+    "name": "Scythe Robotics",
+    "slug": "scytherobotics",
+    "website": "https://www.scytherobotics.com/",
+    "description": "Scythe Robotics is building industrial-scale, computer vision- driven autonomous lawn mowers for commercial landscaping contexts.",
+    "founder": "Davis Foster",
+    "status": "Alive"
+  },
+  {
+    "name": "Silna",
+    "slug": "silna",
+    "website": "https://cts.businesswire.com/ct/CT?id=smartlink&url=https%3A%2F%2Fwww.silnahealth.com&esheet=53U1315U&newsitemid=2024032074234G&lan=en-US&anchor=Silna&index=14&md5=5ccdc7f8fa75ffa45c783Ufdafb531U7",
+    "description": "Silna is streamlining patient intake and building a more efficient infrastructure to allow providers to focus on world-class care and to ease the trillion-dollar tax burden that is the US healthcare system.",
+    "founder": "Pavel Asparouho",
+    "status": ""
+  },
+  {
+    "name": "Skyline Celestial",
+    "slug": "skylinecelestial",
+    "website": "https://skyline.earth/",
+    "description": "Launching his first satellite at 18, Geffen created Skyline Celestial to build the personal computer of satellites and open the cosmos for all individuals.",
+    "founder": "Geffen Avraham",
+    "status": "Alive"
+  },
+  {
+    "name": "Slash",
+    "slug": "slash",
+    "website": "https://www.joinslash.com/",
+    "description": "Slash is one of the fastest growing fintech companies in the country. Tens of thousands of entrepreneurs that make a living reselling, flipping NFTs, and running e- commerce sites use Slash's tools to run their businesses. And we're still in beta.",
+    "founder": "Victor Cardenas",
+    "status": "Alive"
+  },
+  {
+    "name": "Snackpass",
+    "slug": "snackpass",
+    "website": "https://www.snackpass.co/",
+    "description": "Snackpass is an app that lets college students order takeout, earn rewards, and share discounts with friends.",
+    "founder": "Jamie Marshall",
+    "status": "Alive"
+  },
+  {
+    "name": "Solvemed",
+    "slug": "solvemed",
+    "website": "https://www.solvemed.ai/",
+    "description": "Solvemed is introducing the world's most advanced digital phenotyping technology for brain evaluation.",
+    "founder": "Hugo Chrost",
+    "status": "Alive"
+  },
+  {
+    "name": "Spellbound",
+    "slug": "spellbound",
+    "website": "https://www.spellbound.io/",
+    "description": "Spellbound is building the future of email: a no-code platform to help marketing teams increase engagement by embedding interactive experiences like shopping carts, surveys, forms, and more in emails.",
+    "founder": "Akshaya Dinesh",
+    "status": "Alive"
+  },
+  {
+    "name": "Stealth",
+    "slug": "stealth",
+    "website": "nowebsite,wikipediaonly",
+    "description": "A stealth startup is a startup company that operates in stealth mode, i.e. that avoids public attention. This may be done to hide information from competitors, or\n— as part of a marketing strategy — to manage public image. The phenomenon is well known in the venture capital (VC) community. Normally a company would only operate in stealth mode for the first couple of years. As investors may have to disclose funding a stealth startup, their names are made public, but often only a general summary description is known about the company. \"Most entrepreneurs say they are in stealth because they are worried about competitors stealing their ideas. This can be a risk if you have such a simple idea that just by hearing it, someone can replicate it.\"",
+    "founder": "Reiss Jones Thomas Sohmer",
+    "status": "Dead"
+  },
+  {
+    "name": "Stord",
+    "slug": "stord",
+    "website": "https://www.stord.com/",
+    "description": "STORD provides networked,",
+    "founder": "Sean Henry",
+    "status": "Alive"
+  },
+  {
+    "name": "Stream",
+    "slug": "stream",
+    "website": "https://streamprotocol.money/",
+    "description": "Stream seamlessly integrates the benefits of centralized exchanges with the decentralized nature of DeFi, enhancing liquidity and security while eliminating custodial risks and reshaping the landscape of crypto trading.",
+    "founder": "Diogenes Casar",
+    "status": ""
+  },
+  {
+    "name": "Succinct",
+    "slug": "succinct",
+    "website": "https://www.succinct.xyz/",
+    "description": "Succinct is building a trust- minimized way for any blockchain to access Ethereum.",
+    "founder": "John Guibas",
+    "status": "Dead"
+  },
+  {
+    "name": "swsh",
+    "slug": "swsh",
+    "website": "https://cts.businesswire.com/ct/CT?id=smartlink&url=https%3A%2F%2Fwww.joinswsh.com&esheet=53U1315U&newsitemid=2024032074234G&lan=en-",
+    "description": "swsh will be there to capture your memories - every celebration, birthday, and vacation - with an AI-powered shared photo album, ensuring you can make",
+    "founder": "Alexandra Debo",
+    "status": ""
+  },
+  {
+    "name": "Synex Medical",
+    "slug": "synexmedical",
+    "website": "https://synexmedical.com/",
+    "description": "Synex Medical is building the next generation of non-invasive health monitoring technology, beginning with the world’s first non-invasive glucose monitor.",
+    "founder": "Ben Nashman",
+    "status": "Alive"
+  },
+  {
+    "name": "Tavus",
+    "slug": "tavus",
+    "website": "https://www.tavus.io/",
+    "description": "Use your voice for sales, without ever saying a word. Hyper- personalized AI reach-outs to increase your outreach.\nRequest a demo today to drive more meetings, build deeper relationships, and spike",
+    "founder": "Quinn Favret",
+    "status": "Alive"
+  },
+  {
+    "name": "Teleportal",
+    "slug": "teleportal",
+    "website": "https://www.moviebot.io/",
+    "description": "Teleportal is a spatial computing company building a 3D operating system that will empower users to connect to shared mixed reality experiences in realtime.",
+    "founder": "Thomas Suarez",
+    "status": "Alive"
+  },
+  {
+    "name": "The Vesuvius Challenge",
+    "slug": "thevesuviuschallenge",
+    "website": "https://lukefarritor.com/",
+    "description": "The Vesuvius Challenge is accelerating the reading of the Herculaneum Papyri, the last surviving library of the Roman Empire.",
+    "founder": "Luke Farritor",
+    "status": ""
+  },
+  {
+    "name": "Vitable",
+    "slug": "vitable",
+    "website": "https://vitablehealth.com/",
+    "description": "Vitable offers its members primary and urgent care medical coverage, utilizing virtual and in-home visits, with no copays.",
+    "founder": "Joseph Kitonga Joseph Kitonga",
+    "status": "Alive"
+  },
+  {
+    "name": "Voldex",
+    "slug": "voldex",
+    "website": "https://voldex.com/",
+    "description": "Voldex is a game studio that acquires, improves, and builds games on user-generated content game platforms Roblox and Minecraft.",
+    "founder": "Alex Singer",
+    "status": "Alive"
+  },
+  {
+    "name": "WeLoveNoCod",
+    "slug": "welovenocod",
+    "website": "https://www.we",
+    "description": "WeLoveNoCode",
+    "founder": "",
+    "status": ""
+  },
+  {
+    "name": "WindBorne",
+    "slug": "windborne",
+    "website": "https://windbornesystems.com/",
+    "description": "WindBorne’s high-altitude weather balloon system flies up to G0x longer than existing offerings, allowing it to provide high- resolution atmospheric data and superior weather prediction services to clients in agriculture, transportation, and disaster preparedness settings.",
+    "founder": "Paige Brown",
+    "status": "Alive"
+  },
+  {
+    "name": "Zeno Power",
+    "slug": "zenopower",
+    "website": "https://www.zenopower.com/",
+    "description": "Zeno Power is developing small-scale nuclear power systems to provide clean and resilient power in austere environments.",
+    "founder": "Tyler Bernstein",
+    "status": "Alive"
+  }
+]

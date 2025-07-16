@@ -1,0 +1,18 @@
+[
+  {
+    "name": "GameFace",
+    "description": "Gameface is powerful, real-time sports analytics to know your competition's every move, before they make it. The company announced being acquired by Slinger in September 2021.",
+    "industry": "Analytics",
+    "location": "Sydney, Australia",
+    "founder(s)": "Jalaluddin Shaik",
+    "website": "http://gameface.ai"
+  },
+  {
+    "name": "SimpleReach",
+    "description": "SimpleReach provides social analytics and distribution services for content creators. The company raised more than $24M+ in funding, and was acquired in 2019 by Nativo.",
+    "industry": "Analytics",
+    "location": "New York, US",
+    "founder(s)": "Edward Kim",
+    "website": "http://SimpleReach.com"
+  }
+]

@@ -1,0 +1,119 @@
+[
+  {
+    "name": "Comun",
+    "description": "Comun reimagines banking for immigrant families in the US, crafting financial products that meet their unique needs and make the journey toward financial freedom smoother and more inclusive.",
+    "industry": "Fintech",
+    "funding": "Series A",
+    "year": "2021",
+    "location": "New York",
+    "slug": "/companies/comun",
+    "website": "https://www.comun.app/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Ascend",
+    "description": "Ascend is an AI-driven finance automation platform that helps insurance professionals streamline operations and boost profitability with smart automation, deep financial insights, and effective treasury management.",
+    "industry": "Fintech",
+    "funding": "Series A",
+    "year": "2021",
+    "location": "San Francisco",
+    "slug": "/companies/ascend",
+    "website": "https://www.useascend.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Titan",
+    "description": "Titan is a dynamic wealth management firm that reimagines financial wellbeing for high-earning professionals with innovative platforms and personalized guidance, building the future of wealth management.",
+    "industry": "Fintech",
+    "funding": "Unicorn",
+    "year": "2018",
+    "location": "New York",
+    "slug": "/companies/titan",
+    "website": "https://www.titan.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "MoneyView",
+    "description": "MoneyView offers personalized financial productsâfrom loans and FD Select to Smart Pay and Credit Trackerâto empower individuals and promote financial inclusivity across India.",
+    "industry": "Fintech",
+    "funding": "Growth",
+    "year": "2014",
+    "location": "Bengaluru",
+    "slug": "/companies/moneyview",
+    "website": "https://moneyview.in/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Column Tax",
+    "description": "Column Tax builds API-first tax solutions integrated in everyday financial apps, giving users smart, accessible adviceâalmost like an accountant in your pocket, so everyone gets the support they need.",
+    "industry": "Fintech",
+    "funding": "Series A",
+    "year": "2021",
+    "location": "New York",
+    "slug": "/companies/column-tax",
+    "website": "https://www.columntax.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Implied",
+    "description": "Implied helps financial experts cut through the noise by automating processes and highlighting key insights for rapid, informed decision-making.",
+    "industry": "Fintech",
+    "funding": "Seed",
+    "year": "2023",
+    "location": "San Francisco",
+    "slug": "/companies/implied",
+    "website": "https://implied.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Zango",
+    "description": "AI co-pilot for compliance teams.",
+    "industry": "Fintech",
+    "funding": "Seed",
+    "year": "2024",
+    "location": "Bengaluru",
+    "slug": "/companies/zango",
+    "website": "https://www.zango.ai",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Riverline",
+    "description": "Riverline is building an empathetic debt collection service in India using AI.",
+    "industry": "Fintech",
+    "funding": "Pre-seed",
+    "year": "2025",
+    "location": "Bengaluru",
+    "slug": "/companies/riverline",
+    "website": "https://riverline.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "ELEV4TE",
+    "description": "Elevate provides AI-powered data management for private equity-backed roll-ups.",
+    "industry": "Fintech",
+    "funding": "Pre-seed",
+    "year": "2024",
+    "location": "New York",
+    "slug": "/companies/elev4te",
+    "website": "https://www.useelevate.dev/",
+    "founders": [
+      "Founded By"
+    ]
+  }
+]

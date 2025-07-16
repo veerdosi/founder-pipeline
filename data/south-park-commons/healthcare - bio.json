@@ -1,0 +1,197 @@
+[
+  {
+    "name": "SamaCare",
+    "description": "SamaCare streamlines the prior authorization process for specialty medications with a cloud-based platform that digitizes paperwork, cutting administrative burdens to boost patient care.",
+    "industry": "Healthcare / Bio",
+    "funding": "Series B",
+    "year": "2018",
+    "location": "San Francisco",
+    "slug": "/companies/samacare",
+    "website": "https://www.samacare.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Develop Health",
+    "description": "Develop Health streamlines the medication prior authorization process with a smart solution that cuts form completion by over 80% and speeds up approvals for better healthcare efficiency.",
+    "industry": "Healthcare / Bio",
+    "funding": "Series A",
+    "year": "2023",
+    "location": "San Francisco",
+    "slug": "/companies/develop-health",
+    "website": "https://develophealth.io/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Power",
+    "description": "Powerâs platform simplifies clinical trial access by connecting patients directly with researchers, breaking down barriers so everyone can explore promising clinical opportunities without the usual hassle.",
+    "industry": "Healthcare / Bio",
+    "funding": "Series A",
+    "year": "2021",
+    "location": "San Francisco",
+    "slug": "/companies/power",
+    "website": "https://www.withpower.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Charta Tech",
+    "description": "Charta uses cutting-edge AI to automate pre-bill reviews on every chart, delivering unmatched accuracy while saving time and driving impressive revenue growth.",
+    "industry": "Healthcare / Bio",
+    "funding": "Series A",
+    "year": "2023",
+    "location": "San Francisco",
+    "slug": "/companies/charta-tech",
+    "website": "https://www.limohealth.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Sunrise Health",
+    "description": "Doctor-led & individualized weight loss program",
+    "industry": "Healthcare / Bio",
+    "funding": "Series A",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/sunrise-health",
+    "website": "https://www.findsunrise.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Andy AI",
+    "description": "Andy helps clinicians complete OASIS documentation quickly and accurately, boosting agency productivity and reimbursements. Now live in 3 states, Andy delivers daily charts to keep workflows running smooth.",
+    "industry": "Healthcare / Bio",
+    "funding": "Seed",
+    "year": "2023",
+    "location": "San Francisco",
+    "slug": "/companies/andy-ai",
+    "website": "https://with-andy.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Eureka",
+    "description": "Eureka, the worldâs first AI doctor, uses cutting-edge tech to provide personalized healthcare insights, all backed by top-notch funds and influential industry experts.",
+    "industry": "Healthcare / Bio",
+    "funding": "Seed",
+    "year": "2021",
+    "location": "San Francisco",
+    "slug": "/companies/eureka",
+    "website": "https://www.eurekahealth.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Apero Health",
+    "description": "Apero delivers an all-in-one API for practice management, handling eligibility, medical billing, and financial reporting. Founded by top tech experts, they keep fast-growing healthcare practices running smoothly.",
+    "industry": "Healthcare / Bio",
+    "funding": "Seed",
+    "year": "2019",
+    "location": "San Francisco",
+    "slug": "/companies/apero-health",
+    "website": "https://aperohealth.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Epana Bio",
+    "description": "Advancing autoimmune therapies by building precision solutions for unique patient needs.",
+    "industry": "Healthcare / Bio",
+    "funding": "Seed",
+    "year": "2025",
+    "location": "San Francisco",
+    "slug": "/companies/epana-bio",
+    "website": "https://www.epana.bio/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Jimini",
+    "description": "Jimini blends teletherapy with an AI therapy assistant, empowering licensed clinicians to enhance mental healthcare with personalized, safe, and tech-driven patient experiences.",
+    "industry": "Healthcare / Bio",
+    "funding": "Seed",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/jimini",
+    "website": "https://www.jiminihealth.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Alpaca Health",
+    "description": "Alpaca Health empowers BCBAs to own, operate, and grow independent practices without the administrative burden.",
+    "industry": "Healthcare / Bio",
+    "funding": "Seed",
+    "year": "2024",
+    "location": "New York",
+    "slug": "/companies/alpaca-health",
+    "website": "https://alpacahealth.io/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Silico Therapeutics",
+    "description": "Improving CRISPR specificity (i.e. reducing adverse outcomes)",
+    "industry": "Healthcare / Bio",
+    "funding": "Seed",
+    "year": "2021",
+    "location": "San Francisco",
+    "slug": "/companies/silico-therapeutics",
+    "website": "https://silicotx.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Reverie Labs (Acq. Gingko Bioworks)",
+    "description": "Engineering next-generation, brain-penetrant cancer therapies.",
+    "industry": "Healthcare / Bio",
+    "funding": "Acquired",
+    "year": "2018",
+    "location": "Other",
+    "slug": "/companies/reverie-labs-acq-gingko-bioworks",
+    "website": "https://www.ginkgo.bio/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Kit (Acq. Ro)",
+    "description": "Kit offers customizable, physician-ordered diagnostic tests, including finger prick blood assays, blood pressure tests, weight measurement tools, and moreâall adjusted to the needs of the patient and shipped directly to their door.",
+    "industry": "Healthcare / Bio",
+    "funding": "Acquired",
+    "year": "2018",
+    "location": "San Francisco",
+    "slug": "/companies/kit-acq-ro",
+    "website": "https://twitter.com/southpkcommons",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Steady Health (Acq. Carbon Health)",
+    "description": "Steady Health is a modern diabetes clinic",
+    "industry": "Healthcare / Bio",
+    "funding": "Acquired",
+    "year": "2018",
+    "location": "San Francisco",
+    "slug": "/companies/steady-health-acq-carbon-health",
+    "website": "https://carbonhealth.com/",
+    "founders": [
+      "Founded By"
+    ]
+  }
+]

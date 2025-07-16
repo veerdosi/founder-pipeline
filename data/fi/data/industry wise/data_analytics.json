@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Bridgr",
+    "description": "BRIDGR is a SaaS for data gathering, analysis, and traslantion to help supercharge and automate auditing and consulting workflows. The company announced a $1.6M seed funding round in April 2023.",
+    "industry": "Data Analytics",
+    "location": "Montreal, Canada",
+    "founder(s)": "Amira Boutouchent",
+    "website": "http://www.bridgr.co"
+  },
+  {
+    "name": "Instant Teams",
+    "description": "Instant Teams allows you to build and manage remote teams using the largest database of military-connected remote workers. The company raised a $13M Series A in March 2022 led by Tiger Global.",
+    "industry": "Data Analytics",
+    "location": "Washington DC, US",
+    "founder(s)": "Liza Rodewald",
+    "website": "https://instantteams.com/"
+  },
+  {
+    "name": "The U Group",
+    "description": "U Group is bringing transparency back to the data industry by connecting brands directly with people to authenticate and deliver real human data. From 2023 to 2024, the company grew 8,000% in revenue.",
+    "industry": "Data Analytics",
+    "location": "Perth, Australia",
+    "founder(s)": "Tyler Spooner",
+    "website": "https://www.theugroup.co/"
+  },
+  {
+    "name": "xRsion Inc.",
+    "description": "xRsion creates advanced 3D data optimization to enhance its usability in the entertainment industry. They raised $165k from Angel investors",
+    "industry": "Data Analytics",
+    "location": "Tokyo, Japan",
+    "founder(s)": "Masumi Shimafuji",
+    "website": "https://xrsion.co.jp"
+  },
+  {
+    "name": "EMPEQ",
+    "description": "EMPEQ’s Fast Site Survey™ makes detailed, accurate on-site building data capture as easy as a click of your smartphone’s camera. They raised 200k from pitch competitions having Jason Calacanis as one of the investors.",
+    "industry": "Data Analytics",
+    "location": "Silicon Valley, US",
+    "founder(s)": "Herbert Dwyer",
+    "website": "https://empeq.co/"
+  },
+  {
+    "name": "Retailigence Corp.",
+    "description": "Retailigence provides big data-driven category management solutions for retailers and brands. The company raised more than $13M+ funding, and was acquired in 2016 by ShopAdvisor.",
+    "industry": "Data Analytics",
+    "location": "Silicon Valley, US",
+    "founder(s)": "Jeremy Geiger",
+    "website": "http://www.Retailigence.com"
+  }
+]

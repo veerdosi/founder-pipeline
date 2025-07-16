@@ -1,0 +1,132 @@
+[
+  {
+    "name": "Muon Space",
+    "description": "Muon Space designs, builds, and operates LEO satellite constellations, delivering mission-critical Earth data for climate, security, and more, making space smarter and our world safer.",
+    "industry": "Robotics / Hardware",
+    "funding": "Series B",
+    "year": "2020",
+    "location": "San Francisco",
+    "slug": "/companies/muon-space",
+    "website": "https://www.muonspace.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Boom Supersonic",
+    "description": "Aerospace startup developing supersonic passenger jets like XB-1 and Overture.",
+    "industry": "Robotics / Hardware",
+    "funding": "Series B",
+    "year": "2014",
+    "location": "Other",
+    "slug": "/companies/boom-supersonic",
+    "website": "https://boomsupersonic.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Under Control Robotics",
+    "description": "UCR builds tough humanoid robots that handle dangerous tasks, empowering industries to operate more safely and efficiently in challenging environments.",
+    "industry": "Robotics / Hardware",
+    "funding": "Seed",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/under-control-robotics",
+    "website": "https://www.undercontrol.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Ironsite AI",
+    "description": "Ironsite is redefining construction by addressing its largest variable costâlaborâwith an innovative vision-based AI platform",
+    "industry": "Robotics / Hardware",
+    "funding": "Seed",
+    "year": "2024",
+    "location": "New York",
+    "slug": "/companies/ironsite-ai",
+    "website": "https://ironsite.co/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Construct",
+    "description": "Building a new CPAP machine to cure sleep apnea once and for all.",
+    "industry": "Robotics / Hardware",
+    "funding": "Seed",
+    "year": "2023",
+    "location": "New York",
+    "slug": "/companies/construct",
+    "website": "https://caffeinatedcapital.com",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Adjoint",
+    "description": "Composites are the fastest growing material across aerospace, defense, and robotics, but theyâre still made entirely by hand. Adjoint is building autonomous robots to manufacture custom composite parts in days, instead of months.",
+    "industry": "Robotics / Hardware",
+    "funding": "Pre-seed",
+    "year": "2024",
+    "location": "Other",
+    "slug": "/companies/adjoint",
+    "website": "https://adjoint.dev/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Maxinsights",
+    "description": "Maxinsights is building a full-stack, end-to-end data pipeline for embodied intelligence in robotics. Our core technology enables each dataset to be augmented across diverse robot embodiments and physical contexts, boosting data generation efficiency by 100x.",
+    "industry": "Robotics / Hardware",
+    "funding": "Pre-seed",
+    "year": "2025",
+    "location": "San Francisco",
+    "slug": "/companies/maxinsights",
+    "website": "http://www.linkedin.com/company/maxinsights-ai",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Outlier Humans",
+    "description": "Outlier Humans is building AI-native hardware for kids, starting with Bunny â a screenless, voice-first AI walkie-talkie that nurtures kids curiosity by answering all of their questions.",
+    "industry": "Robotics / Hardware",
+    "funding": "Pre-seed",
+    "year": "2025",
+    "location": "San Francisco",
+    "slug": "/companies/outlier-humans",
+    "website": "https://outlierhumans.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Zurons",
+    "description": "Zuronsâ mission is to create a safer world through autonomous security robots",
+    "industry": "Robotics / Hardware",
+    "funding": "Pre-seed",
+    "year": "2025",
+    "location": "San Francisco",
+    "slug": "/companies/zurons",
+    "website": "https://zurons.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Levit",
+    "description": "Bringing Observability to the Physical World. Bridging the key gap in physical infra monitoring with agentic drones.",
+    "industry": "Robotics / Hardware",
+    "funding": "Pre-seed",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/levit",
+    "website": "https://www.levit.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  }
+]

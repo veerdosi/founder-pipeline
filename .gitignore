@@ -22,7 +22,6 @@ env/
 .venv/
 
 # Jupyter runtime
-*.json
 *.log
 *.sqlite
 
@@ -44,3 +43,4 @@ Thumbs.db
 desktop.ini
 
 node_modules
+/.claude

@@ -1,0 +1,28 @@
+[
+  {
+    "name": "Brisk Teaching",
+    "description": "Brisk Teaching harnesses AI to streamline lesson planning and personalized feedback for educators.",
+    "industry": "Edtech",
+    "funding": "Series A",
+    "year": "2023",
+    "location": "San Francisco",
+    "slug": "/companies/brisk-teaching",
+    "website": "https://www.briskteaching.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Disha AI",
+    "description": "Disha is an affordable, personal AI tutor that helps professionals master in-demand skills and stay ahead in an AI-first world.",
+    "industry": "Edtech",
+    "funding": "Pre-seed",
+    "year": "2025",
+    "location": "Bengaluru",
+    "slug": "/companies/disha-ai",
+    "website": "https://getdisha.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  }
+]

@@ -1,0 +1,122 @@
+[
+  {
+    "name": "GoalProfit Inc.",
+    "description": "GoalProfit is a low-code retail optimization platform to help retailers by retailers craft data-driven merchandising decisions. The company was acquired in March 2023 by Digital Wave Technology.",
+    "industry": "Platform",
+    "location": "Austin, US",
+    "founder(s)": "Maxim Morozov",
+    "website": "https://goalprofit.com"
+  },
+  {
+    "name": "Grow For Me",
+    "description": "Grow For Me is a crowdfunding platform helping farmers to scale up their operations. In October 2021 they were selected by Google Black Founders Fund to receive non-dilutive capital.",
+    "industry": "Platform",
+    "location": "Accra, Ghana",
+    "founder(s)": "Nana Opoku W. O. Agyeman Prempeh",
+    "website": "https://www.growforme.com/en/"
+  },
+  {
+    "name": "The Good Face Project",
+    "description": "The Good Face Project is a chemistry-first AI platform for the cosmetics and beauty industry to understand ingredients data. The company announced a $5.6M+ seed round in August 2022.",
+    "industry": "Platform",
+    "location": "San Diego, US",
+    "founder(s)": "Fanny Surjana, Iva Teixeira",
+    "website": "https://thegoodfaceproject.com/"
+  },
+  {
+    "name": "Breachbits",
+    "description": "BreachBits predicts breaches 10x better with the only risk monitoring platform that thinks & tests just like hackers. They raised an undisclosed amount in February 2024.",
+    "industry": "Platform",
+    "location": "Washington DC, US",
+    "founder(s)": "John Lundgren",
+    "website": "https://www.breachbits.com"
+  },
+  {
+    "name": "Focal Point",
+    "description": "Focal Point is a procurement management platform for enterprise customers. The company announced a $3M seed funding round in June 2022 from Susa Ventures, Amplo, and other investors.",
+    "industry": "Platform",
+    "location": "Austin, US",
+    "founder(s)": "Anders Lillevik",
+    "website": "https://www.getfocalpoint.com/"
+  },
+  {
+    "name": "Intelocate",
+    "description": "Intelocate is an internal management platform for multi-location businesses to collaboratively plan, launch, communicate, and connect across projects. They have raised $2.5M+ in funding.",
+    "industry": "Platform",
+    "location": "Toronto, Canada",
+    "founder(s)": "Yulia Vasilyeva",
+    "website": "http://www.intelocate.com"
+  },
+  {
+    "name": "ReadyPulse",
+    "description": "ReadyPulse is an enterprise social media platform for brand ambassadorship and influencer marketing. The company raised $8M+ in funding, and was acquired in 2016 by ExpertVoice.",
+    "industry": "Platform",
+    "location": "Seattle, US",
+    "founder(s)": "Srinivas Penumaka, T Vinod Gupta",
+    "website": "http://www.readypulse.com"
+  },
+  {
+    "name": "Flipcause, Inc.",
+    "description": "Flipcause is a fast-growing fundraising and engagement platform for small nonprofits. The company has raised more than $3.5M+ in funding.",
+    "industry": "Platform",
+    "location": "San Francisco, US",
+    "founder(s)": "Alison Dale, Derrick Cagaanan, Xinjiang Lu, Emerson Valiao",
+    "website": "http://www.flipcause.com"
+  },
+  {
+    "name": "Leasecake",
+    "description": "Leasecake a commercial real estate lease and location management platform to streamline real estate operations management. The company announced a $12M Series A round in April 2022.",
+    "industry": "Platform",
+    "location": "Silicon Valley, US",
+    "founder(s)": "Taj Adhav",
+    "website": "https://leasecake.com/"
+  },
+  {
+    "name": "MeuChapa",
+    "description": "MeuChapa is a digital platform for connecting loading and unloading service providers with a base of registered professionals. They raised R$6.1M (USD900k) in Seed Funding in May 2023.",
+    "industry": "Platform",
+    "location": "Campinas, Brazil",
+    "founder(s)": "Guilherme Fernandes, Joao Biarari",
+    "website": "https://meu-chapa.com/"
+  },
+  {
+    "name": "Mentessa",
+    "description": "Mentessa is an enterprise HR platform that works to improve employee onboarding and engagement. The company raised a €1M seed round led by Eleven Ventures in February 2022.",
+    "industry": "Platform",
+    "location": "Munich, Germany",
+    "founder(s)": "Tina Ruseva",
+    "website": "http://www.mentessa.com"
+  },
+  {
+    "name": "Leadsmart",
+    "description": "Leadsmart is a platform for serving ads over Wi-Fi, offering efficient ad spend, and venue tools to gather key customer data for use in retargeting campaigns. The company has raised angel funding.",
+    "industry": "Platform",
+    "location": "Cairo, Egypt",
+    "founder(s)": "Ahmed Nassef",
+    "website": "http://digifi.social"
+  },
+  {
+    "name": "Autoparti",
+    "description": "Autoparti aids non-digitized SMBs within the automotive industry in their transition to the digital realm, facilitating growth through a comprehensive SaaS platform. They were accepted into Techstars Alabama 2024.",
+    "industry": "Platform",
+    "location": "Mexico City, Mexico",
+    "founder(s)": "Leonardo Gaitan",
+    "website": "https://www.autoparti.app"
+  },
+  {
+    "name": "OneCarNow!",
+    "description": "OCN is a financial platform which provides gig workers in Latin America and the US access to capital for car rentals. They raised $86M in Series A round in July 2024.",
+    "industry": "Platform",
+    "location": "Monterrey, Mexico",
+    "founder(s)": "Mairon E. Sandoval",
+    "website": "https://onecarnow.com/"
+  },
+  {
+    "name": "GeoMoby",
+    "description": "GeoMoby is a location intelligence platform specialised in geolocation and geofencing technologies, transforming location data into business intelligence. They raised a A$3M round in December 2022.",
+    "industry": "Platform",
+    "location": "Perth, Australia",
+    "founder(s)": "Christophe Baudia",
+    "website": "http://www.geomoby.com"
+  }
+]

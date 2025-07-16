@@ -1,0 +1,306 @@
+[
+  {
+    "name": "Udemy",
+    "description": "Udemy is the global leader in online learning, with nearly 200,000 courses. The company went public on the NASDAQ in October 2021 (UDMY), raising $421 million.",
+    "industry": "N/A",
+    "location": "Silicon Valley, US",
+    "founder(s)": "Eren Bali, Gagan Biyani",
+    "website": "http://www.udemy.com"
+  },
+  {
+    "name": "Esusu",
+    "description": "Esusu reports on-time rent payments to credit bureaus, helping renters boost their credit scores. They became a unicorn in January 2022 with SoftBank Vision Fund 2-led $130M Series B.",
+    "industry": "N/A",
+    "location": "San Francisco, US",
+    "founder(s)": "Rob Henning",
+    "website": "https://esusurent.com/"
+  },
+  {
+    "name": "FightCamp",
+    "description": "FightCamp is the market-leading at home connected fitness device for boxing, kickboxing, and martial arts sports. They announced its $90M Series B in June 2021 from top investors.",
+    "industry": "N/A",
+    "location": "Montreal, Canada",
+    "founder(s)": "Khalil Zahar",
+    "website": "https://joinfightcamp.com/"
+  },
+  {
+    "name": "Upright",
+    "description": "Upright is a market leader in loans and services for fix-and-flips, new construction, and rental properties. The company announced a $20M Series B round in November 2021 and a $20M REIT in March 2023.",
+    "industry": "N/A",
+    "location": "New York, US",
+    "founder(s)": "Matt Rodak",
+    "website": "https://www.upright.us/"
+  },
+  {
+    "name": "Ned Helps",
+    "description": "NED brings cash flow visibility to small business lending. They closed a $4.2M Seed in November 2024.",
+    "industry": "N/A",
+    "location": "New York, US",
+    "founder(s)": "David Silverstein",
+    "website": "https://www.nedhelps.com/"
+  },
+  {
+    "name": "SleepUp",
+    "description": "SleepUp is a sleep personal assistant that works to improve sleep with personalized virtual treatments and continuous biometric monitoring. They announced a R$ 2M raise in November 2021.",
+    "industry": "N/A",
+    "location": "Sao Paulo, Brazil",
+    "founder(s)": "Renata Redondo Bonaldi",
+    "website": "https://en.sleepup.com.br/"
+  },
+  {
+    "name": "OddBox",
+    "description": "Oddbox produce delivers irregular fruit and veggies that big chain grocery retailers reject. The company announced £16M in funding from BurdaPrincipal Investments in August 2021.",
+    "industry": "N/A",
+    "location": "London, United Kingdom",
+    "founder(s)": "Emilie Vanpoperinghe",
+    "website": "https://www.oddbox.co.uk/"
+  },
+  {
+    "name": "TotalCtrl",
+    "description": "TotalCtrl builds digital products to streamline food inventory management and reduce food waste. The company announced an investment of NOK 20M (~$2.2M) in November 2020.",
+    "industry": "N/A",
+    "location": "Oslo, Norway",
+    "founder(s)": "Charlotte Aschim",
+    "website": "http://totalctrl.no"
+  },
+  {
+    "name": "Slip",
+    "description": "Slip redefines the role of receipts in retail, converting them from static transaction records into an interactive media channel to determine a customer's next best action. They announced £2.5M Seed round in June 2024.",
+    "industry": "N/A",
+    "location": "London, United Kingdom",
+    "founder(s)": "Tash Grossman",
+    "website": "https://www.slipreceipts.com/"
+  },
+  {
+    "name": "Quin AI",
+    "description": "Quin AI is a deep learning-AI system dedicated to behaviour prediction for online growth and profitability. They closed a £1.5M in funding in October 2024.",
+    "industry": "N/A",
+    "location": "Ankara, Turkey",
+    "founder(s)": "Gonca Gulser",
+    "website": "https://www.thequin.ai"
+  },
+  {
+    "name": "Meetgeek.ai",
+    "description": "MeetGeek maximizes the value of meetings, calls and interviews by automatically recording, taking notes, and sharing highlights from voice and video calls. They raised €150k pre-seed in 2021.",
+    "industry": "N/A",
+    "location": "Bucharest, Romania",
+    "founder(s)": "Dan Huru",
+    "website": "https://meetgeek.ai"
+  },
+  {
+    "name": "Andalin",
+    "description": "Andalin is a digital freight forwarder providing import-export logistics for cross border shipments between Indonesia and global destinations. Intudo lead a $4M funding round in February 2022.",
+    "industry": "N/A",
+    "location": "Jakarta, Indonesia",
+    "founder(s)": "Rifki Pratomo",
+    "website": "http://www.andalin.com"
+  },
+  {
+    "name": "Palki Motors Limited",
+    "description": "Palki Motors manufactures affordable mini-electric cars to help one million commercial car drivers make more money. They raised $100k from Shark Tank Bangladesh in December 2023",
+    "industry": "N/A",
+    "location": "Colombo, Sri Lanka",
+    "founder(s)": "Mustafa Momin",
+    "website": "http://palkimotors.com/"
+  },
+  {
+    "name": "Aonic",
+    "description": "Aonic is an all-in-one drone solution for enterprises looking to modernise and streamline their operations. The company announced it had raised a $4.29M seed round in October 2021.",
+    "industry": "N/A",
+    "location": "Penang, Malaysia",
+    "founder(s)": "Jin Xi Cheong",
+    "website": "http://www.poladrone.com"
+  },
+  {
+    "name": "GoFar",
+    "description": "GOFAR is an in-car device that help drivers save fuel, log business expenses, and understand car warning lights. The company won the Technology prize in the Australian Road Safety Awards.",
+    "industry": "N/A",
+    "location": "Sydney, Australia",
+    "founder(s)": "Danny Adams",
+    "website": "N/A"
+  },
+  {
+    "name": "BEONx",
+    "description": "BEONx is revenue-generation technology that drive sales for hospitality clients. The company announced it had recieved €2M (~$2.2M) in additional Series A top-up funding in June 2021.",
+    "industry": "N/A",
+    "location": "Madrid, Spain",
+    "founder(s)": "Emilio Galán Martín, Rubén Sánchez",
+    "website": "https://www.beonx.com/"
+  },
+  {
+    "name": "Remotify",
+    "description": "Remotify help startups and mid-market companies around the world build and grow amazing remote teams in the Philippines – without the headaches or high costs. The company has recently been accepted into Ideaspace Ventures.",
+    "industry": "N/A",
+    "location": "Manila, Philippines",
+    "founder(s)": "Maria Sucgang",
+    "website": "https://www.remotify.ph"
+  },
+  {
+    "name": "Autobound",
+    "description": "Autobound is a generative AI startup that makes writing personalized and professional sales emails fast and easy. The company raised a $4M seed funding round led by Dundee VC in February 2023.",
+    "industry": "N/A",
+    "location": "San Francisco, US",
+    "founder(s)": "Kyle Schuster, Daniel Wiener",
+    "website": "http://www.autobound.ai"
+  },
+  {
+    "name": "Orange Charger",
+    "description": "Orange Charger builds infrastructure to make it easy to get EV charging into multifamily residential buildings. The company announced a $6.5M in Seed funding in April 2024",
+    "industry": "N/A",
+    "location": "Silicon Valley, US",
+    "founder(s)": "Nicholas Johnson",
+    "website": "https://www.orangecharger.com/"
+  },
+  {
+    "name": "Subtl Beauty",
+    "description": "Subtl enables consumers to carry around its clean makeup in travel-friendly, stackable and customizable containers. The company raised $5M Series A in December 2023",
+    "industry": "N/A",
+    "location": "Pittsburgh, US",
+    "founder(s)": "Rachel Reid",
+    "website": "https://www.subtlbeauty.com"
+  },
+  {
+    "name": "Scrapays",
+    "description": "Scrapays empowers individuals to thrive in recycling through our digital infrastructure, fostering efficiency, traceability, and profitability. They raised an undisclosed amount in April 2024, they are part of the Black Founders Fund by Google.",
+    "industry": "N/A",
+    "location": "Lagos, Nigeria",
+    "founder(s)": "Boluwatife Arewa, Tope Sulaimon",
+    "website": "http://www.scrapays.com/"
+  },
+  {
+    "name": "EXPEDIER INC",
+    "description": "Expedier is the first Black-Led and BIPOC-focused Digital Bank in Canada, providing full banking services to a potential market of 6.5M users They joined Google for Startups Accelerator: Black Founders in 2023",
+    "industry": "N/A",
+    "location": "Waterloo, Canada",
+    "founder(s)": "Kingsley Madu",
+    "website": "http://www.expedier.co"
+  },
+  {
+    "name": "FinVerity",
+    "description": "Finverity is a cross-border supply chain finance SaaS for mid-market companies. The company announced an oversubscribed $5M round of funding in March 2023, bringing their total raised to $8M+.",
+    "industry": "N/A",
+    "location": "London, United Kingdom",
+    "founder(s)": "Viacheslav Oganezov",
+    "website": "http://finverity.com/"
+  },
+  {
+    "name": "Endiatx",
+    "description": "Endiatx is an ingestible pill-sized robot for sedation-free endoscopic diagnostics and treatment. The company completed its first-in-human in 2020, and signed an agreement with the Mayo Clinic in 2023.",
+    "industry": "N/A",
+    "location": "Silicon Valley, US",
+    "founder(s)": "Torrey Smith",
+    "website": "https://endiatx.com/"
+  },
+  {
+    "name": "ACQUIRED",
+    "description": "New York, US",
+    "industry": "N/A",
+    "location": "Pathgather",
+    "founder(s)": "N/A",
+    "website": "http://www.pathgather.com"
+  },
+  {
+    "name": "Redivivus Inc.",
+    "description": "Redivivus is the complete solution to lithium-ion battery recycling. Our proprietary technologies provide on-site battery neutralization and material recovery at a recycling facility. They raised in pre-seed $1M in February 2023",
+    "industry": "N/A",
+    "location": "Silicon Valley, US",
+    "founder(s)": "Erika Guerrero",
+    "website": "https://www.redivivus.tech/"
+  },
+  {
+    "name": "ACQUIRED",
+    "description": "New York, US",
+    "industry": "N/A",
+    "location": "Kindara Inc.",
+    "founder(s)": "N/A",
+    "website": "http://www.kindara.com"
+  },
+  {
+    "name": "TransTRACK",
+    "description": "TransTRACK is a fleet operation optimizer to help companies control their fleet, drivers, vehicle cost, transaction orders, and cargo by digitizing fleet operations. They raised $ 12M in Series A in August 2024",
+    "industry": "N/A",
+    "location": "Jakarta, Indonesia",
+    "founder(s)": "Anggia Meisesari",
+    "website": "https://transtrack.id/"
+  },
+  {
+    "name": "Atomos Nuclear and Space",
+    "description": "Atomos Space develops orbital transfer vehicles using in-space power and propulsion, to make any orbit as accessible as low Earth orbit. The company annouced a $16M Series A in January 2023.",
+    "industry": "N/A",
+    "location": "Denver, US",
+    "founder(s)": "William Kowalski, Brandon Seifert, Vanessa Clark",
+    "website": "https://atomosspace.com/"
+  },
+  {
+    "name": "Genially",
+    "description": "Genially is a next generation of team enabled content creation tool, for making interactive presentations, infographics and more. The company announced a $20M Series B in September 2021.",
+    "industry": "N/A",
+    "location": "Andalusia, Spain",
+    "founder(s)": "José Manuel Roldán Marín",
+    "website": "http://www.genial.ly"
+  },
+  {
+    "name": "Contraktor",
+    "description": "Contraktor is digital signature and document management to sign, monitor, and keep track of documents all in one place. The company announced it had raised R$ 2M from KPTL in September 2021.",
+    "industry": "N/A",
+    "location": "Curitiba, Brazil",
+    "founder(s)": "Bruno Doneda",
+    "website": "https://contraktor.com.br/"
+  },
+  {
+    "name": "Aniday",
+    "description": "Aniday is an HR tech company that allows professional recruiters to earn rewards for referring successful hires. The company raised seed funding from CyberAgent Capital in November 2021.",
+    "industry": "N/A",
+    "location": "Ho Chi Minh City, Vietnam",
+    "founder(s)": "Toan Nguyen",
+    "website": "https://recruitery.co/"
+  },
+  {
+    "name": "Caylent",
+    "description": "Caylent is a full spectrum Amazon Web Services DevOps partner, helping customers transition to modern, cloud-native infrastructure. The company has raised more than USD $16M.",
+    "industry": "N/A",
+    "location": "Orange County, US",
+    "founder(s)": "JP La Torre",
+    "website": "https://caylent.com/"
+  },
+  {
+    "name": "Needi",
+    "description": "needi provides a complimentary, concierge gift-matching service using psychology and AI, to pinpoint the perfect gifts and experiences for your recipient, from the best, local independent businesses. They raised £800k in Seed investment in July 2024",
+    "industry": "N/A",
+    "location": "London, United Kingdom",
+    "founder(s)": "Louise Doyle",
+    "website": "https://needi.co.uk/"
+  },
+  {
+    "name": "Linxe",
+    "description": "Linxe empowers SMEs to offer payroll-based financial services to their employees, giving them greater financial control. They have raised more than USD $600k to date, and joined Techstars in 2021.",
+    "industry": "N/A",
+    "location": "Bogota, Colombia",
+    "founder(s)": "Diego Rodríguez",
+    "website": "https://www.linxe.com/"
+  },
+  {
+    "name": "naPorta",
+    "description": "naPorta is a Logistic as a Service (LaaS) offering a complete solution for customers, from Cross Docking, Last Mile, Middle Mile, Reverse, Scheduled to Point of Collection, all with end-to-end technology. They raised R$400k in Pre-Seed investment in March 2024",
+    "industry": "N/A",
+    "location": "Sao Paulo, Brazil",
+    "founder(s)": "Sanderson Pajeú",
+    "website": "https://naporta.digital/"
+  },
+  {
+    "name": "Klouser",
+    "description": "Klouser helps digital content creators specializing in personal development and wellness to generate and monetize their content and community networks. They raised pre-seed funding in 2022.",
+    "industry": "N/A",
+    "location": "Buenos Aires, Argentina",
+    "founder(s)": "Alex Vaisberg, Leandro Rosenthal",
+    "website": "https://www.klouser.com/"
+  },
+  {
+    "name": "wattNow",
+    "description": "watnnow helps compagnies gain actionable insights on their overall energy usage. Their smart energy management system identifies trends, waste sources and anomalies. They raised $1.3M in pre-Series A round.",
+    "industry": "N/A",
+    "location": "Tunis, Tunisia",
+    "founder(s)": "Issam Smaali",
+    "website": "http://www.wattnow.io/"
+  }
+]

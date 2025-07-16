@@ -1,0 +1,67 @@
+[
+  {
+    "name": "Echo Chunk",
+    "description": "Echo Chunk innovative, self-generating strategy gamesâlike Echo Chess, a daily chess puzzler with a quirky twist where every move tells a unique story.",
+    "industry": "Gaming",
+    "funding": "Seed",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/echo-chunk",
+    "website": "https://www.echochunk.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Gameramp",
+    "description": "Glitckcraft is building AI agents to automate monetization in games and consumer apps.",
+    "industry": "Gaming",
+    "funding": "Seed",
+    "year": "2025",
+    "location": "Bengaluru",
+    "slug": "/companies/gameramp",
+    "website": "https://www.gameramp.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Hatsu Labs",
+    "description": "Developing AI-powered games",
+    "industry": "Gaming",
+    "funding": "Seed",
+    "year": "2024",
+    "location": "Other",
+    "slug": "/companies/hatsu-labs",
+    "website": "https://hatsulabs.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Aviad AI",
+    "description": "Intelligence purpose-built for your game",
+    "industry": "Gaming",
+    "funding": "Pre-seed",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/aviad-ai",
+    "website": "http://aviad.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Surge Growth",
+    "description": "Surge Growth is an AI native marketing agency",
+    "industry": "Gaming",
+    "funding": "Pre-seed",
+    "year": "2024",
+    "location": "Bengaluru",
+    "slug": "/companies/surge-growth",
+    "website": "https://surgegrowth.io",
+    "founders": [
+      "Founded By"
+    ]
+  }
+]

@@ -1,0 +1,392 @@
+[
+  {
+    "name": "Atlys",
+    "description": "Atlys simplifies international travel by automating visa processing and boosting global movement liquidity, making the world easier to explore.",
+    "industry": "Consumer",
+    "funding": "Series B",
+    "year": "2020",
+    "location": "San Francisco",
+    "slug": "/companies/atlys",
+    "website": "https://www.atlys.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Riffusion",
+    "description": "Riffusion sparks creative jams where anyone can dive in, experiment, and bring fresh musical ideas to life in a fun, relaxed, and collaborative vibe.",
+    "industry": "Consumer",
+    "funding": "Series A",
+    "year": "2023",
+    "location": "San Francisco",
+    "slug": "/companies/riffusion",
+    "website": "https://www.riffusion.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Replit",
+    "description": "Replit empowers users to rapidly convert ideas into sleek, modern web apps using its AI agent, making the creative process both fast and fun.",
+    "industry": "Consumer",
+    "funding": "Unicorn",
+    "year": "2016",
+    "location": "San Francisco",
+    "slug": "/companies/replit",
+    "website": "https://replit.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Cure.Fit",
+    "description": "Curefit is an integrated health and fitness platform that offers online and offline experiences in fitness, nutrition and mental well-being.",
+    "industry": "Consumer",
+    "funding": "Unicorn",
+    "year": "2016",
+    "location": "Bengaluru",
+    "slug": "/companies/curefit",
+    "website": "https://www.cult.fit/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Meesho",
+    "description": "Meesho is India's fastest growing eCommerce platform, connecting millions of small sellers and entrepreneurs to thrive online through a comprehensive digital marketplace.",
+    "industry": "Consumer",
+    "funding": "Unicorn",
+    "year": "2015",
+    "location": "Bengaluru",
+    "slug": "/companies/meesho",
+    "website": "https://meesho.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Potrero Labs",
+    "description": "Potrero Labs is an early-stage startup on a mission to empower creators and their communities. As our first step, we want to build a mobile app that will be the most fun and productive way for Creators to curate, inspire, and collaborate with a tight knit community.",
+    "industry": "Consumer",
+    "funding": "Series A",
+    "year": "2022",
+    "location": "San Francisco",
+    "slug": "/companies/potrero-labs",
+    "website": "https://a16z.com",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Recraft AI",
+    "description": "Recraft is a next-gen AI design platform that effortlessly generates scalable vector and raster art. It streamlines brand consistency and offers an intuitive infinite canvas for diverse design projects.",
+    "industry": "Consumer",
+    "funding": "Series A",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/recraft-ai",
+    "website": "https://www.recraft.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Lunchclub",
+    "description": "Lunchclub is an AI-powered matchmaking service that connects professionals for 1:1 video meetings, making networking effortless, fun, and truly meaningful. Backed by top investors like Lightspeed, Coatue, and a16z.",
+    "industry": "Consumer",
+    "funding": "Series A",
+    "year": "2018",
+    "location": "San Francisco",
+    "slug": "/companies/lunchclub",
+    "website": "https://lunchclub.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "SideChat",
+    "description": "Find your community",
+    "industry": "Consumer",
+    "funding": "Series A",
+    "year": "2019",
+    "location": "San Francisco",
+    "slug": "/companies/sidechat",
+    "website": "https://www.sidechat.lol/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Mindscribe",
+    "description": "Symbiose Technologies builds smart communication environments that fuel collaboration, growth, and transformative experiences, providing unique spaces for learning, playing, and fostering meaningful connections.",
+    "industry": "Consumer",
+    "funding": "Seed",
+    "year": "2019",
+    "location": "Other",
+    "slug": "/companies/mindscribe",
+    "website": "https://www.symbioseinc.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Tribes",
+    "description": "Tribes builds an open, decentralized database protocol offering secure, user-driven data storage. Tribes empowers individuals with greater control, protection, and rewards for their data.",
+    "industry": "Consumer",
+    "funding": "Seed",
+    "year": "2021",
+    "location": "San Francisco",
+    "slug": "/companies/tribes",
+    "website": "https://www.tribes.xyz/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Coinvent AI",
+    "description": "Your personal travel agent with AI superpowers",
+    "industry": "Consumer",
+    "funding": "Seed",
+    "year": "2023",
+    "location": "San Francisco",
+    "slug": "/companies/coinvent-ai",
+    "website": "https://www.coinvent.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Holloway",
+    "description": "Holloway delivers in-depth digital guides on entrepreneurship, creativity, and growth, crafted by experts with interactive features for a hassle-free, on-demand learning experience that tackles real challenges.",
+    "industry": "Consumer",
+    "funding": "Seed",
+    "year": "2018",
+    "location": "San Francisco",
+    "slug": "/companies/holloway",
+    "website": "https://www.holloway.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Websim",
+    "description": "The web browser for your imagination",
+    "industry": "Consumer",
+    "funding": "Seed",
+    "year": "2024",
+    "location": "San Francisco",
+    "slug": "/companies/websim",
+    "website": "https://websim.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Hologram",
+    "description": "Hologram empowers any artists to create expressive characters, wearables, and more for your community or brand.",
+    "industry": "Consumer",
+    "funding": "Seed",
+    "year": "2021",
+    "location": "San Francisco",
+    "slug": "/companies/hologram",
+    "website": "https://www.hologram.xyz/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Breezy",
+    "description": "Breezy uses AI to connect consumers with local experts in home services, streamlining the process by offering multiple options quickly for tasks like repairs, plumbing, and more.",
+    "industry": "Consumer",
+    "funding": "Seed",
+    "year": "2023",
+    "location": "San Francisco",
+    "slug": "/companies/breezy",
+    "website": "https://www.getbreezy.app/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Escargot",
+    "description": "Thoughtfully reinventing the greeting card experience",
+    "industry": "Consumer",
+    "funding": "Seed",
+    "year": "2025",
+    "location": "New York",
+    "slug": "/companies/escargot",
+    "website": "https://helloescargot.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Bevel",
+    "description": "Bevel empowers individuals to manage their health like CEOs, using real-time metrics and long-term biomarkers to fine-tune daily routines and gain personalized insights on wellness.",
+    "industry": "Consumer",
+    "funding": "Seed",
+    "year": "2021",
+    "location": "New York",
+    "slug": "/companies/bevel",
+    "website": "https://www.bevel.health/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Moai Cash",
+    "description": "Pay anyone anywhere instantly with Moai.",
+    "industry": "Consumer",
+    "funding": "Seed",
+    "year": "2021",
+    "location": "Other",
+    "slug": "/companies/moai-cash",
+    "website": "https://moai.cash/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Simular",
+    "description": "Simular pioneers AI-powered digital companions that automate tasks and streamline workflows. They help users reclaim productivity and creativity, making work feel effortless and truly enjoyable.",
+    "industry": "Consumer",
+    "funding": "Seed",
+    "year": "2023",
+    "location": "San Francisco",
+    "slug": "/companies/simular",
+    "website": "https://www.simular.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Jars",
+    "description": "Jars creates interactive shows fueled by generative AI, blending creativity with tech to deliver dynamic, immersive experiences that effortlessly captivate and entertain audiences everywhere.",
+    "industry": "Consumer",
+    "funding": "Seed",
+    "year": "2023",
+    "location": "San Francisco",
+    "slug": "/companies/jars",
+    "website": "https://www.jars.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Perl",
+    "description": "Perl is like polymarket, but for predicting trends and meme coin prices",
+    "industry": "Consumer",
+    "funding": "Seed",
+    "year": "2022",
+    "location": "Other",
+    "slug": "/companies/perl",
+    "website": "https://perl.xyz/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Persona AI",
+    "description": "Persona is the AI customer insights team for product-led brands. Personaâs first product is an AI\nqualitative researcher that talks to customers and generates insightsâin hours, not weeks.",
+    "industry": "Consumer",
+    "funding": "Seed",
+    "year": "2024",
+    "location": "New York",
+    "slug": "/companies/persona-ai",
+    "website": "https://www.getpersona.xyz/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Awaken",
+    "description": "Awaken creates smart crypto tax solutions that automatically manage transactions across major blockchains and new layer-2s, handling staking, bridging, NFTs, liquidity pools, and more with ease.",
+    "industry": "Consumer",
+    "funding": "Seed",
+    "year": "2022",
+    "location": "San Francisco",
+    "slug": "/companies/awaken",
+    "website": "https://awaken.tax/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Frisson Labs",
+    "description": "AI browser companions",
+    "industry": "Consumer",
+    "funding": "Seed",
+    "year": "2024",
+    "location": "Other",
+    "slug": "/companies/frisson-labs",
+    "website": "https://www.frisson-labs.com/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Storytime",
+    "description": "Storytime is making storytelling smarter by blending creativity with technology, crafting innovative narrative adventures that bring fresh, engaging, and immersive experiences to life.",
+    "industry": "Consumer",
+    "funding": "Seed",
+    "year": "2020",
+    "location": "San Francisco",
+    "slug": "/companies/storytime",
+    "website": "https://www.storytime.land/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Lightnote",
+    "description": "Pendulum is an applied AI company developing context-aware, visually driven search tools that make it easy for creative teams to explore and organize any type of media.",
+    "industry": "Consumer",
+    "funding": "Seed",
+    "year": "2023",
+    "location": "New York",
+    "slug": "/companies/lightnote",
+    "website": "https://www.lightnote.io/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "New Computer",
+    "description": "Dot is the personal AI designed to truly understand you, observing what is said and unsaid to form a picture of who you are.",
+    "industry": "Consumer",
+    "funding": "Seed",
+    "year": "2022",
+    "location": "San Francisco",
+    "slug": "/companies/new-computer",
+    "website": "https://new.computer/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Wayback Labs",
+    "description": "Wayback labs is building at the intersection of camera roll and AI.",
+    "industry": "Consumer",
+    "funding": "Pre-seed",
+    "year": "2025",
+    "location": "Other",
+    "slug": "/companies/wayback-labs",
+    "website": "http://waybacklabs.app",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Mayhem (Acq. Niantic)",
+    "description": "Mayhem is the easiest way to play with your gaming community.",
+    "industry": "Consumer",
+    "funding": "Acquired",
+    "year": "2018",
+    "location": "San Francisco",
+    "slug": "/companies/mayhem-acq-niantic",
+    "website": "https://nianticlabs.com",
+    "founders": [
+      "Founded By"
+    ]
+  }
+]

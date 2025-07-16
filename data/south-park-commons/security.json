@@ -1,0 +1,28 @@
+[
+  {
+    "name": "Mirage Security",
+    "description": "Mirage Security offers people-first security solutions, blending smart tech with expert strategies to create safer environments for individuals and organizations alike.",
+    "industry": "Security",
+    "funding": "Seed",
+    "year": "2023",
+    "location": "San Francisco",
+    "slug": "/companies/mirage-security",
+    "website": "https://www.miragesecurity.ai/",
+    "founders": [
+      "Founded By"
+    ]
+  },
+  {
+    "name": "Gamma Networks (Acq. Palo Alto Networks)",
+    "description": "Gamma is an event driven security awareness training solution using its patent pending AI technology",
+    "industry": "Security",
+    "funding": "Acquired",
+    "year": "2018",
+    "location": "San Francisco",
+    "slug": "/companies/gamma-networks-acq-palo-alto-networks",
+    "website": "https://www.paloaltonetworks.com/",
+    "founders": [
+      "Founded By"
+    ]
+  }
+]

@@ -1,0 +1,58 @@
+[
+  {
+    "name": "Zowasel",
+    "description": "Zowasel is a vetted agriculture marketplace to buy and sell crops. The company received $100k in funding as part of the UN World Food Programme’s Zero Hunger Sprint.",
+    "industry": "Marketplace",
+    "location": "Lagos, Nigeria",
+    "founder(s)": "Jerry Oche",
+    "website": "http://www.zowasel.com"
+  },
+  {
+    "name": "Gameconomy",
+    "description": "Gameconomy provides backend analytics, marketplaces, in-game currency and data for games developers. A majority stake in the company was acquired by iCandy Interactive in January 2022.",
+    "industry": "Marketplace",
+    "location": "Kuala Lumpur, Malaysia",
+    "founder(s)": "Kin Meng Chan",
+    "website": "https://www.gameconomy.tech"
+  },
+  {
+    "name": "TravelerCar",
+    "description": "TravelCar is a leading European car-rental marketplace. The company raised more than $22M in funding before being acquired by Groupe PSA in 2019.",
+    "industry": "Marketplace",
+    "location": "Paris, France",
+    "founder(s)": "Ahmed Mhiri",
+    "website": "http://www.travelercar.com"
+  },
+  {
+    "name": "Realty Mogul",
+    "description": "RealtyMogul is a leading marketplace for real estate investing, connecting borrowers, and sponsors to individual and institutional investors. The company has raised more than $45M+ funding.",
+    "industry": "Marketplace",
+    "location": "Los Angeles, US",
+    "founder(s)": "Jilliene Helman",
+    "website": "http://www.realtymogul.com"
+  },
+  {
+    "name": "GoPlaceIt",
+    "description": "GoPlaceIt is a real estate marketplace for commercial and residential property search and alerts, as well as to lease, buy and sell. They raised $5M+ and were acquired by Capitalizarme in April 2022.",
+    "industry": "Marketplace",
+    "location": "Santiago, Chile",
+    "founder(s)": "Daniel Ibarra",
+    "website": "https://www.goplaceit.com/"
+  },
+  {
+    "name": "MSJ Holdings Ltd.",
+    "description": "SmartChoice is an insurance marketplace for users to easily compare policies and buy instantly from top providers. They have raised pre-seed funding, and powered 3M+ comparisons to date.",
+    "industry": "Marketplace",
+    "location": "Karachi, Pakistan",
+    "founder(s)": "Sibtain Jiwani",
+    "website": "http://www.smartchoice.pk"
+  },
+  {
+    "name": "Babonbo",
+    "description": "Babonbo is a baby-gear rental marketplace & service that connects traveling families with local parents and businesses. They have raised $450k in Angel investment.",
+    "industry": "Marketplace",
+    "location": "Milan, Italy",
+    "founder(s)": "Duygu Sefa",
+    "website": "https://www.babonbo.com/en"
+  }
+]

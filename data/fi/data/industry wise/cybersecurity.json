@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Easy Aerial Inc.",
+    "description": "Easy Aerial offers fully autonomous drone-based monitoring and security systems. The company announced its Series A in August 2020, bringing total funding raised to $11.2M+.",
+    "industry": "Cybersecurity",
+    "location": "New York, US",
+    "founder(s)": "Ivan Stamatovski",
+    "website": "http://www.easyaerial.com"
+  },
+  {
+    "name": "Refactr",
+    "description": "Refactr is a platform for DevOps and cybersecurity teams to collaboratively build modern, security-first automations, using exisiting tools. They were acquired by Sophos in August 2021.",
+    "industry": "Cybersecurity",
+    "location": "Silicon Valley, US",
+    "founder(s)": "Michael Fraser",
+    "website": "https://refactr.it"
+  }
+]

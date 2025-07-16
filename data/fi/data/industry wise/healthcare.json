@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Lessonbee",
+    "description": "Lessonbee® promotes safe and healthy schools via personalized online health education for K-12 students. They raised 1.2M in Seed funding in 2022.",
+    "industry": "Healthcare",
+    "location": "New York, US",
+    "founder(s)": "Reva Mc Pollom",
+    "website": "http://lessonbee.com"
+  },
+  {
+    "name": "Sworkit",
+    "description": "Sworkit is a leading personalized exercise and fitness mobile app, making improving health simple. The company has raised $3M+ to date, and was even offered funding on Shark Tank.",
+    "industry": "Healthcare",
+    "location": "Washington DC, US",
+    "founder(s)": "Benjamin Young",
+    "website": "http://www.sworkit.com"
+  },
+  {
+    "name": "doc-doc",
+    "description": "doc-doc is a telemedicine mobile app focused on connecting patients directly with medical specialists. They have raised USD $2M+ in seed funding from investors including Cardo Health and 500 Global.",
+    "industry": "Healthcare",
+    "location": "Bogota, Colombia",
+    "founder(s)": "Gabriel Castillo Szpoganicz, David Ramírez",
+    "website": "https://www.doc-doc.com/"
+  }
+]
