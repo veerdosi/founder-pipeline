@@ -477,24 +477,25 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
             for query in search_queries:
                 logger.info(f"Searching Google for Crunchbase URL: {query}")
                 
-                # Serper API call
-                url = "https://google.serper.dev/search"
+                # SerpApi API call
+                url = "https://serpapi.com/search"
                 payload = {
                     "q": query,
-                    "num": 10
+                    "num": 10,
+                    "api_key": settings.serpapi_key,
+                    "engine": "google"
                 }
                 headers = {
-                    "X-API-KEY": settings.serper_api_key,
                     "Content-Type": "application/json"
                 }
                 
-                async with self.session.post(url, json=payload, headers=headers) as response:
+                async with self.session.get(url, params=payload, headers=headers) as response:
                     if response.status == 200:
                         data = await response.json()
                         logger.debug(f"Search response keys: {list(data.keys())}")
                         
                         # Look for Crunchbase URLs in organic results
-                        organic_results = data.get("organic", [])
+                        organic_results = data.get("organic_results", [])
                         logger.debug(f"Found {len(organic_results)} organic results")
                         
                         for i, result in enumerate(organic_results):
@@ -523,7 +524,7 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
                         
                         logger.debug(f"No Crunchbase URL found with query: {query}")
                     else:
-                        logger.warning(f"Serper search failed for query '{query}': {response.status}")
+                        logger.warning(f"SerpApi search failed for query '{query}': {response.status}")
                         response_text = await response.text()
                         logger.debug(f"Error response: {response_text[:200]}...")
                         continue
@@ -695,6 +696,40 @@ If NO suitable early-stage startup found, return: null
                 except Exception:
                     return default
             
+            def validate_founding_year(year_value):
+                """Validate and clean founding year."""
+                if not year_value:
+                    return None
+                
+                current_year = datetime.now().year
+                
+                try:
+                    # Handle string years
+                    if isinstance(year_value, str):
+                        # Remove any non-numeric characters and convert
+                        year_clean = re.sub(r'[^\d]', '', year_value)
+                        if not year_clean:
+                            return None
+                        year_value = int(year_clean)
+                    
+                    # Handle float years (round down)
+                    if isinstance(year_value, float):
+                        year_value = int(year_value)
+                    
+                    # Validate year range
+                    if not isinstance(year_value, int):
+                        return None
+                    
+                    if year_value < 1900 or year_value > current_year:
+                        logger.warning(f"Invalid founding year {year_value}, must be between 1900 and {current_year}")
+                        return None
+                    
+                    return year_value
+                    
+                except (ValueError, TypeError):
+                    logger.warning(f"Could not parse founding year: {year_value}")
+                    return None
+            
             # Map funding stage with error handling
             funding_stage = None
             funding_stage_raw = safe_get("funding_stage")
@@ -777,7 +812,7 @@ If NO suitable early-stage startup found, return: null
                     name=clean_text(company_name),
                     description=clean_text(safe_get("description", "")),
                     short_description=clean_text(safe_get("short_description", "")),
-                    founded_year=safe_get("founded_year"),
+                    founded_year=validate_founding_year(safe_get("founded_year")),
                     funding_total_usd=funding_total_usd,
                     funding_stage=funding_stage,
                     founders=safe_get("founders", []),

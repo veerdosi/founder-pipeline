@@ -140,7 +140,7 @@ The following API keys are required and must be configured in the `.env` file:
 - `EXA_API_KEY`: For company discovery and web search.
 - `CRUNCHBASE_API_KEY`: For financial data and company intelligence.
 - `APIFY_API_KEY`: For scraping LinkedIn profiles.
-- `SERPER_API_KEY`: For real-time Google Search validation.
+- `SERPAPI_KEY`: For real-time Google Search validation.
 
 ## 📁 Project Structure
 

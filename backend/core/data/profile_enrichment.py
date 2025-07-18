@@ -204,17 +204,18 @@ class LinkedInEnrichmentService(ProfileEnrichmentService):
         return self._deduplicate_profiles(profiles)
     
     async def _search_google(self, query: str, limit: int = 10) -> List[dict]:
-        """Search Google for LinkedIn profiles using Serper API."""
+        """Search Google for LinkedIn profiles using SerpApi."""
         logger.debug(f"Searching for: {query}")
         await self.search_rate_limiter.acquire()
         
-        url = "https://google.serper.dev/search"
+        url = "https://serpapi.com/search"
         payload = {
             "q": query,
-            "num": limit
+            "num": limit,
+            "api_key": settings.serpapi_key,
+            "engine": "google"
         }
         headers = {
-            "X-API-KEY": settings.serper_api_key,
             "Content-Type": "application/json"
         }
         
@@ -227,9 +228,9 @@ class LinkedInEnrichmentService(ProfileEnrichmentService):
                 loop.run_in_executor(
                     None, 
                     functools.partial(
-                        requests.post, 
+                        requests.get, 
                         url, 
-                        json=payload, 
+                        params=payload, 
                         headers=headers, 
                         timeout=10
                     )
@@ -239,7 +240,7 @@ class LinkedInEnrichmentService(ProfileEnrichmentService):
             
             if response.status_code == 200:
                 data = response.json()
-                organic_results = data.get("organic", [])
+                organic_results = data.get("organic_results", [])
                 logger.debug(f"Got {len(organic_results)} organic results for query: {query}")
                 
                 linkedin_results = [
@@ -254,7 +255,7 @@ class LinkedInEnrichmentService(ProfileEnrichmentService):
                 logger.debug(f"Filtered to {len(linkedin_results)} LinkedIn results")
                 return linkedin_results
             else:
-                logger.error(f"Serper API error {response.status_code}: {response.text}")
+                logger.error(f"SerpApi API error {response.status_code}: {response.text}")
                 return []
         except asyncio.TimeoutError:
             logger.warning(f"Search timeout for query: {query}")
