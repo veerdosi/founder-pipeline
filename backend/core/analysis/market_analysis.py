@@ -350,20 +350,11 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
     async def _get_market_size_and_cagr_perplexity(self, sector: str, year: int, company_name: Optional[str] = None) -> Optional[Dict]:
         """Get market size and CAGR using Perplexity, returning structured JSON."""
         company_context = f" for companies like {company_name}" if company_name else ""
-        foundation_year_instruction = f"""
-        IMPORTANT: First, find the exact founding year of {company_name}. Use that founding year as the base year for your market analysis instead of {year}.
-        
-        Step 1: Research when {company_name} was founded
-        Step 2: Use that founding year for all market metrics and analysis
-        """ if company_name else ""
-        
         prompt = f"""
-        {foundation_year_instruction}
+        Research the {sector} market globally for {year}, focusing on the market opportunity{company_context}. Provide the following data in a clear JSON format:
         
-        Research the {sector} market globally, focusing on the market opportunity{company_context}. Provide the following data in a clear JSON format:
-        
-        - Market size in billions USD (total addressable market) for the founding year
-        - Expected CAGR (Compound Annual Growth Rate) as a percentage from the founding year onwards
+        - Market size in billions USD (total addressable market)
+        - Expected CAGR (Compound Annual Growth Rate) as a percentage
         
         Return only a valid JSON object with the keys "market_size" and "cagr".
         Example: {{"market_size": 15.5, "cagr": 12.5}}
@@ -388,22 +379,13 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
     async def _get_timing_analysis_perplexity(self, sector: str, year: int, company_name: Optional[str] = None) -> Optional[Dict]:
         """Get market timing analysis using Perplexity, returning structured JSON."""
         company_context = f" specifically for {company_name} and similar companies" if company_name else " for early-stage companies"
-        foundation_year_instruction = f"""
-        IMPORTANT: First, find the exact founding year of {company_name}. Use that founding year as the base year for your market timing analysis instead of {year}.
-        
-        Step 1: Research when {company_name} was founded
-        Step 2: Analyze the market timing for entering the {sector} market in that founding year
-        """ if company_name else ""
-        
         prompt = f"""
-        {foundation_year_instruction}
-        
-        Analyze the market timing for entering the {sector} market{company_context}.
+        Analyze the market timing for entering the {sector} market in {year}{company_context}.
         
         You MUST respond with ONLY a valid JSON object in this exact format:
         {{
             "timing_score": 4.2,
-            "timing_analysis": "Detailed explanation of why this was a good/bad time to enter the market in the founding year, considering market conditions, competition, and opportunity at that time"
+            "timing_analysis": "Detailed explanation of why this is a good/bad time to enter the market, considering market conditions, competition, and opportunity"
         }}
         
         Do not include any text before or after the JSON. Timing_score must be a number between 1-5. Timing_analysis must be a string.
@@ -428,18 +410,9 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
     async def _get_regional_sentiment_perplexity(self, sector: str, year: int, region: str, company_name: Optional[str] = None) -> float:
         """Get regional market sentiment using Perplexity, returning a score."""
         company_context = f" for companies like {company_name}" if company_name else " for early-stage companies"
-        foundation_year_instruction = f"""
-        IMPORTANT: First, find the exact founding year of {company_name}. Use that founding year for your regional sentiment analysis instead of {year}.
-        
-        Step 1: Research when {company_name} was founded
-        Step 2: Analyze the {sector} market sentiment in {region} for that founding year
-        """ if company_name else ""
-        
         prompt = f"""
-        {foundation_year_instruction}
-        
-        Analyze the {sector} market sentiment in {region}{company_context}.
-        Rate the sentiment on a scale of 1-5 (5 being very positive) based on the market conditions in the founding year.
+        Analyze the {sector} market sentiment in {region} for {year}{company_context}.
+        Rate the sentiment on a scale of 1-5 (5 being very positive).
         
         Return only a valid JSON object with the key "sentiment_score".
         Example: {{"sentiment_score": 4.5}}
@@ -465,24 +438,15 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
     async def _get_competitor_analysis_perplexity(self, sector: str, year: int, company_name: Optional[str] = None) -> Optional[Dict]:
         """Get competitor analysis using Perplexity, returning structured JSON."""
         company_context = f" relevant to {company_name}" if company_name else ""
-        foundation_year_instruction = f"""
-        IMPORTANT: First, find the exact founding year of {company_name}. Use that founding year for your competitive analysis instead of {year}.
-        
-        Step 1: Research when {company_name} was founded
-        Step 2: Analyze the competitive landscape in the {sector} market for that founding year
-        """ if company_name else ""
-        
         prompt = f"""
-        {foundation_year_instruction}
-        
-        Analyze the competitive landscape in the {sector} market{company_context}.
+        Analyze the competitive landscape in the {sector} market for {year}{company_context}.
         
         You MUST respond with ONLY a valid JSON object in this exact format:
         {{
             "competitor_count": 25,
             "total_funding": 2.1,
             "momentum_score": 4.0,
-            "competitive_landscape": "Detailed analysis of the competitive environment and how companies competed in this space during the founding year",
+            "competitive_landscape": "Detailed analysis of the competitive environment and how companies compete in this space",
             "major_players": ["Company 1", "Company 2", "Company 3", "Company 4", "Company 5"],
             "barriers_to_entry": ["Barrier 1", "Barrier 2", "Barrier 3", "Barrier 4"]
         }}
@@ -525,24 +489,15 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
     async def _get_comprehensive_market_overview(self, sector: str, year: int, company_name: Optional[str] = None) -> Optional[Dict]:
         """Get comprehensive market overview and size analysis."""
         company_context = f" with particular focus on opportunities for {company_name}" if company_name else ""
-        foundation_year_instruction = f"""
-        IMPORTANT: First, find the exact founding year of {company_name}. Use that founding year for your market overview analysis instead of {year}.
-        
-        Step 1: Research when {company_name} was founded
-        Step 2: Provide a comprehensive market analysis for the {sector} industry in that founding year
-        """ if company_name else ""
-        
         prompt = f"""
-        {foundation_year_instruction}
-        
-        Provide a comprehensive market analysis for the {sector} industry{company_context}.
+        Provide a comprehensive market analysis for the {sector} industry in {year}{company_context}.
         
         You MUST respond with ONLY a valid JSON object in this exact format:
         {{
-            "market_overview": "2-3 paragraph detailed overview of the state of the {sector} market and opportunity landscape during the founding year",
-            "market_size_analysis": "Detailed explanation of market size, segments, and how companies could capture value during the founding year",
-            "growth_drivers": "Key factors driving market growth during the founding year and what this meant for new entrants", 
-            "regional_analysis": "Regional market dynamics and geographic opportunities for companies during the founding year"
+            "market_overview": "2-3 paragraph detailed overview of the current state of the {sector} market and opportunity landscape",
+            "market_size_analysis": "Detailed explanation of market size, segments, and how companies can capture value",
+            "growth_drivers": "Key factors driving market growth and what this means for new entrants", 
+            "regional_analysis": "Regional market dynamics and geographic opportunities for companies"
         }}
         
         Do not include any text before or after the JSON. Each value must be a single string.
@@ -567,22 +522,13 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
     async def _get_investment_and_regulatory_analysis(self, sector: str, year: int, company_name: Optional[str] = None) -> Optional[Dict]:
         """Get investment climate and regulatory environment analysis."""
         company_context = f" particularly for companies like {company_name}" if company_name else ""
-        foundation_year_instruction = f"""
-        IMPORTANT: First, find the exact founding year of {company_name}. Use that founding year for your investment and regulatory analysis instead of {year}.
-        
-        Step 1: Research when {company_name} was founded
-        Step 2: Analyze the investment and regulatory landscape for {sector} companies in that founding year
-        """ if company_name else ""
-        
         prompt = f"""
-        {foundation_year_instruction}
-        
-        Analyze the investment and regulatory landscape for {sector} companies{company_context}.
+        Analyze the investment and regulatory landscape for {sector} companies in {year}{company_context}.
         
         You MUST respond with ONLY a valid JSON object in this exact format:
         {{
-            "investment_climate": "Funding trends, investor sentiment, and what this meant for companies seeking capital during the founding year",
-            "regulatory_environment": "Key regulations, compliance requirements, and how companies had to navigate regulatory challenges during the founding year",
+            "investment_climate": "Current funding trends, investor sentiment, and what this means for companies seeking capital",
+            "regulatory_environment": "Key regulations, compliance requirements, and how companies should navigate regulatory challenges",
             "regulatory_changes": ["Change 1", "Change 2", "Change 3"]
         }}
         
@@ -608,23 +554,14 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
     async def _get_technology_and_trends_analysis(self, sector: str, year: int, company_name: Optional[str] = None) -> Optional[Dict]:
         """Get technology trends and consumer adoption analysis."""
         company_context = f" with implications for companies like {company_name}" if company_name else ""
-        foundation_year_instruction = f"""
-        IMPORTANT: First, find the exact founding year of {company_name}. Use that founding year for your technology and trends analysis instead of {year}.
-        
-        Step 1: Research when {company_name} was founded
-        Step 2: Analyze technology trends and market dynamics for the {sector} industry in that founding year
-        """ if company_name else ""
-        
         prompt = f"""
-        {foundation_year_instruction}
-        
-        Analyze technology trends and market dynamics for the {sector} industry{company_context}.
+        Analyze technology trends and market dynamics for the {sector} industry in {year}{company_context}.
         
         You MUST respond with ONLY a valid JSON object in this exact format:
         {{
-            "technology_trends": "Technology trends during the founding year and how companies could leverage them",
-            "consumer_adoption": "Consumer behavior, adoption patterns, and what this meant for companies during the founding year",
-            "supply_chain_analysis": "Supply chain dynamics, dependencies, and how companies had to manage risks during the founding year",
+            "technology_trends": "Current and emerging technology trends and how companies can leverage them",
+            "consumer_adoption": "Consumer behavior, adoption patterns, and what this means for companies",
+            "supply_chain_analysis": "Supply chain dynamics, dependencies, and how companies should manage risks",
             "key_trends": ["Trend 1", "Trend 2", "Trend 3", "Trend 4", "Trend 5"],
             "emerging_technologies": ["Tech 1", "Tech 2", "Tech 3", "Tech 4"]
         }}
@@ -651,22 +588,13 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
     async def _get_risks_and_recommendations(self, sector: str, year: int, company_name: Optional[str] = None) -> Optional[Dict]:
         """Get risk assessment and strategic recommendations."""
         company_context = f" particularly for {company_name}" if company_name else ""
-        foundation_year_instruction = f"""
-        IMPORTANT: First, find the exact founding year of {company_name}. Use that founding year for your risk assessment and recommendations instead of {year}.
-        
-        Step 1: Research when {company_name} was founded
-        Step 2: Provide risk assessment and strategic recommendations for {sector} companies in that founding year
-        """ if company_name else ""
-        
         prompt = f"""
-        {foundation_year_instruction}
-        
-        Provide risk assessment and strategic recommendations for {sector} companies{company_context}.
+        Provide risk assessment and strategic recommendations for {sector} companies in {year}{company_context}.
         
         You MUST respond with ONLY a valid JSON object in this exact format:
         {{
-            "risk_assessment": "Comprehensive analysis of market risks, challenges, and how companies had to mitigate them during the founding year",
-            "strategic_recommendations": "Specific actionable recommendations for companies entering or scaling in this market during the founding year",
+            "risk_assessment": "Comprehensive analysis of market risks, challenges, and how companies should mitigate them",
+            "strategic_recommendations": "Specific actionable recommendations for companies entering or scaling in this market",
             "opportunities": ["Opportunity 1", "Opportunity 2", "Opportunity 3", "Opportunity 4"],
             "threats": ["Threat 1", "Threat 2", "Threat 3", "Threat 4"]
         }}

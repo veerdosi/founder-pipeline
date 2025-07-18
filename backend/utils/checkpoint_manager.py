@@ -82,11 +82,11 @@ class PipelineCheckpointManager:
                 logger.warning(f"⚠️ Invalid checkpoint metadata: {checkpoint_file} (expected job_id: {job_id}, stage: {stage})")
                 return None
             
-            # Check if checkpoint is too old (15 days)
+            # Check if checkpoint is too old (72 hours)
             checkpoint_timestamp = checkpoint.get('timestamp')
             if checkpoint_timestamp:
                 age = datetime.now() - checkpoint_timestamp
-                if age > timedelta(hours=360):
+                if age > timedelta(hours=72):
                     logger.warning(f"⚠️ Checkpoint expired (age: {age}): {checkpoint_file}")
                     return None
             
@@ -280,16 +280,12 @@ class CheckpointedPipelineRunner:
                 logger.warning("No companies to export")
                 return
             
-            # Define CSV columns for companies including market analysis metrics (numbers only)
+            # Define CSV columns for companies
             columns = [
                 'name', 'description', 'short_description', 'founded_year',
                 'funding_total_usd', 'funding_stage', 'founders', 'investors',
                 'categories', 'city', 'region', 'country', 'ai_focus', 'sector',
-                'website', 'linkedin_url', 'crunchbase_url', 'source_url', 'extraction_date',
-                # Market analysis metrics (numerical only)
-                'market_size_billion', 'market_size_usd', 'cagr_percent', 'timing_score',
-                'us_sentiment', 'sea_sentiment', 'competitor_count', 'total_funding_billion',
-                'momentum_score', 'market_stage', 'confidence_score'
+                'website', 'linkedin_url', 'crunchbase_url', 'source_url', 'extraction_date'
             ]
             
             with open(csv_path, 'w', newline='', encoding='utf-8') as csvfile:
@@ -301,11 +297,9 @@ class CheckpointedPipelineRunner:
                     if hasattr(company, 'company'):
                         # This is an EnrichedCompany, access the nested company
                         comp = company.company
-                        market_metrics = getattr(company, 'market_metrics', None)
                     else:
                         # This is a regular Company object
                         comp = company
-                        market_metrics = None
                     
                     # Use target_year as fallback if founded_year is None
                     founded_year = getattr(comp, 'founded_year', None)
@@ -333,37 +327,6 @@ class CheckpointedPipelineRunner:
                         'source_url': getattr(comp, 'source_url', ''),
                         'extraction_date': getattr(comp, 'extraction_date', '')
                     }
-                    
-                    # Add market analysis metrics if available (numerical only)
-                    if market_metrics:
-                        row.update({
-                            'market_size_billion': getattr(market_metrics, 'market_size_billion', ''),
-                            'market_size_usd': getattr(market_metrics, 'market_size_usd', ''),
-                            'cagr_percent': getattr(market_metrics, 'cagr_percent', ''),
-                            'timing_score': getattr(market_metrics, 'timing_score', ''),
-                            'us_sentiment': getattr(market_metrics, 'us_sentiment', ''),
-                            'sea_sentiment': getattr(market_metrics, 'sea_sentiment', ''),
-                            'competitor_count': getattr(market_metrics, 'competitor_count', ''),
-                            'total_funding_billion': getattr(market_metrics, 'total_funding_billion', ''),
-                            'momentum_score': getattr(market_metrics, 'momentum_score', ''),
-                            'market_stage': getattr(market_metrics, 'market_stage', ''),
-                            'confidence_score': getattr(market_metrics, 'confidence_score', '')
-                        })
-                    else:
-                        # Add empty values for market metrics if not available
-                        row.update({
-                            'market_size_billion': '',
-                            'market_size_usd': '',
-                            'cagr_percent': '',
-                            'timing_score': '',
-                            'us_sentiment': '',
-                            'sea_sentiment': '',
-                            'competitor_count': '',
-                            'total_funding_billion': '',
-                            'momentum_score': '',
-                            'market_stage': '',
-                            'confidence_score': ''
-                        })
                     writer.writerow(row)
             
             logger.info(f"💾 Exported {len(companies)} companies to {csv_path}")

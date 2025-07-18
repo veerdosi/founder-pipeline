@@ -58,9 +58,7 @@ class InitiationPipeline:
 
             enhanced_companies = await self._enhance_companies_checkpointed(companies, force_restart)
 
-            market_enriched_companies = await self._analyze_market_checkpointed(enhanced_companies, force_restart)
-
-            enriched_companies = await self._enrich_profiles_checkpointed(market_enriched_companies, force_restart)
+            enriched_companies = await self._enrich_profiles_checkpointed(enhanced_companies, force_restart)
 
             ranked_companies = await self._rank_founders_checkpointed(enriched_companies, force_restart)
 
@@ -122,70 +120,6 @@ class InitiationPipeline:
             logger.error(f"Failed to export companies CSV: {e}")
         
         return enhanced_companies
-
-    async def _analyze_market_checkpointed(self, companies, force_restart):
-        stage_name = "market_analysis"
-        if not force_restart:
-            cached_data = checkpoint_manager.load_checkpoint(self.job_id, stage_name)
-            if cached_data:
-                return cached_data
-
-        console.print("📊 Analyzing market metrics for companies...")
-        market_enriched_companies = []
-        
-        async with self.market_analysis:
-            for i, company in enumerate(companies):
-                # Handle both Company and EnrichedCompany objects
-                if hasattr(company, 'company'):
-                    # This is an EnrichedCompany, get the nested company
-                    comp = company.company
-                    company_name = comp.name
-                else:
-                    # This is a regular Company object
-                    comp = company
-                    company_name = comp.name
-                    
-                console.print(f"   📊 [{i+1}/{len(companies)}] Analyzing market for {company_name}...")
-                
-                try:
-                    # Get market analysis
-                    sector = comp.ai_focus or comp.sector or "artificial intelligence"
-                    year = comp.founded_year or 2023
-                    
-                    market_metrics = await self.market_analysis.analyze_market(
-                        sector=sector,
-                        year=year,
-                        region="United States",
-                        company_name=company_name
-                    )
-                    
-                    # Create or update EnrichedCompany with market metrics
-                    if hasattr(company, 'company'):
-                        # Update existing EnrichedCompany
-                        company.market_metrics = market_metrics
-                        market_enriched_companies.append(company)
-                    else:
-                        # Create new EnrichedCompany
-                        from ..models import EnrichedCompany
-                        enriched_company = EnrichedCompany(
-                            company=company,
-                            market_metrics=market_metrics
-                        )
-                        market_enriched_companies.append(enriched_company)
-                        
-                except Exception as e:
-                    logger.error(f"Error analyzing market for {company_name}: {e}")
-                    # Continue without market metrics
-                    if hasattr(company, 'company'):
-                        market_enriched_companies.append(company)
-                    else:
-                        from ..models import EnrichedCompany
-                        enriched_company = EnrichedCompany(company=company)
-                        market_enriched_companies.append(enriched_company)
-
-        checkpoint_manager.save_checkpoint(self.job_id, stage_name, market_enriched_companies)
-        logger.info(f"💾 Saved market analysis for {len(market_enriched_companies)} companies to checkpoint")
-        return market_enriched_companies
 
     async def _enrich_profiles_checkpointed(self, companies, force_restart):
         stage_name = "profiles"
