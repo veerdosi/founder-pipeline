@@ -756,17 +756,28 @@ Return a JSON object with this structure:
         """Get media coverage and public presence data using Perplexity with structured JSON."""
         current_company = f" (founder/CEO of {company_name})" if company_name else ""
         
-        prompt = f"""Provide comprehensive media coverage and public presence data for {founder_name}{current_company}.
-        
-        Please include:
-        1. Media mentions: total count from major publications, interviews, podcasts, speaking engagements
-        2. Awards and recognitions: business awards, industry recognitions, honors received
-        3. Thought leadership: speaking engagements, conferences, articles authored, books, keynotes
-        4. Social media presence: approximate total follower count across all platforms
-        5. Thought leadership score: rate 1-10 based on industry influence and visibility
-        6. Overall sentiment: "positive", "neutral", "negative", or "mixed"
-        
-        Focus on verified, factual information with specific metrics where available."""
+        prompt = f"""You must respond with ONLY valid JSON. No explanations, no markdown, no text outside the JSON.
+
+Return media coverage data for {founder_name}{current_company} in this EXACT JSON format:
+
+{{
+    "media_mentions_count": 0,
+    "awards_recognitions": [],
+    "thought_leadership_activities": [],
+    "social_media_followers": 0,
+    "thought_leadership_score": 0,
+    "overall_sentiment": "neutral"
+}}
+
+Rules:
+- media_mentions_count: integer count of media appearances
+- awards_recognitions: array of strings describing awards/recognitions
+- thought_leadership_activities: array of strings describing speaking/writing activities  
+- social_media_followers: integer total follower count across platforms
+- thought_leadership_score: integer 1-10 based on industry influence
+- overall_sentiment: must be exactly "positive", "neutral", "negative", or "mixed"
+
+Return ONLY the JSON object, nothing else."""
         
         try:
             await self.perplexity_rate_limiter.acquire()
@@ -782,8 +793,33 @@ Return a JSON object with this structure:
             )
             
             content = response.choices[0].message.content
-            data = json.loads(content)
-            return MediaCoverageData(**data)
+            if not content or not content.strip():
+                logger.warning(f"Empty response from Perplexity for media coverage: {founder_name}")
+                return MediaCoverageData()
+            
+            try:
+                # Clean up potential markdown or extra formatting
+                content = content.strip()
+                if content.startswith("```json"):
+                    content = content[7:]
+                if content.startswith("```"):
+                    content = content[3:]
+                if content.endswith("```"):
+                    content = content[:-3]
+                content = content.strip()
+                
+                # Remove any reasoning tokens or think sections if present
+                if "<think>" in content:
+                    # Extract content after </think>
+                    parts = content.split("</think>")
+                    if len(parts) > 1:
+                        content = parts[1].strip()
+                
+                data = json.loads(content)
+                return MediaCoverageData(**data)
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid JSON from Perplexity for media coverage: {content}. Error: {e}")
+                return MediaCoverageData()
             
         except Exception as e:
             logger.error(f"Error getting media coverage from Perplexity for {founder_name}: {e}")
@@ -795,17 +831,28 @@ Return a JSON object with this structure:
     ) -> Optional[FinancialProfileData]:
         """Get financial profile information using Perplexity with structured JSON."""
         
-        prompt = f"""Provide comprehensive financial profile information for {founder_name}.
-        
-        Please include:
-        1. Companies founded: list of company names and brief details (e.g., "TechCorp - Founded 2015, AI startup, $50M valuation")
-        2. Investment activities: list of investment details (e.g., "Invested $100k in StartupX (2020)", "Angel investor in 15+ companies")
-        3. Board positions: list of board positions (e.g., "Board member at TechFoundation since 2018", "Advisory board - FinanceAI")
-        4. Notable achievements: list of achievements and recognitions
-        5. Estimated net worth: provide range or specific amount if publicly known
-        6. Confidence level: "high", "medium", "low" based on data availability
-        
-        Focus on verified, factual information. Format as simple strings in lists."""
+        prompt = f"""You must respond with ONLY valid JSON. No explanations, no markdown, no text outside the JSON.
+
+Return financial profile data for {founder_name} in this EXACT JSON format:
+
+{{
+    "companies_founded": [],
+    "investment_activities": [],
+    "board_positions": [],
+    "notable_achievements": [],
+    "estimated_net_worth": "",
+    "confidence_level": "medium"
+}}
+
+Rules:
+- companies_founded: array of strings describing companies founded
+- investment_activities: array of strings describing investments made
+- board_positions: array of strings describing board positions held
+- notable_achievements: array of strings describing major achievements
+- estimated_net_worth: string with estimated worth or "Unknown"
+- confidence_level: must be exactly "high", "medium", or "low"
+
+Return ONLY the JSON object, nothing else."""
         
         try:
             await self.perplexity_rate_limiter.acquire()
@@ -821,8 +868,33 @@ Return a JSON object with this structure:
             )
             
             content = response.choices[0].message.content
-            data = json.loads(content)
-            return FinancialProfileData(**data)
+            if not content or not content.strip():
+                logger.warning(f"Empty response from Perplexity for financial profile: {founder_name}")
+                return FinancialProfileData()
+            
+            try:
+                # Clean up potential markdown or extra formatting
+                content = content.strip()
+                if content.startswith("```json"):
+                    content = content[7:]
+                if content.startswith("```"):
+                    content = content[3:]
+                if content.endswith("```"):
+                    content = content[:-3]
+                content = content.strip()
+                
+                # Remove any reasoning tokens or think sections if present
+                if "<think>" in content:
+                    # Extract content after </think>
+                    parts = content.split("</think>")
+                    if len(parts) > 1:
+                        content = parts[1].strip()
+                
+                data = json.loads(content)
+                return FinancialProfileData(**data)
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid JSON from Perplexity for financial profile: {content}. Error: {e}")
+                return FinancialProfileData()
             
         except Exception as e:
             logger.error(f"Error getting financial profile from Perplexity for {founder_name}: {e}")

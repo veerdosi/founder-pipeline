@@ -282,9 +282,9 @@ class CheckpointedPipelineRunner:
             
             # Define CSV columns for companies
             columns = [
-                'name', 'description', 'short_description', 'founded_year',
+                'name', 'description', 'founded_year',
                 'funding_total_usd', 'funding_stage', 'founders', 'investors',
-                'categories', 'city', 'region', 'country', 'ai_focus', 'sector',
+                'categories', 'city', 'region', 'country', 'sector',
                 'website', 'linkedin_url', 'crunchbase_url', 'source_url', 'extraction_date',
                 # Market analysis metrics
                 'market_size_billion', 'cagr_percent', 'timing_score', 'competitor_count',
