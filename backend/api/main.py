@@ -21,6 +21,8 @@ from ..models import LinkedInProfile
 from ..core.analysis.market_analysis import PerplexityMarketAnalysis
 from ..utils.checkpoint_manager import checkpointed_runner, checkpoint_manager
 from ..core.config import settings
+from ..core.data.company_tracker import company_tracker
+from ..core.data.migrations import get_database_info
 
 # Configure logging
 logging.basicConfig(
@@ -815,3 +817,184 @@ async def generate_market_analysis(company_name: str):
     except Exception as e:
         logger.error(f"❌ Market analysis failed for {company_name}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Market analysis failed: {str(e)}")
+
+
+# --- Company Tracking Endpoints ---
+
+@app.get("/api/companies/tracked")
+async def get_tracked_companies(
+    limit: int = settings.default_company_limit,
+    status: str = "active",
+    target_year: Optional[int] = None
+):
+    """Get tracked companies from the company tracking database."""
+    try:
+        if not settings.company_tracking_enabled:
+            raise HTTPException(status_code=503, detail="Company tracking is disabled")
+        
+        companies = company_tracker.get_tracked_companies(
+            limit=limit,
+            status=status,
+            target_year=target_year
+        )
+        
+        return {
+            "status": "success",
+            "companies": companies,
+            "count": len(companies)
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to get tracked companies: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get tracked companies: {str(e)}")
+
+
+@app.get("/api/companies/stats")
+async def get_discovery_stats():
+    """Get company discovery statistics from the tracking database."""
+    try:
+        if not settings.company_tracking_enabled:
+            raise HTTPException(status_code=503, detail="Company tracking is disabled")
+        
+        stats = company_tracker.get_discovery_stats()
+        
+        # Add database info
+        db_info = get_database_info()
+        
+        return {
+            "status": "success",
+            "tracking_stats": stats,
+            "database_info": db_info
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to get discovery stats: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get discovery stats: {str(e)}")
+
+
+@app.post("/api/companies/reset-tracking")
+async def reset_company_tracking(
+    company_name: Optional[str] = None,
+    target_year: Optional[int] = None
+):
+    """Reset tracking for specific companies or all companies from a year."""
+    try:
+        if not settings.company_tracking_enabled:
+            raise HTTPException(status_code=503, detail="Company tracking is disabled")
+        
+        affected_count = company_tracker.reset_company_tracking(
+            company_name=company_name,
+            target_year=target_year
+        )
+        
+        if company_name:
+            message = f"Reset tracking for company: {company_name}"
+        elif target_year:
+            message = f"Reset tracking for {affected_count} companies from {target_year}"
+        else:
+            message = f"Reset tracking for all {affected_count} companies"
+        
+        return {
+            "status": "success",
+            "message": message,
+            "companies_affected": affected_count
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to reset company tracking: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to reset tracking: {str(e)}")
+
+
+@app.post("/api/companies/bulk-import")
+async def bulk_import_companies():
+    """Import companies from the existing CSV file to populate the tracking database."""
+    try:
+        if not settings.company_tracking_enabled:
+            raise HTTPException(status_code=503, detail="Company tracking is disabled")
+        
+        # Import the CSV reading function
+        import pandas as pd
+        from pathlib import Path
+        
+        # Read the existing companies CSV
+        csv_path = Path("/Users/veerdosi/Documents/code/github/initiation-pipeline/output/job_20250723_1057_21d28956_companies.csv")
+        
+        if not csv_path.exists():
+            raise HTTPException(status_code=404, detail=f"Companies CSV not found at {csv_path}")
+        
+        # Read CSV and convert to Company objects
+        df = pd.read_csv(csv_path)
+        companies = []
+        
+        from ..models import Company, FundingStage
+        
+        # Start a bulk import run
+        run_id = company_tracker.start_discovery_run(
+            target_year=2014,  # Since these are 2014 companies
+            job_id="bulk_import_2014"
+        )
+        
+        for _, row in df.iterrows():
+            try:
+                # Parse funding stage
+                funding_stage = None
+                if pd.notna(row.get('funding_stage')):
+                    try:
+                        funding_stage = FundingStage(row['funding_stage'])
+                    except ValueError:
+                        funding_stage = FundingStage.UNKNOWN
+                
+                # Create Company object
+                company = Company(
+                    uuid=f"import_{hash(row['name'])}",
+                    name=row['name'],
+                    description=row.get('description', ''),
+                    founded_year=int(row['founded_year']) if pd.notna(row.get('founded_year')) else None,
+                    funding_total_usd=float(row['funding_total_usd']) if pd.notna(row.get('funding_total_usd')) else None,
+                    funding_stage=funding_stage,
+                    founders=row.get('founders', '').split('|') if pd.notna(row.get('founders')) else [],
+                    investors=row.get('investors', '').split('|') if pd.notna(row.get('investors')) else [],
+                    categories=row.get('categories', '').split('|') if pd.notna(row.get('categories')) else [],
+                    city=row.get('city', ''),
+                    region=row.get('region', ''),
+                    country=row.get('country', ''),
+                    sector=row.get('sector', ''),
+                    website=row.get('website', ''),
+                    linkedin_url=row.get('linkedin_url', ''),
+                    crunchbase_url=row.get('crunchbase_url', ''),
+                    source_url=row.get('source_url', ''),
+                    extraction_date=datetime.now()
+                )
+                
+                companies.append(company)
+                
+            except Exception as e:
+                logger.warning(f"Failed to parse company row: {e}")
+                continue
+        
+        # Bulk import companies
+        new_count, duplicate_count = company_tracker.bulk_import_companies(companies, run_id)
+        
+        # Complete the import run
+        company_tracker.complete_discovery_run(
+            run_id=run_id,
+            companies_found=len(companies),
+            companies_new=new_count,
+            companies_duplicate=duplicate_count,
+            execution_time=0.0
+        )
+        
+        return {
+            "status": "success",
+            "message": f"Bulk import completed: {new_count} new companies added, {duplicate_count} duplicates skipped",
+            "companies_imported": new_count,
+            "duplicates_skipped": duplicate_count,
+            "total_processed": len(companies),
+            "run_id": run_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Bulk import failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Bulk import failed: {str(e)}")

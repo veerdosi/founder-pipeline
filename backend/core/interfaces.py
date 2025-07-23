@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Protocol
 
 from ..models import Company, LinkedInProfile, MarketMetrics
+from .config import settings
 
 
 class CompanyDiscoveryService(ABC):
@@ -12,7 +13,7 @@ class CompanyDiscoveryService(ABC):
     @abstractmethod
     async def find_companies(
         self, 
-        limit: int = 50,
+        limit: Optional[int] = None,
         categories: Optional[List[str]] = None,
         regions: Optional[List[str]] = None
     ) -> List[Company]:

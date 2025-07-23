@@ -3,9 +3,10 @@
 from pydantic import BaseModel, validator
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
+from ..core.config import settings
 
 class CompanyDiscoveryRequest(BaseModel):
-    limit: int = 50
+    limit: int = settings.default_company_limit
     categories: List[str] = []
     regions: List[str] = []
     sources: List[str] = ["techcrunch", "crunchbase", "ycombinator"]
@@ -15,7 +16,7 @@ class CompanyDiscoveryRequest(BaseModel):
 
 class AcceleratorDiscoveryRequest(BaseModel):
     """Request model for accelerator-based company discovery."""
-    limit: int = 50
+    limit: int = settings.default_company_limit
     accelerators: List[str] = ["yc", "techstars", "500co"]  # Which accelerators to search
     
     @validator('accelerators')
@@ -29,7 +30,7 @@ class AcceleratorDiscoveryRequest(BaseModel):
 class YearBasedRequest(BaseModel):
     """Request model for year-based company discovery."""
     year: int
-    limit: int = 100
+    limit: int = settings.default_company_limit
     
     @validator('year')
     def validate_year(cls, v):

@@ -34,13 +34,16 @@ class InitiationPipeline:
 
     async def run(
         self,
-        limit: int = 50,
+        limit: Optional[int] = None,
         categories: Optional[List[str]] = None,
         regions: Optional[List[str]] = None,
         founded_after: Optional[date] = None,
         founded_before: Optional[date] = None,
         force_restart: bool = False,
     ) -> List[EnrichedCompany]:
+        if limit is None:
+            limit = settings.default_company_limit
+            
         logger.info(f"🚀 Starting pipeline for job_id: {self.job_id}")
         console.print("=" * 70)
         start_time = time.time()

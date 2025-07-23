@@ -30,7 +30,6 @@ env/
 *.parquet
 *.h5
 *.hdf5
-*.db
 *.pkl
 *.joblib
 

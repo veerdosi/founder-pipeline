@@ -57,12 +57,15 @@ class AcceleratorCompanyDiscovery(CompanyDiscoveryService):
     
     async def discover_companies(
         self,
-        limit: int = 50,
+        limit: Optional[int] = None,
         categories: Optional[List[str]] = None,
         regions: Optional[List[str]] = None,
         sources: Optional[List[str]] = None
     ) -> List[Company]:
         """Discover AI/ML companies from selected accelerators."""
+        if limit is None:
+            limit = settings.default_company_limit
+            
         logger.info(f"🚀 Starting accelerator discovery: {limit} AI/ML companies...")
         
         all_companies = []
@@ -148,7 +151,7 @@ class AcceleratorCompanyDiscovery(CompanyDiscoveryService):
     
     async def find_companies(
         self, 
-        limit: int = 50,
+        limit: Optional[int] = None,
         categories: Optional[List[str]] = None,
         regions: Optional[List[str]] = None,
         founded_year: Optional[int] = None

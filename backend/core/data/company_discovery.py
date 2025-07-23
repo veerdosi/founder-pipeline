@@ -18,6 +18,7 @@ from .. import (
 from ...models import Company, FundingStage
 from ...utils.data_processing import clean_text
 from ..analysis.sector_classification import sector_description_service
+from .company_tracker import company_tracker
 
 import logging
 import asyncio
@@ -66,12 +67,15 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
     
     async def discover_companies(
         self,
-        limit: int = 50,
+        limit: Optional[int] = None,
         categories: Optional[List[str]] = None,
         regions: Optional[List[str]] = None,
         sources: Optional[List[str]] = None
     ) -> List[Company]:
         """Discover companies using comprehensive 20+ source monitoring."""
+        if limit is None:
+            limit = settings.default_company_limit
+        
         logger.info(f"🚀 Starting discovery: {limit} companies from 20+ sources...")
         
         # Reset tracking for each discovery session
@@ -89,15 +93,27 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
     
     async def find_companies(
         self, 
-        limit: int = 50,
+        limit: Optional[int] = None,
         categories: Optional[List[str]] = None,
         regions: Optional[List[str]] = None,
         founded_year: Optional[int] = None
     ) -> List[Company]:
-        """Find AI companies using Exa search with enhanced uniqueness."""
+        """Find AI companies using Exa search with enhanced uniqueness and tracking."""
+        if limit is None:
+            limit = settings.default_company_limit
+            
         start_time = time.time()
         year_context = f" (founded in {founded_year})" if founded_year else ""
         logger.info(f"🔍 Finding {limit} AI companies with Exa{year_context}...")
+        
+        # Start tracking run if enabled
+        run_id = None
+        if settings.company_tracking_enabled:
+            run_id = company_tracker.start_discovery_run(
+                target_year=founded_year,
+                job_id=f"discovery_{int(time.time())}"
+            )
+            logger.info(f"📊 Started tracking run: {run_id}")
         
         categories = categories or settings.ai_categories
         
@@ -201,11 +217,59 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
         print(f"🔄 Deduplicating {len(all_companies)} companies...")
         unique_companies = self._deduplicate_companies(all_companies)
         
-        elapsed_time = time.time() - start_time
-        print(f"✅ Discovery complete: {len(unique_companies)} unique companies ({elapsed_time:.1f}s)")
-        logger.info(f"✅ Discovery complete: {len(unique_companies)} unique companies ({elapsed_time:.1f}s)")
+        # Process companies through tracking system if enabled
+        tracked_companies = []
+        new_companies = 0
+        duplicate_companies = 0
         
-        return unique_companies[:limit]
+        if settings.company_tracking_enabled and run_id:
+            print(f"📊 Processing {len(unique_companies)} companies through tracking system...")
+            for company in unique_companies:
+                is_duplicate, reason = company_tracker.is_duplicate_company(
+                    company, 
+                    threshold_days=settings.duplicate_discovery_threshold_days
+                )
+                
+                if not is_duplicate:
+                    if company_tracker.add_company(company, run_id, getattr(company, 'source_url', '') or ""):
+                        tracked_companies.append(company)
+                        new_companies += 1
+                        print(f"     ✅ New: {getattr(company, 'name', 'Unknown')}")
+                    else:
+                        duplicate_companies += 1
+                        print(f"     🔄 Duplicate: {getattr(company, 'name', 'Unknown')}")
+                else:
+                    company_tracker.update_last_seen(
+                        getattr(company, 'name', ''), 
+                        str(getattr(company, 'website', '')) if getattr(company, 'website', None) else None
+                    )
+                    duplicate_companies += 1
+                    print(f"     🔄 Duplicate: {getattr(company, 'name', 'Unknown')} ({reason})")
+            
+            final_companies = tracked_companies
+        else:
+            final_companies = unique_companies
+            new_companies = len(unique_companies)
+        
+        elapsed_time = time.time() - start_time
+        
+        # Complete tracking run if enabled
+        if settings.company_tracking_enabled and run_id:
+            company_tracker.complete_discovery_run(
+                run_id=run_id,
+                companies_found=len(all_companies),
+                companies_new=new_companies,
+                companies_duplicate=duplicate_companies,
+                execution_time=elapsed_time
+            )
+            
+            print(f"✅ Discovery complete: {len(all_companies)} found, {new_companies} new, {duplicate_companies} duplicates ({elapsed_time:.1f}s)")
+            logger.info(f"✅ Discovery complete: {len(all_companies)} found, {new_companies} new, {duplicate_companies} duplicates ({elapsed_time:.1f}s)")
+        else:
+            print(f"✅ Discovery complete: {len(final_companies)} unique companies ({elapsed_time:.1f}s)")
+            logger.info(f"✅ Discovery complete: {len(final_companies)} unique companies ({elapsed_time:.1f}s)")
+        
+        return final_companies[:limit]
     
     def _filter_unique_articles(self, results) -> List:
         """Filter out duplicate and similar articles."""
@@ -311,10 +375,10 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
                 {"query": f"This is an Austin AI company founded in {founded_year} that is part of the thriving Texas tech scene:", "type": "neural", "include_text": "Austin"},
                 {"query": f"Here's a Seattle AI startup from {founded_year} that is building innovative technology:", "type": "neural", "include_text": "Seattle"},
                 
-                # Accelerator and incubator with continuation prompting
-                {"query": f"Here is a Y Combinator AI startup from the {founded_year} batch that is solving important problems:", "type": "neural", "include_text": "Y Combinator"},
-                {"query": f"This is a Techstars AI company founded in {founded_year} that has innovative technology:", "type": "neural", "include_text": "Techstars"},
-                {"query": f"Here's a 500 Startups AI company from {founded_year} that is transforming their industry:", "type": "neural", "include_text": "500 Startups"},
+                # Research institution and university spinoffs (non-accelerator)
+                {"query": f"Here is an AI startup founded in {founded_year} that spun out of university research:", "type": "neural", "include_text": "university"},
+                {"query": f"This is an AI company established in {founded_year} that commercialized academic research:", "type": "neural", "include_text": "research"},
+                {"query": f"Here's an AI startup from {founded_year} that was founded by professors and researchers:", "type": "neural", "include_text": "professor"},
                 
                 # VC-specific continuation prompting
                 {"query": f"Here is an AI startup founded in {founded_year} that was backed by Andreessen Horowitz:", "type": "neural", "include_text": "Andreessen Horowitz"},
@@ -360,10 +424,68 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
                 # Stealth and emerging company prompting
                 {"query": f"Here is a stealth AI startup founded in {founded_year} that recently emerged from stealth mode:", "type": "neural", "include_text": "stealth mode"},
                 {"query": f"This is an emerging AI company from {founded_year} that is gaining attention in the tech industry:", "type": "neural", "include_text": "emerging"},
-                {"query": f"Here's a promising AI startup established in {founded_year} that is making waves in their sector:", "type": "neural", "include_text": "promising"}
+                {"query": f"Here's a promising AI startup established in {founded_year} that is making waves in their sector:", "type": "neural", "include_text": "promising"},
+                
+                # Additional regional hubs and tech scenes
+                {"query": f"Here is a Denver AI startup founded in {founded_year} that is part of Colorado's growing tech scene:", "type": "neural", "include_text": "Denver"},
+                {"query": f"This is a Miami AI company established in {founded_year} that is driving innovation in South Florida:", "type": "neural", "include_text": "Miami"},
+                {"query": f"Here's a Chicago AI startup from {founded_year} that is building cutting-edge technology in the Midwest:", "type": "neural", "include_text": "Chicago"},
+                {"query": f"This is a Portland AI company founded in {founded_year} that is part of Oregon's tech ecosystem:", "type": "neural", "include_text": "Portland"},
+                {"query": f"Here's a Nashville AI startup established in {founded_year} that is contributing to Tennessee's tech growth:", "type": "neural", "include_text": "Nashville"},
+                {"query": f"This is a Raleigh-Durham AI company from {founded_year} that benefits from North Carolina's research triangle:", "type": "neural", "include_text": "Raleigh"},
+                {"query": f"Here's an Atlanta AI startup founded in {founded_year} that is part of Georgia's thriving tech scene:", "type": "neural", "include_text": "Atlanta"},
+                
+                # Industry disruption and innovation themes
+                {"query": f"Here is an AI startup founded in {founded_year} that is disrupting traditional industries with machine learning:", "type": "neural", "include_text": "disrupting"},
+                {"query": f"This is an AI company established in {founded_year} that uses artificial intelligence to solve real-world problems:", "type": "neural", "include_text": "real-world"},
+                {"query": f"Here's an AI startup from {founded_year} that is pioneering new applications of deep learning technology:", "type": "neural", "include_text": "pioneering"},
+                {"query": f"This is an AI company founded in {founded_year} that is transforming business operations with intelligent automation:", "type": "neural", "include_text": "automation"},
+                {"query": f"Here's an AI startup established in {founded_year} that is creating innovative solutions for complex challenges:", "type": "neural", "include_text": "innovative solutions"},
+                
+                # Team and founder background themes
+                {"query": f"Here is an AI startup founded in {founded_year} by former Google and Microsoft engineers:", "type": "neural", "include_text": "former Google"},
+                {"query": f"This is an AI company established in {founded_year} by experienced entrepreneurs with deep technical expertise:", "type": "neural", "include_text": "experienced entrepreneurs"},
+                {"query": f"Here's an AI startup from {founded_year} founded by PhD researchers with industry experience:", "type": "neural", "include_text": "PhD researchers"},
+                {"query": f"This is an AI company founded in {founded_year} by a team of domain experts and technologists:", "type": "neural", "include_text": "domain experts"},
+                {"query": f"Here's an AI startup established in {founded_year} by serial entrepreneurs building their next company:", "type": "neural", "include_text": "serial entrepreneurs"},
+                
+                # Market opportunity and scale themes
+                {"query": f"Here is an AI startup founded in {founded_year} that is addressing a billion-dollar market opportunity:", "type": "neural", "include_text": "billion-dollar"},
+                {"query": f"This is an AI company established in {founded_year} that is building scalable solutions for enterprise customers:", "type": "neural", "include_text": "enterprise customers"},
+                {"query": f"Here's an AI startup from {founded_year} that is creating platform technology for multiple industries:", "type": "neural", "include_text": "platform technology"},
+                {"query": f"This is an AI company founded in {founded_year} that is developing infrastructure for the next generation of AI applications:", "type": "neural", "include_text": "infrastructure"},
+                {"query": f"Here's an AI startup established in {founded_year} that is building developer tools and APIs for AI integration:", "type": "neural", "include_text": "developer tools"},
+                
+                # Business model and go-to-market themes
+                {"query": f"Here is a B2B AI startup founded in {founded_year} that serves Fortune 500 companies:", "type": "neural", "include_text": "Fortune 500"},
+                {"query": f"This is a SaaS AI company established in {founded_year} that offers cloud-based artificial intelligence solutions:", "type": "neural", "include_text": "SaaS"},
+                {"query": f"Here's an AI-as-a-Service startup from {founded_year} that provides APIs and SDK for developers:", "type": "neural", "include_text": "API"},
+                {"query": f"This is an AI company founded in {founded_year} that operates on a subscription-based business model:", "type": "neural", "include_text": "subscription"},
+                {"query": f"Here's an AI marketplace startup established in {founded_year} that connects AI services with businesses:", "type": "neural", "include_text": "marketplace"},
+                
+                # Technology differentiation themes
+                {"query": f"Here is an AI startup founded in {founded_year} that developed proprietary algorithms for their domain:", "type": "neural", "include_text": "proprietary"},
+                {"query": f"This is an AI company established in {founded_year} that combines multiple AI techniques for superior performance:", "type": "neural", "include_text": "combines"},
+                {"query": f"Here's an AI startup from {founded_year} that uses cutting-edge research to build practical applications:", "type": "neural", "include_text": "cutting-edge research"},
+                {"query": f"This is an AI company founded in {founded_year} that has developed breakthrough technology in their field:", "type": "neural", "include_text": "breakthrough"},
+                {"query": f"Here's an AI startup established in {founded_year} that offers state-of-the-art AI capabilities to customers:", "type": "neural", "include_text": "state-of-the-art"},
+                
+                # Partnership and ecosystem themes
+                {"query": f"Here is an AI startup founded in {founded_year} that partners with major technology companies:", "type": "neural", "include_text": "partners"},
+                {"query": f"This is an AI company established in {founded_year} that integrates with existing enterprise software systems:", "type": "neural", "include_text": "integrates"},
+                {"query": f"Here's an AI startup from {founded_year} that collaborates with research institutions and universities:", "type": "neural", "include_text": "collaborates"},
+                {"query": f"This is an AI company founded in {founded_year} that works with government agencies and contractors:", "type": "neural", "include_text": "government"},
+                {"query": f"Here's an AI startup established in {founded_year} that is part of industry consortiums and standards bodies:", "type": "neural", "include_text": "consortium"},
+                
+                # Customer success and adoption themes
+                {"query": f"Here is an AI startup founded in {founded_year} that has achieved significant customer adoption:", "type": "neural", "include_text": "customer adoption"},
+                {"query": f"This is an AI company established in {founded_year} that has proven ROI for their enterprise clients:", "type": "neural", "include_text": "proven ROI"},
+                {"query": f"Here's an AI startup from {founded_year} that has case studies showing measurable business impact:", "type": "neural", "include_text": "case studies"},
+                {"query": f"This is an AI company founded in {founded_year} that has customers reporting significant cost savings:", "type": "neural", "include_text": "cost savings"},
+                {"query": f"Here's an AI startup established in {founded_year} that has testimonials from satisfied enterprise customers:", "type": "neural", "include_text": "testimonials"}
             ]
             
-            return queries[:45]  # Return optimized queries
+            return queries[:60]  # Return expanded set of diverse queries
     
     def _normalize_company_name(self, name: str) -> str:
         """Normalize company name for comparison."""
@@ -474,7 +596,8 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
             
             # If website provided, add site-specific search but as fallback only
             if website:
-                domain = website.replace("https://", "").replace("http://", "").replace("www.", "").split("/")[0]
+                website_str = str(website)  # Convert HttpUrl to string
+                domain = website_str.replace("https://", "").replace("http://", "").replace("www.", "").split("/")[0]
                 search_queries.append(f"{company_name} crunchbase site:{domain}")
             
             for query in search_queries:
@@ -856,7 +979,7 @@ If NO suitable early-stage startup found, return: null
             return None
     
     def _deduplicate_companies(self, companies: List[Company]) -> List[Company]:
-        """Enhanced deduplication with fuzzy matching and domain similarity."""
+        """Enhanced deduplication with fuzzy matching, domain similarity, and database checks."""
         if not companies:
             return []
         
@@ -869,17 +992,24 @@ If NO suitable early-stage startup found, return: null
             # Normalize company name for comparison
             normalized_name = self._normalize_company_name(company.name)
             
-            # Skip if name is too similar to existing ones
+            # Skip if name is too similar to existing ones in this batch
             if self._is_similar_name(normalized_name, seen_names):
                 continue
             
-            # Skip if domain is already seen
+            # Skip if domain is already seen in this batch
             if company.website and self._extract_domain(company.website) in seen_domains:
                 continue
             
-            # Skip if description is too similar (for cases where same company has different names)
+            # Skip if description is too similar in this batch
             if company.description and self._is_similar_description(company.description, seen_descriptions):
                 continue
+            
+            # Additional database-based deduplication if tracking is enabled
+            if settings.company_tracking_enabled:
+                is_duplicate, reason = company_tracker.is_duplicate_company(company, threshold_days=0)
+                if is_duplicate:
+                    logger.debug(f"Database duplicate found: {company.name} - {reason}")
+                    continue
             
             unique_companies.append(company)
             seen_names.add(normalized_name)

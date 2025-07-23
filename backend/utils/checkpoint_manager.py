@@ -316,7 +316,6 @@ class CheckpointedPipelineRunner:
                     row = {
                         'name': getattr(comp, 'name', ''),
                         'description': getattr(comp, 'description', ''),
-                        'short_description': getattr(comp, 'short_description', ''),
                         'founded_year': founded_year if founded_year is not None else '',
                         'funding_total_usd': getattr(comp, 'funding_total_usd', ''),
                         'funding_stage': getattr(comp, 'funding_stage', ''),
@@ -326,7 +325,6 @@ class CheckpointedPipelineRunner:
                         'city': getattr(comp, 'city', ''),
                         'region': getattr(comp, 'region', ''),
                         'country': getattr(comp, 'country', ''),
-                        'ai_focus': getattr(comp, 'ai_focus', ''),
                         'sector': getattr(comp, 'sector', ''),
                         'website': getattr(comp, 'website', ''),
                         'linkedin_url': getattr(comp, 'linkedin_url', ''),
@@ -553,7 +551,7 @@ class CheckpointedPipelineRunner:
         
         try:
             result = await pipeline_service.run(
-                limit=params.get('limit', 50),
+                limit=params.get('limit', settings.default_company_limit),
                 categories=params.get('categories'),
                 regions=params.get('regions'),
                 founded_after=params.get('founded_after'),

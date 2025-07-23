@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     checkpoint_enabled: bool = Field(True, env="CHECKPOINT_ENABLED")
     
     # Company Discovery - Global Early Stage Focus
-    default_company_limit: int = Field(50, env="DEFAULT_COMPANY_LIMIT")
+    default_company_limit: int = Field(1000, env="DEFAULT_COMPANY_LIMIT", description="Default limit for company discovery across all services")
     ai_categories: List[str] = Field(
         default=[
             "artificial intelligence",
@@ -79,6 +79,15 @@ class Settings(BaseSettings):
     
     # Market Analysis
     market_analysis_timeout: int = Field(60, env="MARKET_ANALYSIS_TIMEOUT")
+    
+    # Company Tracking Configuration
+    company_tracking_enabled: bool = Field(True, env="COMPANY_TRACKING_ENABLED")
+    company_tracking_db_path: Optional[Path] = Field(
+        None, 
+        env="COMPANY_TRACKING_DB_PATH"
+    )
+    duplicate_discovery_threshold_days: int = Field(30, env="DUPLICATE_DISCOVERY_THRESHOLD_DAYS")
+    max_tracking_retention_days: int = Field(365, env="MAX_TRACKING_RETENTION_DAYS")
     
     class Config:
         env_file = ".env"
