@@ -361,10 +361,6 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
             ]
             
             return queries[:45]  # Return more diverse queries
-        
-        # Non-year specific queries (similar enhancement)
-        else:
-            return self._generate_general_queries(categories, regions)
     
     def _normalize_company_name(self, name: str) -> str:
         """Normalize company name for comparison."""

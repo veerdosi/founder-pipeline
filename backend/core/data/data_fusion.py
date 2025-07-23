@@ -6,12 +6,13 @@ from dataclasses import dataclass, asdict
 from datetime import datetime
 import statistics
 
-from ...models import Company, EnrichedCompany
+from ...models import Company, EnrichedCompany, MarketMetrics
 
 import logging
 logger = logging.getLogger(__name__)
 from ..analysis.metrics_extraction import MetricsExtractor
 from ..analysis.sector_classification import sector_description_service
+from ..analysis.market_analysis import PerplexityMarketAnalysis
 from .crunchbase_integration import CrunchbaseService, CrunchbaseCompany
 
 
@@ -57,6 +58,9 @@ class FusedCompanyData:
     linkedin_url: Optional[str]
     crunchbase_url: Optional[str]
     
+    # Market analysis data
+    market_metrics: Optional[MarketMetrics]
+    
     # Data quality and confidence
     data_sources: List[str]
     data_quality_score: float
@@ -101,6 +105,7 @@ class DataFusionService:
         crunchbase_data = None
         enhanced_metrics = {}
         sector_description = None
+        market_metrics = None
         
         try:
             logger.info(f"🔄 Fusing data for {base_company.name}")
@@ -151,12 +156,32 @@ class DataFusionService:
                 logger.warning(f"Sector description failed for {base_company.name}: {e}")
                 sector_description = None
             
+            # Get market analysis metrics
+            try:
+                async with PerplexityMarketAnalysis() as market_analyzer:
+                    market_metrics = await asyncio.wait_for(
+                        market_analyzer.analyze_market(
+                            sector=base_company.sector or sector_description or "AI Software",
+                            year=base_company.founded_year or target_year or 2024,
+                            company_name=base_company.name
+                        ),
+                        timeout=60  # 60 second timeout for market analysis
+                    )
+                    logger.info(f"📊 Market analysis complete for {base_company.name}")
+            except asyncio.TimeoutError:
+                logger.warning(f"Market analysis timeout for {base_company.name}")
+                market_metrics = None
+            except Exception as e:
+                logger.warning(f"Market analysis failed for {base_company.name}: {e}")
+                market_metrics = None
+            
             # Fuse all data sources
             fused_data = self._fuse_data_sources(
                 base_company=base_company,
                 crunchbase_data=crunchbase_data,
                 enhanced_metrics=enhanced_metrics,
                 sector_description=sector_description,
+                market_metrics=market_metrics,
                 website_content=website_content,
                 additional_sources=additional_sources or {},
                 target_year=target_year
@@ -248,6 +273,11 @@ class DataFusionService:
         original_company.employee_count = fused_data.employee_count
         original_company.confidence_score = fused_data.confidence_score
         original_company.data_quality_score = fused_data.data_quality_score
+        original_company.market_metrics = fused_data.market_metrics
+        
+        # Update founding year with the researched year from market analysis
+        if fused_data.market_metrics and hasattr(fused_data.market_metrics, 'researched_founding_year') and fused_data.market_metrics.researched_founding_year:
+            original_company.founded_year = fused_data.market_metrics.researched_founding_year
         
         return original_company
     
@@ -258,6 +288,7 @@ class DataFusionService:
         crunchbase_data: Optional[CrunchbaseCompany],
         enhanced_metrics: Dict[str, Any],
         sector_description: Optional[str],
+        market_metrics: Optional[MarketMetrics],
         website_content: str,
         additional_sources: Dict[str, Any],
         target_year: Optional[int] = None
@@ -273,6 +304,8 @@ class DataFusionService:
             data_sources.append('website_extraction')
         if sector_description:
             data_sources.append('ai_classification')
+        if market_metrics:
+            data_sources.append('market_analysis')
         
         # Core company information (with conflict resolution)
         name = self._resolve_field(
@@ -406,6 +439,7 @@ class DataFusionService:
             headquarters_location=headquarters,
             linkedin_url=linkedin_url,
             crunchbase_url=crunchbase_url,
+            market_metrics=market_metrics,
             data_sources=data_sources,
             data_quality_score=data_quality_score,
             confidence_score=confidence_score,

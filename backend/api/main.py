@@ -733,21 +733,30 @@ async def generate_market_analysis(company_name: str):
         if not target_company:
             raise HTTPException(status_code=404, detail=f"Company '{company_name}' not found in latest results")
         
-        # Initialize market analysis service
-        market_analysis = PerplexityMarketAnalysis()
-        
-        # Get company sector and founded year
-        sector = target_company.ai_focus or target_company.sector or "artificial intelligence"
-        founded_year = target_company.founded_year or 2023
-        
-        # Generate market analysis
-        async with market_analysis:
-            metrics = await market_analysis.analyze_market(
-                sector=sector,
-                year=founded_year,
-                region="United States",
-                company_name=company_name
-            )
+        # Check if company already has pre-computed market metrics from data fusion
+        if target_company.market_metrics:
+            metrics = target_company.market_metrics
+            logger.info(f"📊 Using pre-computed market metrics for {company_name}")
+        else:
+            # Fall back to generating analysis if no pre-computed metrics
+            logger.info(f"📊 Generating new market analysis for {company_name}")
+            
+            # Initialize market analysis service
+            market_analysis = PerplexityMarketAnalysis()
+            
+            # Get company sector and founded year
+            sector = target_company.ai_focus or target_company.sector or "artificial intelligence"
+            founded_year = target_company.founded_year or 2023
+            
+            # Generate market analysis with full text analysis for reports
+            async with market_analysis:
+                metrics = await market_analysis.analyze_market(
+                    sector=sector,
+                    year=founded_year,
+                    region="United States",
+                    company_name=company_name,
+                    include_text_analysis=True  # Full analysis for reports
+                )
         
         # Format response to match frontend expectations (flat structure)
         analysis_data = {

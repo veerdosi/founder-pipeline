@@ -211,7 +211,8 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
         sector: str, 
         year: int,
         region: Optional[str] = None,
-        company_name: Optional[str] = None
+        company_name: Optional[str] = None,
+        include_text_analysis: bool = False
     ) -> MarketMetrics:
         """Analyze market metrics for a sector using Perplexity."""
         logger.info(f"📊 Analyzing market for {sector} ({year}) using Perplexity")
@@ -219,33 +220,42 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
         start_time = time.time()
         
         try:
-            # Run comprehensive analysis tasks with Perplexity
-            tasks = [
-                self._get_market_size_and_cagr_perplexity(sector, year, company_name),
-                self._get_timing_analysis_perplexity(sector, year, company_name),
-                self._get_regional_sentiment_perplexity(sector, year, "United States", company_name),
-                self._get_regional_sentiment_perplexity(sector, year, "Asia", company_name),
-                self._get_competitor_analysis_perplexity(sector, year, company_name),
-                self._get_comprehensive_market_overview(sector, year, company_name),
-                self._get_investment_and_regulatory_analysis(sector, year, company_name),
-                self._get_technology_and_trends_analysis(sector, year, company_name),
-                self._get_risks_and_recommendations(sector, year, company_name)
-            ]
+            # Get numerical metrics in a single API call (for data fusion/CSV)
+            metrics_data = await self._get_market_metrics_only(sector, year, company_name)
             
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+            # Extract the researched founding year and numerical data
+            researched_founding_year = metrics_data.get('founding_year', year)
+            market_data = metrics_data.get('market_data', {})
+            timing_data = metrics_data.get('timing_data', {})
+            us_sentiment = metrics_data.get('us_sentiment', 0.0)
+            asia_sentiment = metrics_data.get('asia_sentiment', 0.0)
+            competitor_data = metrics_data.get('competitor_data', {})
             
-            # Safely extract numerical results
-            market_data = results[0] if isinstance(results[0], dict) else {}
-            timing_data = results[1] if isinstance(results[1], dict) else {}
-            us_sentiment = results[2] if isinstance(results[2], (int, float)) else 0.0
-            asia_sentiment = results[3] if isinstance(results[3], (int, float)) else 0.0
-            competitor_data = results[4] if isinstance(results[4], dict) else {}
+            logger.info(f"📅 Researched founding year: {researched_founding_year} (will replace CSV data) for {company_name or sector}")
             
-            # Extract comprehensive text analysis
-            overview_data = results[5] if isinstance(results[5], dict) else {}
-            investment_data = results[6] if isinstance(results[6], dict) else {}
-            tech_data = results[7] if isinstance(results[7], dict) else {}
-            risk_data = results[8] if isinstance(results[8], dict) else {}
+            # For text analysis, only run separate calls when specifically requested
+            if include_text_analysis:
+                logger.info(f"📝 Generating detailed text analysis for {sector}")
+                # Run the detailed text analysis tasks using the researched founding year
+                text_tasks = [
+                    self._get_comprehensive_market_overview(sector, researched_founding_year, company_name),
+                    self._get_investment_and_regulatory_analysis(sector, researched_founding_year, company_name),
+                    self._get_technology_and_trends_analysis(sector, researched_founding_year, company_name),
+                    self._get_risks_and_recommendations(sector, researched_founding_year, company_name)
+                ]
+                
+                text_results = await asyncio.gather(*text_tasks, return_exceptions=True)
+                
+                overview_data = text_results[0] if isinstance(text_results[0], dict) else {}
+                investment_data = text_results[1] if isinstance(text_results[1], dict) else {}
+                tech_data = text_results[2] if isinstance(text_results[2], dict) else {}
+                risk_data = text_results[3] if isinstance(text_results[3], dict) else {}
+            else:
+                # Empty data for data fusion (metrics only)
+                overview_data = {}
+                investment_data = {}
+                tech_data = {}
+                risk_data = {}
 
             # Safely access and convert values, providing 0 as a default
             market_size = float(market_data.get("market_size", 0) or 0)
@@ -270,6 +280,9 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
             execution_time = time.time() - start_time
             
             metrics = MarketMetrics(
+                # Company and market context
+                researched_founding_year=researched_founding_year,
+                
                 # Numerical metrics
                 market_size_billion=market_size,
                 market_size_usd=market_size * 1_000_000_000,
@@ -318,6 +331,7 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
             logger.error(f"Error analyzing market for {sector}: {e}")
             # Return default metrics on failure
             return MarketMetrics(
+                researched_founding_year=year,  # Use fallback year
                 market_size_billion=0,
                 market_size_usd=0,
                 cagr_percent=0,
@@ -347,6 +361,190 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
                 strategic_recommendations="Strategic recommendations unavailable due to analysis failure."
             )
     
+    async def _get_market_metrics_only(self, sector: str, year: int, company_name: Optional[str] = None) -> Dict:
+        """Get only numerical market metrics in a single API call for data fusion."""
+        company_context = f" for companies like {company_name}" if company_name else ""
+        
+        prompt = f"""
+        First, research and find the actual founding year of {company_name if company_name else f"companies in the {sector} sector"}. Then analyze the {sector} market globally as it existed in that founding year.
+        
+        IMPORTANT: 
+        1. Search for the real founding year of the company
+        2. Analyze the market conditions, size, growth rate, and competitive landscape as they were specifically in that founding year, not current conditions
+        3. This is for understanding the market opportunity that existed when the company was founded
+        
+        Provide the founding year you found and the numerical market metrics in this exact JSON format:
+        
+        {{
+            "founding_year": 2019,
+            "market_data": {{
+                "market_size": 15.5,
+                "cagr": 12.5
+            }},
+            "timing_data": {{
+                "timing_score": 4.2
+            }},
+            "us_sentiment": 4.5,
+            "asia_sentiment": 4.0,
+            "competitor_data": {{
+                "competitor_count": 25,
+                "total_funding": 2.1,
+                "momentum_score": 4.0
+            }}
+        }}
+        
+        Guidelines:
+        - founding_year should be the actual year the company was founded (research this first)
+        - market_size should be in billions USD (total addressable market for that founding year)
+        - cagr should be projected growth percentage from that founding year
+        - timing_score should be 1-5 (5 being optimal timing for that founding year)
+        - us_sentiment and asia_sentiment should be 1-5 (5 being very positive for that year)
+        - competitor_count should be integer (competitors that existed in that founding year)
+        - total_funding should be in billions USD (total funding in sector for that year)
+        - momentum_score should be 1-5 (5 being highest momentum in that founding year)
+        
+        Do not include any text before or after the JSON. Focus only on accurate historical data for the actual founding year.
+        """
+        
+        try:
+            await self.rate_limiter.acquire()
+            
+            response = await self.perplexity_client.chat.completions.create(
+                model="sonar",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+            )
+            
+            content = response.choices[0].message.content
+            result = self._safe_json_parse(content)
+            
+            # Ensure all required keys exist with defaults
+            return {
+                'founding_year': result.get('founding_year', year),  # Use researched year or fallback
+                'market_data': result.get('market_data', {}),
+                'timing_data': result.get('timing_data', {}),
+                'us_sentiment': float(result.get('us_sentiment', 0.0) or 0.0),
+                'asia_sentiment': float(result.get('asia_sentiment', 0.0) or 0.0),
+                'competitor_data': result.get('competitor_data', {})
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting market metrics: {e}")
+            # Return empty structure on failure
+            return {
+                'founding_year': year,  # Use fallback year
+                'market_data': {},
+                'timing_data': {},
+                'us_sentiment': 0.0,
+                'asia_sentiment': 0.0,
+                'competitor_data': {}
+            }
+
+    async def _get_comprehensive_market_analysis(self, sector: str, year: int, company_name: Optional[str] = None) -> Dict:
+        """Get comprehensive market analysis in a single API call."""
+        company_context = f" with particular focus on opportunities for {company_name}" if company_name else ""
+        
+        prompt = f"""
+        Provide a comprehensive market analysis for the {sector} industry in {year}{company_context}.
+        
+        You MUST respond with ONLY a valid JSON object in this exact format:
+        {{
+            "market_data": {{
+                "market_size": 15.5,
+                "cagr": 12.5
+            }},
+            "timing_data": {{
+                "timing_score": 4.2,
+                "timing_analysis": "Detailed explanation of market timing and opportunity"
+            }},
+            "us_sentiment": 4.5,
+            "asia_sentiment": 4.0,
+            "competitor_data": {{
+                "competitor_count": 25,
+                "total_funding": 2.1,
+                "momentum_score": 4.0,
+                "competitive_landscape": "Detailed competitive analysis",
+                "major_players": ["Company 1", "Company 2", "Company 3", "Company 4", "Company 5"],
+                "barriers_to_entry": ["Barrier 1", "Barrier 2", "Barrier 3", "Barrier 4"]
+            }},
+            "overview_data": {{
+                "market_overview": "2-3 paragraph comprehensive market overview",
+                "market_size_analysis": "Detailed market size and segments analysis",
+                "growth_drivers": "Key factors driving market growth",
+                "regional_analysis": "Regional market dynamics and opportunities"
+            }},
+            "investment_data": {{
+                "investment_climate": "Current funding trends and investor sentiment",
+                "regulatory_environment": "Key regulations and compliance requirements",
+                "regulatory_changes": ["Change 1", "Change 2", "Change 3"]
+            }},
+            "tech_data": {{
+                "technology_trends": "Current and emerging technology trends",
+                "consumer_adoption": "Consumer behavior and adoption patterns",
+                "supply_chain_analysis": "Supply chain dynamics and dependencies",
+                "key_trends": ["Trend 1", "Trend 2", "Trend 3", "Trend 4", "Trend 5"],
+                "emerging_technologies": ["Tech 1", "Tech 2", "Tech 3", "Tech 4"]
+            }},
+            "risk_data": {{
+                "risk_assessment": "Comprehensive risk analysis and mitigation strategies",
+                "strategic_recommendations": "Actionable recommendations for market entry/scaling",
+                "opportunities": ["Opportunity 1", "Opportunity 2", "Opportunity 3", "Opportunity 4"],
+                "threats": ["Threat 1", "Threat 2", "Threat 3", "Threat 4"]
+            }}
+        }}
+        
+        Guidelines:
+        - market_size should be in billions USD (total addressable market)
+        - cagr should be percentage (e.g., 12.5 for 12.5%)
+        - timing_score should be 1-5 (5 being optimal timing)
+        - us_sentiment and asia_sentiment should be 1-5 (5 being very positive)
+        - competitor_count should be integer, total_funding in billions, momentum_score 1-5
+        - All text fields should be detailed and informative
+        - All arrays should contain relevant, specific items
+        
+        Do not include any text before or after the JSON.
+        """
+        
+        try:
+            await self.rate_limiter.acquire()
+            
+            response = await self.perplexity_client.chat.completions.create(
+                model="sonar",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+            )
+            
+            content = response.choices[0].message.content
+            result = self._safe_json_parse(content)
+            
+            # Ensure all required keys exist with defaults
+            return {
+                'market_data': result.get('market_data', {}),
+                'timing_data': result.get('timing_data', {}),
+                'us_sentiment': float(result.get('us_sentiment', 0.0) or 0.0),
+                'asia_sentiment': float(result.get('asia_sentiment', 0.0) or 0.0),
+                'competitor_data': result.get('competitor_data', {}),
+                'overview_data': result.get('overview_data', {}),
+                'investment_data': result.get('investment_data', {}),
+                'tech_data': result.get('tech_data', {}),
+                'risk_data': result.get('risk_data', {})
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in comprehensive market analysis: {e}")
+            # Return empty structure on failure
+            return {
+                'market_data': {},
+                'timing_data': {},
+                'us_sentiment': 0.0,
+                'asia_sentiment': 0.0,
+                'competitor_data': {},
+                'overview_data': {},
+                'investment_data': {},
+                'tech_data': {},
+                'risk_data': {}
+            }
+
     async def _get_market_size_and_cagr_perplexity(self, sector: str, year: int, company_name: Optional[str] = None) -> Optional[Dict]:
         """Get market size and CAGR using Perplexity, returning structured JSON."""
         company_context = f" for companies like {company_name}" if company_name else ""

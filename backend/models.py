@@ -59,6 +59,7 @@ class Company(BaseModel):
     extraction_date: Optional[datetime] = None
     confidence_score: float = Field(default=0.0, ge=0.0, le=1.0)
     data_quality_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    market_metrics: Optional["MarketMetrics"] = None
     
     class Config:
         json_encoders = {
@@ -159,6 +160,9 @@ class LinkedInProfile(BaseModel):
 
 class MarketMetrics(BaseModel):
     """Market analysis metrics."""
+    # Store researched founding year temporarily to update company data
+    researched_founding_year: Optional[int] = None
+    
     # Numerical metrics
     market_size_usd: Optional[float] = None
     market_size_billion: Optional[float] = None

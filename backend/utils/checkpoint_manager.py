@@ -82,11 +82,11 @@ class PipelineCheckpointManager:
                 logger.warning(f"⚠️ Invalid checkpoint metadata: {checkpoint_file} (expected job_id: {job_id}, stage: {stage})")
                 return None
             
-            # Check if checkpoint is too old (72 hours)
+            # Check if checkpoint is too old (15 days)
             checkpoint_timestamp = checkpoint.get('timestamp')
             if checkpoint_timestamp:
                 age = datetime.now() - checkpoint_timestamp
-                if age > timedelta(hours=72):
+                if age > timedelta(hours=360):
                     logger.warning(f"⚠️ Checkpoint expired (age: {age}): {checkpoint_file}")
                     return None
             
@@ -285,7 +285,11 @@ class CheckpointedPipelineRunner:
                 'name', 'description', 'short_description', 'founded_year',
                 'funding_total_usd', 'funding_stage', 'founders', 'investors',
                 'categories', 'city', 'region', 'country', 'ai_focus', 'sector',
-                'website', 'linkedin_url', 'crunchbase_url', 'source_url', 'extraction_date'
+                'website', 'linkedin_url', 'crunchbase_url', 'source_url', 'extraction_date',
+                # Market analysis metrics
+                'market_size_billion', 'cagr_percent', 'timing_score', 'competitor_count',
+                'market_stage', 'confidence_score_market', 'us_sentiment', 'sea_sentiment',
+                'total_funding_billion', 'momentum_score'
             ]
             
             with open(csv_path, 'w', newline='', encoding='utf-8') as csvfile:
@@ -306,6 +310,9 @@ class CheckpointedPipelineRunner:
                     if founded_year is None and target_year is not None:
                         founded_year = target_year
                     
+                    # Extract market metrics if available
+                    market_metrics = getattr(comp, 'market_metrics', None)
+                    
                     row = {
                         'name': getattr(comp, 'name', ''),
                         'description': getattr(comp, 'description', ''),
@@ -325,7 +332,18 @@ class CheckpointedPipelineRunner:
                         'linkedin_url': getattr(comp, 'linkedin_url', ''),
                         'crunchbase_url': getattr(comp, 'crunchbase_url', ''),
                         'source_url': getattr(comp, 'source_url', ''),
-                        'extraction_date': getattr(comp, 'extraction_date', '')
+                        'extraction_date': getattr(comp, 'extraction_date', ''),
+                        # Market analysis metrics
+                        'market_size_billion': getattr(market_metrics, 'market_size_billion', '') if market_metrics else '',
+                        'cagr_percent': getattr(market_metrics, 'cagr_percent', '') if market_metrics else '',
+                        'timing_score': getattr(market_metrics, 'timing_score', '') if market_metrics else '',
+                        'competitor_count': getattr(market_metrics, 'competitor_count', '') if market_metrics else '',
+                        'market_stage': getattr(market_metrics, 'market_stage', '') if market_metrics else '',
+                        'confidence_score_market': getattr(market_metrics, 'confidence_score', '') if market_metrics else '',
+                        'us_sentiment': getattr(market_metrics, 'us_sentiment', '') if market_metrics else '',
+                        'sea_sentiment': getattr(market_metrics, 'sea_sentiment', '') if market_metrics else '',
+                        'total_funding_billion': getattr(market_metrics, 'total_funding_billion', '') if market_metrics else '',
+                        'momentum_score': getattr(market_metrics, 'momentum_score', '') if market_metrics else ''
                     }
                     writer.writerow(row)
             
