@@ -139,6 +139,11 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
                 if time_filter:
                     search_params["start_published_date"] = time_filter
                 
+                # Add include_text filter for hybrid neural-keyword filtering
+                include_text = query_config.get("include_text")
+                if include_text:
+                    search_params["include_text"] = [include_text]
+                
                 try:
                     print(f"   📡 Executing {search_type} search...")
                     result = self.exa.search_and_contents(**search_params)
@@ -274,7 +279,7 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
         regions: Optional[List[str]] = None,
         founded_year: Optional[int] = None
     ) -> List[dict]:
-        """Generate diverse search queries with different types and filters."""
+        """Generate diverse search queries using Exa's neural search best practices."""
         
         if founded_year:
             logger.info(f"🇺🇸 Generating diverse US-focused queries for companies founded in {founded_year}")
@@ -283,84 +288,82 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
             current_year = datetime.now().year
             
             queries = [
-                # Recent funding announcements - neural search
-                {"query": f"US AI startups founded {founded_year} seed funding announcement", "type": "neural"},
-                {"query": f"American artificial intelligence companies {founded_year} Series A", "type": "neural"},
-                {"query": f"Silicon Valley AI startups {founded_year} venture capital", "type": "neural"},
+                # Continuation prompting for neural search - most effective for finding specific companies
+                {"query": f"Here is a cutting-edge AI startup that was founded in {founded_year} and is building innovative solutions:", "type": "neural"},
+                {"query": f"This is an American artificial intelligence company founded in {founded_year} that recently raised funding:", "type": "neural"},
+                {"query": f"Here's an innovative AI startup that launched in {founded_year} and is transforming their industry:", "type": "neural"},
+                {"query": f"This Silicon Valley AI company was founded in {founded_year} and is solving complex problems with machine learning:", "type": "neural"},
                 
-                # Keyword search for specific terms
-                {"query": f"AI startup {founded_year} United States funding", "type": "keyword"},
-                {"query": f"machine learning company {founded_year} America investment", "type": "keyword"},
-                {"query": f"artificial intelligence {founded_year} US Series A", "type": "keyword"},
+                # Long-form contextual prompting for better targeting
+                {"query": f"Here is a promising AI startup founded in {founded_year} in the United States that has developed groundbreaking technology and recently secured venture capital funding from top-tier investors:", "type": "neural"},
+                {"query": f"This is an emerging artificial intelligence company that was established in {founded_year}, is based in America, and is building innovative solutions that are disrupting traditional industries:", "type": "neural"},
+                {"query": f"Here's a new AI company founded in {founded_year} that combines cutting-edge machine learning with practical applications and has attracted significant investor interest:", "type": "neural"},
                 
-                # Time-filtered recent news
-                {"query": f"AI companies founded {founded_year} funding news", "type": "neural", 
-                 "time_filter": f"{current_year-1}-01-01"},
-                {"query": f"American AI startups {founded_year} investment", "type": "neural",
-                 "time_filter": f"{current_year-1}-01-01"},
+                # Hybrid neural-keyword with includeText filtering
+                {"query": f"Here is an AI startup that was founded in {founded_year} and is developing revolutionary technology:", "type": "neural", "include_text": f"founded {founded_year}"},
+                {"query": f"This is a machine learning company established in {founded_year} that is changing the industry:", "type": "neural", "include_text": f"founded {founded_year}"},
+                {"query": f"Here's an artificial intelligence startup from {founded_year} that has innovative solutions:", "type": "neural", "include_text": f"established {founded_year}"},
                 
-                # Geographic diversity
-                {"query": f"San Francisco AI startups {founded_year} Bay Area", "type": "neural"},
-                {"query": f"New York AI companies {founded_year} NYC tech", "type": "neural"},
-                {"query": f"Boston AI startups {founded_year} Cambridge MIT", "type": "neural"},
-                {"query": f"Austin AI companies {founded_year} Texas tech", "type": "neural"},
-                {"query": f"Seattle AI startups {founded_year} Washington", "type": "neural"},
-                {"query": f"Los Angeles AI companies {founded_year} California", "type": "neural"},
-                {"query": f"Chicago AI startups {founded_year} Illinois", "type": "neural"},
-                {"query": f"Denver AI companies {founded_year} Colorado tech", "type": "neural"},
+                # Geographic-specific continuation prompting
+                {"query": f"Here is a San Francisco AI startup founded in {founded_year} that is building the future of technology:", "type": "neural", "include_text": "San Francisco"},
+                {"query": f"This is a New York AI company that was founded in {founded_year} and is revolutionizing their market:", "type": "neural", "include_text": "New York"},
+                {"query": f"Here's a Boston AI startup established in {founded_year} near MIT that is developing cutting-edge solutions:", "type": "neural", "include_text": "Boston"},
+                {"query": f"This is an Austin AI company founded in {founded_year} that is part of the thriving Texas tech scene:", "type": "neural", "include_text": "Austin"},
+                {"query": f"Here's a Seattle AI startup from {founded_year} that is building innovative technology:", "type": "neural", "include_text": "Seattle"},
                 
-                # Accelerator and incubator specific
-                {"query": f"Y Combinator AI batch {founded_year} demo day", "type": "keyword"},
-                {"query": f"Techstars AI companies {founded_year} accelerator", "type": "keyword"},
-                {"query": f"500 Startups AI batch {founded_year}", "type": "keyword"},
-                {"query": f"Plug and Play AI startups {founded_year}", "type": "keyword"},
-                {"query": f"AngelList AI companies {founded_year}", "type": "keyword"},
+                # Accelerator and incubator with continuation prompting
+                {"query": f"Here is a Y Combinator AI startup from the {founded_year} batch that is solving important problems:", "type": "neural", "include_text": "Y Combinator"},
+                {"query": f"This is a Techstars AI company founded in {founded_year} that has innovative technology:", "type": "neural", "include_text": "Techstars"},
+                {"query": f"Here's a 500 Startups AI company from {founded_year} that is transforming their industry:", "type": "neural", "include_text": "500 Startups"},
                 
-                # VC-specific searches
-                {"query": f"Andreessen Horowitz AI investments {founded_year}", "type": "keyword"},
-                {"query": f"Sequoia Capital AI startups {founded_year}", "type": "keyword"},
-                {"query": f"Google Ventures AI companies {founded_year}", "type": "keyword"},
-                {"query": f"Kleiner Perkins AI startups {founded_year}", "type": "keyword"},
-                {"query": f"Accel Partners AI investments {founded_year}", "type": "keyword"},
+                # VC-specific continuation prompting
+                {"query": f"Here is an AI startup founded in {founded_year} that was backed by Andreessen Horowitz:", "type": "neural", "include_text": "Andreessen Horowitz"},
+                {"query": f"This is an AI company from {founded_year} that received funding from Sequoia Capital:", "type": "neural", "include_text": "Sequoia Capital"},
+                {"query": f"Here's an AI startup established in {founded_year} that was invested in by Google Ventures:", "type": "neural", "include_text": "Google Ventures"},
                 
-                # Industry verticals
-                {"query": f"healthcare AI startups {founded_year} United States", "type": "neural"},
-                {"query": f"fintech AI companies {founded_year} American", "type": "neural"},
-                {"query": f"enterprise AI startups {founded_year} B2B US", "type": "neural"},
-                {"query": f"consumer AI apps {founded_year} American B2C", "type": "neural"},
-                {"query": f"autonomous vehicle AI {founded_year} US self-driving", "type": "neural"},
-                {"query": f"cybersecurity AI startups {founded_year} American", "type": "neural"},
-                {"query": f"robotics AI companies {founded_year} US automation", "type": "neural"},
-                {"query": f"drug discovery AI {founded_year} American biotech", "type": "neural"},
+                # Industry vertical continuation prompting
+                {"query": f"Here is a healthcare AI startup founded in {founded_year} that is revolutionizing medical technology:", "type": "neural", "include_text": "healthcare AI"},
+                {"query": f"This is a fintech AI company established in {founded_year} that is transforming financial services:", "type": "neural", "include_text": "fintech AI"},
+                {"query": f"Here's an enterprise AI startup from {founded_year} that is helping businesses automate processes:", "type": "neural", "include_text": "enterprise AI"},
+                {"query": f"This is a consumer AI company founded in {founded_year} that is building products for everyday users:", "type": "neural", "include_text": "consumer AI"},
+                {"query": f"Here's an autonomous vehicle AI startup established in {founded_year} that is developing self-driving technology:", "type": "neural", "include_text": "autonomous vehicle"},
                 
-                # University spinoffs
-                {"query": f"Stanford AI startup {founded_year} university", "type": "keyword"},
-                {"query": f"MIT AI company {founded_year} research", "type": "keyword"},
-                {"query": f"Carnegie Mellon AI startup {founded_year} CMU", "type": "keyword"},
-                {"query": f"UC Berkeley AI company {founded_year}", "type": "keyword"},
-                {"query": f"Harvard AI startup {founded_year}", "type": "keyword"},
+                # Technology-specific continuation prompting
+                {"query": f"Here is a generative AI startup founded in {founded_year} that is creating innovative content generation tools:", "type": "neural", "include_text": "generative AI"},
+                {"query": f"This is a computer vision company established in {founded_year} that is advancing visual recognition technology:", "type": "neural", "include_text": "computer vision"},
+                {"query": f"Here's a natural language processing startup from {founded_year} that is improving human-computer interaction:", "type": "neural", "include_text": "natural language processing"},
+                {"query": f"This is a robotics AI company founded in {founded_year} that is building intelligent automation systems:", "type": "neural", "include_text": "robotics AI"},
                 
-                # Alternative search terms
-                {"query": f"generative AI startup {founded_year} United States", "type": "neural"},
-                {"query": f"computer vision company {founded_year} American", "type": "neural"},
-                {"query": f"natural language processing startup {founded_year} US", "type": "neural"},
-                {"query": f"deep learning company {founded_year} America", "type": "neural"},
-                {"query": f"AI infrastructure startup {founded_year} US cloud", "type": "neural"},
-                {"query": f"AI developer tools {founded_year} American programming", "type": "neural"},
+                # University spinoff continuation prompting
+                {"query": f"Here is a Stanford AI startup founded in {founded_year} that commercialized university research:", "type": "neural", "include_text": "Stanford"},
+                {"query": f"This is an MIT AI company established in {founded_year} that emerged from academic research:", "type": "neural", "include_text": "MIT"},
+                {"query": f"Here's a Carnegie Mellon AI startup from {founded_year} that spun out of CMU research:", "type": "neural", "include_text": "Carnegie Mellon"},
                 
-                # Recent news angles
-                {"query": f"emerging AI companies {founded_year} United States", "type": "neural"},
-                {"query": f"AI unicorn startup {founded_year} American billion", "type": "neural"},
-                {"query": f"stealth AI company {founded_year} US launch", "type": "neural"},
-                {"query": f"AI acquisition {founded_year} American startup", "type": "neural"},
+                # Funding stage continuation prompting with time filters
+                {"query": f"Here is an AI startup founded in {founded_year} that recently completed a seed funding round:", "type": "neural", 
+                 "time_filter": f"{current_year-1}-01-01", "include_text": "seed funding"},
+                {"query": f"This is an AI company from {founded_year} that just raised a Series A investment:", "type": "neural",
+                 "time_filter": f"{current_year-1}-01-01", "include_text": "Series A"},
+                {"query": f"Here's an AI startup established in {founded_year} that announced new venture capital funding:", "type": "neural",
+                 "time_filter": f"{current_year-1}-01-01", "include_text": "venture capital"},
                 
-                # Product launches and announcements
-                {"query": f"AI product launch {founded_year} American startup", "type": "neural"},
-                {"query": f"AI beta launch {founded_year} US company", "type": "neural"},
-                {"query": f"AI platform launch {founded_year} American", "type": "neural"}
+                # Keyword search for exact matches (fallback)
+                {"query": f"AI startup founded {founded_year} United States funding", "type": "keyword"},
+                {"query": f"artificial intelligence company established {founded_year} America", "type": "keyword"},
+                {"query": f"machine learning startup {founded_year} US investment", "type": "keyword"},
+                
+                # Product and launch-focused continuation prompting
+                {"query": f"Here is an AI startup founded in {founded_year} that recently launched their innovative product:", "type": "neural", "include_text": "product launch"},
+                {"query": f"This is an AI company from {founded_year} that announced their beta release:", "type": "neural", "include_text": "beta launch"},
+                {"query": f"Here's an AI startup established in {founded_year} that unveiled their platform:", "type": "neural", "include_text": "platform launch"},
+                
+                # Stealth and emerging company prompting
+                {"query": f"Here is a stealth AI startup founded in {founded_year} that recently emerged from stealth mode:", "type": "neural", "include_text": "stealth mode"},
+                {"query": f"This is an emerging AI company from {founded_year} that is gaining attention in the tech industry:", "type": "neural", "include_text": "emerging"},
+                {"query": f"Here's a promising AI startup established in {founded_year} that is making waves in their sector:", "type": "neural", "include_text": "promising"}
             ]
             
-            return queries[:45]  # Return more diverse queries
+            return queries[:45]  # Return optimized queries
     
     def _normalize_company_name(self, name: str) -> str:
         """Normalize company name for comparison."""
