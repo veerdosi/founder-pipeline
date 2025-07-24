@@ -83,7 +83,7 @@ class InitiationPipeline:
                 return cached_data
 
         console.print("🔍 Discovering companies...")
-        companies = await self.company_discovery.discover_companies(
+        companies = await self.company_discovery.find_companies(
             limit=limit,
             categories=categories,
             regions=regions,

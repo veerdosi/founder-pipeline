@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 from ..analysis.metrics_extraction import MetricsExtractor
 from ..analysis.sector_classification import sector_description_service
 from ..analysis.market_analysis import PerplexityMarketAnalysis
+from .crunchbase_integration import CrunchbaseService, CrunchbaseCompany
+
 
 logger = logging.getLogger(__name__)
 
@@ -99,14 +101,33 @@ class DataFusionService:
         additional_sources: Optional[Dict[str, Any]] = None,
         target_year: Optional[int] = None
     ) -> FusedCompanyData:
-        """Fuse data from multiple sources to create comprehensive company profile (without Crunchbase)."""
+        """Fuse data from multiple sources to create comprehensive company profile."""
+        crunchbase_data = None
         enhanced_metrics = {}
         sector_description = None
         market_metrics = None
         
         try:
             logger.info(f"🔄 Fusing data for {base_company.name}")
-                        
+            
+            # Get crunchbase data with proper session management
+            try:
+                async with CrunchbaseService() as cb_service:
+                    crunchbase_data = await asyncio.wait_for(
+                        cb_service.enrich_existing_company(
+                            base_company.name, 
+                            str(base_company.website) if base_company.website else None,
+                            base_company.crunchbase_url  # Pass existing Crunchbase URL if available
+                        ),
+                        timeout=30  # 30 second timeout for crunchbase
+                    )
+            except asyncio.TimeoutError:
+                logger.warning(f"Crunchbase lookup timeout for {base_company.name}")
+                crunchbase_data = None
+            except Exception as e:
+                logger.warning(f"Crunchbase lookup failed for {base_company.name}: {e}")
+                crunchbase_data = None
+            
             # Get enhanced metrics
             try:
                 if website_content:
@@ -154,9 +175,10 @@ class DataFusionService:
                 logger.warning(f"Market analysis failed for {base_company.name}: {e}")
                 market_metrics = None
             
-            # Fuse all data sources (without Crunchbase)
+            # Fuse all data sources
             fused_data = self._fuse_data_sources(
                 base_company=base_company,
+                crunchbase_data=crunchbase_data,
                 enhanced_metrics=enhanced_metrics,
                 sector_description=sector_description,
                 market_metrics=market_metrics,
@@ -263,6 +285,7 @@ class DataFusionService:
     def _fuse_data_sources(
         self,
         base_company: Company,
+        crunchbase_data: Optional[CrunchbaseCompany],
         enhanced_metrics: Dict[str, Any],
         sector_description: Optional[str],
         market_metrics: Optional[MarketMetrics],
@@ -272,8 +295,11 @@ class DataFusionService:
     ) -> FusedCompanyData:
         """Fuse data from multiple sources using intelligent conflict resolution."""
         
-        data_sources = ['exa_websets']  # Base company from enriched websets
+        # Track data sources used
+        data_sources = ['exa']  # Base company always from Exa
         
+        if crunchbase_data:
+            data_sources.append('crunchbase')
         if enhanced_metrics:
             data_sources.append('website_extraction')
         if sector_description:
@@ -281,13 +307,29 @@ class DataFusionService:
         if market_metrics:
             data_sources.append('market_analysis')
         
-        # Core company information (simplified without Crunchbase conflict resolution)
-        name = base_company.name
-        description = base_company.description
-        website = str(base_company.website) if base_company.website else None
+        # Core company information (with conflict resolution)
+        name = self._resolve_field(
+            [base_company.name, crunchbase_data.name if crunchbase_data else None],
+            ['exa', 'crunchbase']
+        )
         
-        # Founded year with target year fallback
-        founded_year = base_company.founded_year
+        description = self._resolve_field(
+            [base_company.description, crunchbase_data.description if crunchbase_data else None],
+            ['exa', 'crunchbase']
+        )
+        
+        website = self._resolve_field(
+            [str(base_company.website) if base_company.website else None, 
+             crunchbase_data.website if crunchbase_data else None],
+            ['exa', 'crunchbase']
+        )
+        
+        # Founded year with validation and target year fallback
+        founded_year_candidates = [
+            base_company.founded_year, 
+            int(crunchbase_data.founded_date.split('-')[0]) if crunchbase_data and crunchbase_data.founded_date else None
+        ]
+        founded_year = self._resolve_numeric_field(founded_year_candidates, ['exa', 'crunchbase'])
         
         # Use target_year as fallback if no founded_year found from data sources
         if founded_year is None and target_year is not None:

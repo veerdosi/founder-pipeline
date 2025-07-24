@@ -10,15 +10,13 @@ class CompanyDiscoveryService(ABC):
     """Abstract base class for company discovery services."""
     
     @abstractmethod
-    async def discover_companies(
+    async def find_companies(
         self, 
         limit: int = 50,
         categories: Optional[List[str]] = None,
-        regions: Optional[List[str]] = None,
-        sources: Optional[List[str]] = None,
-        founded_year: Optional[int] = None
+        regions: Optional[List[str]] = None
     ) -> List[Company]:
-        """Discover AI companies based on criteria."""
+        """Find AI companies based on criteria."""
         pass
 
 

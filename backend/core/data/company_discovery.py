@@ -9,6 +9,7 @@ import re
 from dataclasses import dataclass
 
 from exa_py import Exa
+from openai import AsyncOpenAI
 
 from .. import (
     CompanyDiscoveryService, 
@@ -53,618 +54,313 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
     
     def __init__(self):
         self.exa = Exa(settings.exa_api_key)
+        self.openai = AsyncOpenAI(api_key=settings.openai_api_key)
         self.rate_limiter = RateLimiter(
             max_requests=settings.requests_per_minute * 2,
             time_window=60
         )
         self.session: Optional[aiohttp.ClientSession] = None
-        # Webset management
-        self.created_websets = {}  # Store webset IDs by category
-        self.webset_polling_active = False
+        # Track processed articles globally to avoid duplicates across queries
+        self.processed_urls = set()
+        self.processed_titles = set()  # Track similar titles
     
     async def discover_companies(
         self,
         limit: int = 50,
         categories: Optional[List[str]] = None,
         regions: Optional[List[str]] = None,
-        sources: Optional[List[str]] = None,
-        founded_year: Optional[int] = None
+        sources: Optional[List[str]] = None
     ) -> List[Company]:
-        """Discover companies using Exa websets for maximum coverage and quality."""
-        logger.info(f"🚀 Starting webset-powered discovery: {limit} companies...")
+        """Discover companies using comprehensive 20+ source monitoring."""
+        logger.info(f"🚀 Starting discovery: {limit} companies from 20+ sources...")
         
-        if not settings.webset_enabled:
-            raise ValueError("Websets are disabled. Enable websets in configuration to use company discovery.")
+        # Reset tracking for each discovery session
+        self.processed_urls.clear()
+        self.processed_titles.clear()
         
-        companies = await self._discover_companies_via_websets(
+        companies = await self.find_companies(
             limit=limit,
             categories=categories,
-            regions=regions,
-            founded_year=founded_year
+            regions=regions
         )
         
-        logger.info(f"✅ Webset discovery complete: {len(companies)} companies found")
+        logger.info(f"✅ Comprehensive discovery complete: {len(companies)} companies")
         return companies
     
-    async def _discover_companies_via_websets(
-        self,
+    async def find_companies(
+        self, 
         limit: int = 50,
         categories: Optional[List[str]] = None,
         regions: Optional[List[str]] = None,
         founded_year: Optional[int] = None
     ) -> List[Company]:
-        """Discover companies using the webset workflow."""
+        """Find AI companies using Exa search with enhanced uniqueness."""
         start_time = time.time()
-        logger.info(f"🔍 Starting webset discovery for {limit} companies...")
+        year_context = f" (founded in {founded_year})" if founded_year else ""
+        logger.info(f"🔍 Finding {limit} AI companies with Exa{year_context}...")
         
-        try:
-            # Step 1: Create websets for different categories
-            webset_ids = await self._create_websets(
-                categories=categories,
-                founded_year=founded_year
-            )
-            
-            if not webset_ids:
-                logger.error("No websets created - cannot proceed with discovery")
-                raise RuntimeError("Failed to create websets for company discovery")
-            
-            # Step 2: Wait for websets to populate (websets are asynchronous)
-            logger.info("⏳ Waiting for websets to populate...")
-            print("⏳ Waiting for websets to populate...")
-            await asyncio.sleep(10)  # Give websets time to find items
-            
-            # Step 3: Poll webset items
-            webset_items = await self._poll_webset_items(
-                webset_ids=webset_ids,
-                limit=limit * 2  # Get more items for better filtering
-            )
-            
-            if not webset_items:
-                logger.error("No items found in websets after waiting")
-                raise RuntimeError("Websets did not return any items for processing")
-            
-            # Step 4: Process webset items to extract companies
-            logger.info(f"🔄 Processing {len(webset_items)} webset items...")
-            print(f"🔄 Processing {len(webset_items)} webset items...")
-            
-            all_companies = []
-            
-            for i, item in enumerate(webset_items):
-                try:
-                    print(f"   📄 [{i+1}/{len(webset_items)}] Processing: {item.title[:50]}...")
-                    
-                    # Use enrichment processing if available
-                    company = await self._process_webset_enrichments(
-                        webset_item=item,
-                        target_year=founded_year
-                    )
-                    
-                    if company:
-                        all_companies.append(company)
-                        print(f"   ✅ {company.name}")
-                        logger.info(f"  ✅ {company.name}")
-                
-                except Exception as e:
-                    logger.debug(f"Failed to process webset item {item.url}: {e}")
-                    continue
-            
-            # Step 5: Setup monitors for continuous updates (optional)
-            if settings.webset_monitoring_enabled:
-                try:
-                    monitor_ids = await self._setup_webset_monitors(
-                        webset_ids=webset_ids,
-                        founded_year=founded_year
-                    )
-                    if monitor_ids:
-                        logger.info(f"📅 Setup continuous monitoring for {len(monitor_ids)} websets")
-                        print(f"📅 Setup continuous monitoring for {len(monitor_ids)} websets")
-                except Exception as e:
-                    logger.warning(f"Failed to setup webset monitors: {e}")
-            
-            elapsed_time = time.time() - start_time
-            logger.info(f"✅ Webset discovery complete: {len(all_companies)} companies ({elapsed_time:.1f}s)")
-            print(f"✅ Webset discovery complete: {len(all_companies)} companies ({elapsed_time:.1f}s)")
-            
-            return all_companies[:limit]
-            
-        except Exception as e:
-            logger.error(f"Error in webset discovery: {e}")
-            print(f"❌ Webset discovery failed: {e}")
-            raise RuntimeError(f"Webset discovery failed: {e}") from e
-    
-    
-    async def _create_websets(
-        self, 
-        categories: Optional[List[str]] = None,
-        founded_year: Optional[int] = None
-    ) -> Dict[str, str]:
-        """Create websets for different AI company categories using Exa Websets API."""
-        logger.info("🔧 Creating websets for AI company discovery...")
+        categories = categories or settings.ai_categories
         
-        if not settings.webset_enabled:
-            logger.info("Websets disabled, falling back to traditional search")
-            return {}
+        # Generate more diverse search queries
+        queries = self._generate_diverse_search_queries(categories, regions, founded_year)
+        logger.info(f"📝 Running {len(queries)} diverse search queries...")
         
-        created_websets = {}
+        all_companies = []
+        # Reduce results per query but increase query diversity
+        results_per_query = max(8, (limit * 2) // len(queries))
         
-        # Get search categories from settings or filter by provided categories
-        search_categories = settings.webset_search_categories
-        if categories:
-            # Filter to only requested categories
-            search_categories = [
-                cat for cat in search_categories 
-                if any(req_cat.lower() in cat["name"].lower() for req_cat in categories)
-            ]
-        
-        for category_config in search_categories:
+        # Execute searches with staggered timing and different parameters
+        for i, query_config in enumerate(queries):
+            query = query_config["query"]
+            search_type = query_config.get("type", "neural")
+            time_filter = query_config.get("time_filter")
+            
+            logger.info(f"🔍 [{i+1}/{len(queries)}] {query[:50]}...")
+            print(f"🔍 [{i+1}/{len(queries)}] Searching: {query[:50]}...")
+            
             try:
-                category_name = category_config["name"]
-                base_query = category_config["query"]
-                count = category_config["count"]
+                await self.rate_limiter.acquire()
                 
-                # Modify query if specific founded year is requested
-                if founded_year:
-                    query = f"{base_query} founded in {founded_year} OR established {founded_year} OR started {founded_year}"
-                else:
-                    query = base_query
+                # Add small delay between queries to get different results
+                if i > 0:
+                    await asyncio.sleep(0.5)
                 
-                logger.info(f"📝 Creating webset for {category_name}: {query[:80]}...")
-                
-                # Prepare webset creation parameters
-                webset_params = {
-                    "search": {
-                        "query": query,
-                        "count": min(count, settings.webset_max_items_per_webset)
-                    }
+                # Perform search with varied parameters
+                search_params = {
+                    "query": query,
+                    "type": search_type,
+                    "use_autoprompt": True,
+                    "num_results": results_per_query,
+                    "text": {"max_characters": 2000},
+                    "include_domains": self._get_diverse_domains(i)
                 }
                 
-                # Add enrichments if enabled
-                if settings.webset_enrichment_enabled and settings.webset_enrichments:
-                    webset_params["enrichments"] = []
-                    for enrichment_config in settings.webset_enrichments:
-                        webset_params["enrichments"].append({
-                            "description": enrichment_config["description"],
-                            "format": enrichment_config["format"]
-                        })
+                # Add time filter if specified
+                if time_filter:
+                    search_params["start_published_date"] = time_filter
                 
-                # Add external ID for tracking
-                webset_params["externalId"] = f"ai_discovery_{category_name}_{founded_year or 'all'}"
-                
-                await self.rate_limiter.acquire()
-                
-                # Create webset using Exa API
-                webset = self.exa.websets.create(params=webset_params)
-                
-                if webset and hasattr(webset, 'id'):
-                    webset_id = webset.id
-                    created_websets[category_name] = webset_id
-                    logger.info(f"✅ Created webset {category_name}: {webset_id}")
-                    print(f"✅ Created webset {category_name}: {webset_id}")
-                else:
-                    logger.warning(f"Failed to create webset for {category_name}")
-                    print(f"⚠️ Failed to create webset for {category_name}")
-                
-                # Small delay between creations
-                await asyncio.sleep(1)
-                
-            except Exception as e:
-                logger.error(f"Error creating webset for {category_name}: {e}")
-                print(f"❌ Error creating webset for {category_name}: {e}")
-                continue
-        
-        # Store created websets for later polling
-        self.created_websets.update(created_websets)
-        
-        logger.info(f"🎯 Created {len(created_websets)} websets: {list(created_websets.keys())}")
-        print(f"🎯 Created {len(created_websets)} websets: {list(created_websets.keys())}")
-        
-        return created_websets
-    
-    async def _poll_webset_items(
-        self, 
-        webset_ids: Optional[Dict[str, str]] = None,
-        limit: int = 50
-    ) -> List[Any]:
-        """Poll webset items from created websets and return articles for processing."""
-        logger.info("📡 Polling webset items...")
-        
-        if not webset_ids:
-            webset_ids = self.created_websets
-        
-        if not webset_ids:
-            logger.warning("No websets available for polling")
-            return []
-        
-        all_items = []
-        items_per_webset = max(1, limit // len(webset_ids))
-        
-        for category_name, webset_id in webset_ids.items():
-            try:
-                logger.info(f"📊 Polling webset {category_name} ({webset_id})")
-                print(f"📊 Polling webset {category_name} ({webset_id})")
-                
-                await self.rate_limiter.acquire()
-                
-                # Get webset items using Exa API
-                webset_items = self.exa.websets.get_items(
-                    webset_id=webset_id,
-                    limit=items_per_webset
-                )
-                
-                if webset_items and hasattr(webset_items, 'items'):
-                    items = webset_items.items
-                    logger.info(f"  📄 Retrieved {len(items)} items from {category_name}")
-                    print(f"  📄 Retrieved {len(items)} items from {category_name}")
+                try:
+                    print(f"   📡 Executing {search_type} search...")
+                    result = self.exa.search_and_contents(**search_params)
                     
-                    # Convert webset items to format compatible with existing extraction logic
-                    for item in items:
-                        # Create a structure similar to Exa search results
-                        converted_item = type('WebsetItem', (), {
-                            'title': getattr(item, 'title', ''),
-                            'url': getattr(item, 'url', ''),
-                            'text': getattr(item, 'text', ''),
-                            'published_date': getattr(item, 'published_date', None),
-                            'enrichments': getattr(item, 'enrichments', {}),
-                            'category': category_name  # Add category for tracking
-                        })()
-                        
-                        all_items.append(converted_item)
-                else:
-                    logger.warning(f"No items found in webset {category_name}")
-                    print(f"⚠️ No items found in webset {category_name}")
-                
-                # Small delay between webset polls
-                await asyncio.sleep(0.5)
-                
-            except Exception as e:
-                logger.error(f"Error polling webset {category_name} ({webset_id}): {e}")
-                print(f"❌ Error polling webset {category_name}: {e}")
-                continue
-        
-        # Remove duplicates based on URL (websets should handle this, but extra safety)
-        unique_items = []
-        seen_urls = set()
-        
-        for item in all_items:
-            if item.url not in seen_urls:
-                unique_items.append(item)
-                seen_urls.add(item.url)
-        
-        logger.info(f"✅ Webset polling complete: {len(unique_items)} unique items from {len(webset_ids)} websets")
-        print(f"✅ Webset polling complete: {len(unique_items)} unique items")
-        
-        return unique_items
-    
-    async def _process_webset_enrichments(
-        self, 
-        webset_item: Any,
-        target_year: Optional[int] = None
-    ) -> Optional[Company]:
-        """Process webset item with enrichments to extract company data more efficiently."""
-        try:
-            # Get basic item data
-            title = getattr(webset_item, 'title', '')
-            url = getattr(webset_item, 'url', '')
-            text = getattr(webset_item, 'text', '')
-            enrichments = getattr(webset_item, 'enrichments', {})
-            category = getattr(webset_item, 'category', 'general')
-            
-            logger.debug(f"Processing webset item with enrichments: {title[:50]}...")
-            
-            # If enrichments are available, use them to pre-populate company data
-            if enrichments and settings.webset_enrichment_enabled:
-                logger.debug(f"Found enrichments: {list(enrichments.keys())}")
-                
-                # Extract pre-enriched data
-                enriched_data = {}
-                
-                # Process each enrichment based on its description (comprehensive 9-field extraction)
-                for enrichment_key, enrichment_value in enrichments.items():
-                    if not enrichment_value:
+                    if result and result.results:
+                        print(f"   📊 Found {len(result.results)} articles")
+                        logger.info(f"  Found {len(result.results)} articles")
+                    else:
+                        print(f"   ⚠️  No results for query: {query}")
                         continue
+                except Exception as search_error:
+                    logger.error(f"  Search failed: {search_error}")
+                    continue
+                
+                if not result or not result.results:
+                    continue
+                
+                # Filter out duplicate/similar articles before processing
+                unique_results = self._filter_unique_articles(result.results)
+                print(f"   🔍 Processing {len(unique_results)} unique articles...")
+                
+                companies_found_this_query = 0
+                for j, item in enumerate(unique_results):
+                    try:
+                        print(f"     📄 [{j+1}/{len(unique_results)}] Processing: {item.title[:50]}...")
+                        company = await self._extract_company_data(
+                            item.text,
+                            item.url,
+                            item.title,
+                            founded_year
+                        )
+                        if company:
+                            all_companies.append(company)
+                            companies_found_this_query += 1
+                            print(f"     ✅ {company.name}")
+                            logger.info(f"  ✅ {company.name}")
+                    except Exception as extract_error:
+                        logger.debug(f"  Failed to extract from {item.url}: {extract_error}")
+                        continue
+                
+                if companies_found_this_query > 0:
+                    print(f"   📊 {companies_found_this_query} companies found ({len(all_companies)} total)")
+                    logger.info(f"  📊 {companies_found_this_query} companies found ({len(all_companies)} total)")
+                
+                # Early exit if we have enough companies
+                if len(all_companies) >= limit * 2:
+                    logger.info(f"🎯 Early exit: Found {len(all_companies)} companies (target: {limit})")
+                    break
                         
-                    # Determine what type of data this enrichment contains
-                    key_lower = enrichment_key.lower()
-                    value_str = str(enrichment_value).strip()
-                    
-                    if 'company name' in key_lower or key_lower == 'name':
-                        if len(value_str) > 2:
-                            enriched_data['name'] = value_str
-                    elif 'description' in key_lower:
-                        if len(value_str) > 10:
-                            enriched_data['description'] = value_str
-                    elif 'website' in key_lower and ('http' in value_str or '.com' in value_str or '.ai' in value_str or '.io' in value_str):
-                        enriched_data['website'] = value_str if value_str.startswith('http') else f'https://{value_str}'
-                    elif 'location' in key_lower or 'city' in key_lower:
-                        # Parse location string into city, region, country
-                        location_parts = [part.strip() for part in value_str.split(',')]
-                        if len(location_parts) >= 3:
-                            enriched_data['city'] = location_parts[0]
-                            enriched_data['region'] = location_parts[1] 
-                            enriched_data['country'] = location_parts[2]
-                        elif len(location_parts) == 2:
-                            enriched_data['city'] = location_parts[0]
-                            enriched_data['region'] = location_parts[1]
-                        else:
-                            enriched_data['city'] = value_str
-                    elif 'funding stage' in key_lower or 'stage' in key_lower:
-                        enriched_data['funding_stage'] = value_str.lower()
-                    elif 'funding' in key_lower and ('usd' in key_lower or 'total' in key_lower or 'raised' in key_lower):
-                        # Extract funding amount from various formats
-                        import re
-                        # Look for patterns like "$5M", "5 million", "$5.2M USD", etc.
-                        funding_patterns = [
-                            r'\$?(\d+(?:\.\d+)?)\s*(?:million|m)\b',
-                            r'\$?(\d+(?:\.\d+)?)\s*(?:billion|b)\b',
-                            r'\$(\d+(?:,\d{3})*(?:\.\d+)?)',
-                        ]
-                        for pattern in funding_patterns:
-                            match = re.search(pattern, value_str.lower())
-                            if match:
-                                amount = float(match.group(1).replace(',', ''))
-                                if 'billion' in value_str.lower() or 'b' in value_str.lower():
-                                    amount *= 1_000_000_000
-                                elif 'million' in value_str.lower() or 'm' in value_str.lower():
-                                    amount *= 1_000_000
-                                enriched_data['funding_total_usd'] = amount
-                                break
-                    elif 'founder' in key_lower:
-                        # Parse founders list from various formats
-                        founders = []
-                        if ',' in value_str:
-                            founders = [name.strip() for name in value_str.split(',')]
-                        elif ' and ' in value_str:
-                            founders = [name.strip() for name in value_str.split(' and ')]
-                        elif '|' in value_str:
-                            founders = [name.strip() for name in value_str.split('|')]
-                        else:
-                            founders = [value_str.strip()]
-                        enriched_data['founders'] = [f for f in founders if len(f) > 2]
-                    elif 'investor' in key_lower or 'vc' in key_lower or 'venture capital' in key_lower:
-                        # Parse investors list from various formats
-                        investors = []
-                        if ',' in value_str:
-                            investors = [name.strip() for name in value_str.split(',')]
-                        elif ' and ' in value_str:
-                            investors = [name.strip() for name in value_str.split(' and ')]
-                        elif '|' in value_str:
-                            investors = [name.strip() for name in value_str.split('|')]
-                        else:
-                            investors = [value_str.strip()]
-                        enriched_data['investors'] = [i for i in investors if len(i) > 2]
-                    elif 'crunchbase' in key_lower and 'crunchbase.com' in value_str:
-                        enriched_data['crunchbase_url'] = value_str
-                
-                # Use enriched data to create company with less GPT processing
-                company = await self._extract_company_from_enriched_data(
-                    text=text,
-                    url=url,
-                    title=title,
-                    enriched_data=enriched_data,
-                    target_year=target_year
-                )
-                
-                if company:
-                    logger.debug(f"✅ Extracted company from enrichments: {company.name}")
-                    return company
-            
-            # No fallback needed - webset enrichments should provide all required data
-            logger.warning(f"No company extracted from enrichments for {url}")
-            return None
-            
-        except Exception as e:
-            logger.error(f"Error processing webset enrichments for {url}: {e}")
-            return None
-    
-    async def _extract_company_from_enriched_data(
-        self,
-        text: str,
-        url: str,
-        title: str,
-        enriched_data: Dict[str, Any],
-        target_year: Optional[int] = None
-    ) -> Optional[Company]:
-        """Extract company data using pre-enriched information with minimal GPT processing."""
+            except Exception as e:
+                logger.error(f"Unexpected error with query '{query}': {e}")
+                continue
         
-        # Check if we have minimum required data from enrichments
-        if 'name' not in enriched_data:
-            logger.warning(f"No company name found in enrichments for {url}")
-            return None
+        # Enhanced deduplication
+        print(f"🔄 Deduplicating {len(all_companies)} companies...")
+        unique_companies = self._deduplicate_companies(all_companies)
         
-        # Create company directly from enriched data
-        return await self._create_company_from_enriched_data(enriched_data, text, url, title, target_year)
+        elapsed_time = time.time() - start_time
+        print(f"✅ Discovery complete: {len(unique_companies)} unique companies ({elapsed_time:.1f}s)")
+        logger.info(f"✅ Discovery complete: {len(unique_companies)} unique companies ({elapsed_time:.1f}s)")
+        
+        return unique_companies[:limit]
     
-    async def _create_company_from_enriched_data(
-        self,
-        data: Dict[str, Any],
-        text: str,
-        url: str,
-        title: str,
-        target_year: Optional[int] = None
-    ) -> Optional[Company]:
-        """Create Company object from enriched data."""
-        try:
-            company_name = data.get('name')
-            if not company_name:
-                return None
+    def _filter_unique_articles(self, results) -> List:
+        """Filter out duplicate and similar articles."""
+        unique_results = []
+        
+        for item in results:
+            # Skip if URL already processed
+            if item.url in self.processed_urls:
+                continue
             
-            # Use target_year if provided, otherwise leave as None for Crunchbase to populate
-            founded_year = target_year
+            # Skip if title is too similar to existing ones
+            title_words = set(item.title.lower().split())
+            is_similar = False
             
-            # Check if company is still active
-            website = data.get('website')
-            if not await self._is_company_alive(company_name, website):
-                return None
+            for existing_title in self.processed_titles:
+                existing_words = set(existing_title.lower().split())
+                # If 70% of words overlap, consider it similar
+                overlap = len(title_words & existing_words)
+                if overlap > 0.7 * min(len(title_words), len(existing_words)):
+                    is_similar = True
+                    break
             
-            # Use enriched Crunchbase URL if available
-            crunchbase_url = data.get('crunchbase_url')
-            
-            # Get sector description
-            sector_description = await sector_description_service.get_sector_description(
-                company_name=company_name,
-                company_description=data.get('description', ''),
-                website_content=text[:1000],
-                additional_context=f"Category: {getattr(data, 'category', 'AI')}"
-            )
-            
-            if not sector_description:
-                sector_description = "AI Software Solutions"
-            
-            # Use funding data from enrichments
-            funding_stage = None
-            funding_stage_raw = data.get('funding_stage')
-            if funding_stage_raw:
-                stage_mappings = {
-                    "pre-seed": FundingStage.PRE_SEED,
-                    "seed": FundingStage.SEED,
-                    "series a": FundingStage.SERIES_A,
-                    "series-a": FundingStage.SERIES_A,
-                    "series b": FundingStage.SERIES_B,
-                    "series-b": FundingStage.SERIES_B,
-                    "series c": FundingStage.SERIES_C,
-                    "series-c": FundingStage.SERIES_C,
-                }
-                funding_stage = stage_mappings.get(funding_stage_raw.lower().strip(), FundingStage.UNKNOWN)
-            
-            # Use funding amount from enrichments
-            funding_total_usd = data.get('funding_total_usd')
-            
-            company = Company(
-                uuid=f"comp_{hash(company_name)}",
-                name=clean_text(company_name),
-                description=clean_text(data.get('description', '')),
-                short_description=clean_text(data.get('description', '')[:100] + '...' if data.get('description') else ''),
-                founded_year=founded_year,
-                funding_total_usd=funding_total_usd,
-                funding_stage=funding_stage,
-                founders=data.get('founders', []),
-                investors=data.get('investors', []),
-                categories=['artificial intelligence'],
-                city=clean_text(data.get('city', '')),
-                region=clean_text(data.get('region', '')),
-                country=clean_text(data.get('country', 'United States')),
-                ai_focus='Artificial Intelligence',
-                sector=sector_description,
-                website=website,
-                linkedin_url=None,  # Removed as requested
-                crunchbase_url=crunchbase_url,
-                source_url=None,  # Removed as requested
-                extraction_date=None  # Removed as requested
-            )
-            
-            return company
-            
-        except Exception as e:
-            logger.error(f"Error creating company from enriched data: {e}")
-            return None
+            if not is_similar:
+                unique_results.append(item)
+                self.processed_urls.add(item.url)
+                self.processed_titles.add(item.title)
+        
+        return unique_results
     
-    async def _setup_webset_monitors(
-        self,
-        webset_ids: Dict[str, str],
+    def _get_diverse_domains(self, query_index: int) -> List[str]:
+        """Get different domain sets for each query to increase diversity."""
+        domain_sets = [
+            # Tech news focused
+            [
+                "techcrunch.com", "venturebeat.com", "theverge.com",
+                "wired.com", "arstechnica.com", "thenextweb.com"
+            ],
+            # Business news focused
+            [
+                "bloomberg.com", "reuters.com", "forbes.com",
+                "businessinsider.com", "inc.com", "fastcompany.com"
+            ],
+            # Startup databases
+            [
+                "crunchbase.com", "pitchbook.com", "producthunt.com",
+                "angel.co", "startupgrind.com", "founder.org"
+            ],
+            # Industry publications
+            [
+                "theinformation.com", "protocol.com", "stratechery.com",
+                "recode.net", "readwrite.com", "axios.com"
+            ],
+            # Regional and niche
+            [
+                "siliconvalley.com", "sanfrancisco.com", "nyc.com",
+                "boston.com", "austin.com", "seattle.com"
+            ],
+            # AI-specific publications
+            [
+                "artificialintelligence-news.com", "venturebeat.com",
+                "technologyreview.com", "spectrum.ieee.org"
+            ]
+        ]
+        
+        # Rotate through domain sets
+        return domain_sets[query_index % len(domain_sets)]
+    
+    def _generate_diverse_search_queries(
+        self, 
+        categories: List[str], 
+        regions: Optional[List[str]] = None,
         founded_year: Optional[int] = None
-    ) -> Dict[str, str]:
-        """Setup monitors for websets to enable continuous updates."""
-        if not settings.webset_monitoring_enabled:
-            logger.info("Webset monitoring disabled")
-            return {}
+    ) -> List[dict]:
+        """Generate diverse search queries with different types and filters."""
         
-        logger.info("🔧 Setting up webset monitors for continuous monitoring...")
-        
-        monitor_ids = {}
-        
-        for category_name, webset_id in webset_ids.items():
-            try:
-                logger.info(f"📅 Creating monitor for webset {category_name} ({webset_id})")
+        if founded_year:
+            logger.info(f"🇺🇸 Generating diverse US-focused queries for companies founded in {founded_year}")
+            
+            # Current date for time filters
+            current_year = datetime.now().year
+            
+            queries = [
+                # Recent funding announcements - neural search
+                {"query": f"US AI startups founded {founded_year} seed funding announcement", "type": "neural"},
+                {"query": f"American artificial intelligence companies {founded_year} Series A", "type": "neural"},
+                {"query": f"Silicon Valley AI startups {founded_year} venture capital", "type": "neural"},
                 
-                await self.rate_limiter.acquire()
+                # Keyword search for specific terms
+                {"query": f"AI startup {founded_year} United States funding", "type": "keyword"},
+                {"query": f"machine learning company {founded_year} America investment", "type": "keyword"},
+                {"query": f"artificial intelligence {founded_year} US Series A", "type": "keyword"},
                 
-                # Create monitor configuration
-                monitor_config = {
-                    "webset_id": webset_id,
-                    "schedule": settings.webset_monitor_cron,  # e.g., "0 */6 * * *" for every 6 hours
-                    "search_params": {
-                        "count": 20  # Find 20 new items per monitoring cycle
-                    }
-                }
+                # Time-filtered recent news
+                {"query": f"AI companies founded {founded_year} funding news", "type": "neural", 
+                 "time_filter": f"{current_year-1}-01-01"},
+                {"query": f"American AI startups {founded_year} investment", "type": "neural",
+                 "time_filter": f"{current_year-1}-01-01"},
                 
-                # Create monitor using Exa API
-                monitor = self.exa.websets.create_monitor(
-                    webset_id=webset_id,
-                    schedule=settings.webset_monitor_cron,
-                    search_params=monitor_config["search_params"]
-                )
+                # Geographic diversity
+                {"query": f"San Francisco AI startups {founded_year} Bay Area", "type": "neural"},
+                {"query": f"New York AI companies {founded_year} NYC tech", "type": "neural"},
+                {"query": f"Boston AI startups {founded_year} Cambridge MIT", "type": "neural"},
+                {"query": f"Austin AI companies {founded_year} Texas tech", "type": "neural"},
+                {"query": f"Seattle AI startups {founded_year} Washington", "type": "neural"},
+                {"query": f"Los Angeles AI companies {founded_year} California", "type": "neural"},
+                {"query": f"Chicago AI startups {founded_year} Illinois", "type": "neural"},
+                {"query": f"Denver AI companies {founded_year} Colorado tech", "type": "neural"},
                 
-                if monitor and hasattr(monitor, 'id'):
-                    monitor_id = monitor.id
-                    monitor_ids[category_name] = monitor_id
-                    logger.info(f"✅ Created monitor for {category_name}: {monitor_id}")
-                    print(f"✅ Created monitor for {category_name}: {monitor_id}")
-                else:
-                    logger.warning(f"Failed to create monitor for {category_name}")
-                    print(f"⚠️ Failed to create monitor for {category_name}")
+                # Accelerator and incubator specific
+                {"query": f"Y Combinator AI batch {founded_year} demo day", "type": "keyword"},
+                {"query": f"Techstars AI companies {founded_year} accelerator", "type": "keyword"},
+                {"query": f"500 Startups AI batch {founded_year}", "type": "keyword"},
+                {"query": f"Plug and Play AI startups {founded_year}", "type": "keyword"},
+                {"query": f"AngelList AI companies {founded_year}", "type": "keyword"},
                 
-                # Small delay between monitor creations
-                await asyncio.sleep(1)
+                # VC-specific searches
+                {"query": f"Andreessen Horowitz AI investments {founded_year}", "type": "keyword"},
+                {"query": f"Sequoia Capital AI startups {founded_year}", "type": "keyword"},
+                {"query": f"Google Ventures AI companies {founded_year}", "type": "keyword"},
+                {"query": f"Kleiner Perkins AI startups {founded_year}", "type": "keyword"},
+                {"query": f"Accel Partners AI investments {founded_year}", "type": "keyword"},
                 
-            except Exception as e:
-                logger.error(f"Error creating monitor for {category_name}: {e}")
-                print(f"❌ Error creating monitor for {category_name}: {e}")
-                continue
-        
-        if monitor_ids:
-            logger.info(f"🎯 Setup {len(monitor_ids)} webset monitors with schedule: {settings.webset_monitor_cron}")
-            print(f"🎯 Setup {len(monitor_ids)} webset monitors")
-        
-        return monitor_ids
-    
-    async def _get_webset_updates(
-        self,
-        webset_ids: Dict[str, str],
-        since_timestamp: Optional[str] = None
-    ) -> List[Any]:
-        """Get new items from monitored websets since last update."""
-        logger.info("📡 Checking for webset updates...")
-        
-        all_new_items = []
-        
-        for category_name, webset_id in webset_ids.items():
-            try:
-                await self.rate_limiter.acquire()
+                # Industry verticals
+                {"query": f"healthcare AI startups {founded_year} United States", "type": "neural"},
+                {"query": f"fintech AI companies {founded_year} American", "type": "neural"},
+                {"query": f"enterprise AI startups {founded_year} B2B US", "type": "neural"},
+                {"query": f"consumer AI apps {founded_year} American B2C", "type": "neural"},
+                {"query": f"autonomous vehicle AI {founded_year} US self-driving", "type": "neural"},
+                {"query": f"cybersecurity AI startups {founded_year} American", "type": "neural"},
+                {"query": f"robotics AI companies {founded_year} US automation", "type": "neural"},
+                {"query": f"drug discovery AI {founded_year} American biotech", "type": "neural"},
                 
-                # Get new items from webset
-                params = {"limit": 50}
-                if since_timestamp:
-                    params["since"] = since_timestamp
+                # University spinoffs
+                {"query": f"Stanford AI startup {founded_year} university", "type": "keyword"},
+                {"query": f"MIT AI company {founded_year} research", "type": "keyword"},
+                {"query": f"Carnegie Mellon AI startup {founded_year} CMU", "type": "keyword"},
+                {"query": f"UC Berkeley AI company {founded_year}", "type": "keyword"},
+                {"query": f"Harvard AI startup {founded_year}", "type": "keyword"},
                 
-                webset_items = self.exa.websets.get_items(
-                    webset_id=webset_id,
-                    **params
-                )
+                # Alternative search terms
+                {"query": f"generative AI startup {founded_year} United States", "type": "neural"},
+                {"query": f"computer vision company {founded_year} American", "type": "neural"},
+                {"query": f"natural language processing startup {founded_year} US", "type": "neural"},
+                {"query": f"deep learning company {founded_year} America", "type": "neural"},
+                {"query": f"AI infrastructure startup {founded_year} US cloud", "type": "neural"},
+                {"query": f"AI developer tools {founded_year} American programming", "type": "neural"},
                 
-                if webset_items and hasattr(webset_items, 'items'):
-                    new_items = webset_items.items
-                    logger.info(f"📄 Found {len(new_items)} new items in {category_name}")
-                    
-                    # Convert and add category info
-                    for item in new_items:
-                        converted_item = type('WebsetItem', (), {
-                            'title': getattr(item, 'title', ''),
-                            'url': getattr(item, 'url', ''),
-                            'text': getattr(item, 'text', ''),
-                            'published_date': getattr(item, 'published_date', None),
-                            'enrichments': getattr(item, 'enrichments', {}),
-                            'category': category_name,
-                            'updated_at': getattr(item, 'updated_at', None)
-                        })()
-                        
-                        all_new_items.append(converted_item)
-                        
-            except Exception as e:
-                logger.error(f"Error getting updates from webset {category_name}: {e}")
-                continue
-        
-        logger.info(f"✅ Found {len(all_new_items)} total new items across all websets")
-        return all_new_items
+                # Recent news angles
+                {"query": f"emerging AI companies {founded_year} United States", "type": "neural"},
+                {"query": f"AI unicorn startup {founded_year} American billion", "type": "neural"},
+                {"query": f"stealth AI company {founded_year} US launch", "type": "neural"},
+                {"query": f"AI acquisition {founded_year} American startup", "type": "neural"},
+                
+                # Product launches and announcements
+                {"query": f"AI product launch {founded_year} American startup", "type": "neural"},
+                {"query": f"AI beta launch {founded_year} US company", "type": "neural"},
+                {"query": f"AI platform launch {founded_year} American", "type": "neural"}
+            ]
+            
+            return queries[:45]  # Return more diverse queries
     
     def _normalize_company_name(self, name: str) -> str:
         """Normalize company name for comparison."""
@@ -711,9 +407,53 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
             return url_str.lower()
     
     async def _is_company_alive(self, company_name: str, website: str = None) -> bool:
-        """Simplified company validation - assume companies from websets are valid."""
-        # Since webset enrichments provide current company data, we can assume they're active
-        # This removes the need for additional Perplexity API calls
+        """Use Perplexity to verify if a company is still active and operating."""
+        try:
+            # Import here to avoid circular imports
+            from openai import AsyncOpenAI
+            
+            # Use OpenAI client configured for Perplexity
+            perplexity_client = AsyncOpenAI(
+                api_key=settings.perplexity_api_key,
+                base_url="https://api.perplexity.ai"
+            )
+            
+            query = f"Is {company_name} still active and operating in 2024? Are they still in business?"
+            if website:
+                query += f" Website: {website}"
+            
+            response = await perplexity_client.chat.completions.create(
+                model="sonar",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a business research assistant. Answer with 'ACTIVE' if the company is still operating and in business, 'INACTIVE' if they have shut down or ceased operations, or 'UNKNOWN' if you cannot determine their status."
+                    },
+                    {
+                        "role": "user", 
+                        "content": query
+                    }
+                ],
+                max_tokens=50,
+                temperature=0.1
+            )
+            
+            if response and response.choices:
+                answer = response.choices[0].message.content.strip().upper()
+                if "ACTIVE" in answer:
+                    return True
+                elif "INACTIVE" in answer:
+                    logger.info(f"Company {company_name} appears to be inactive - filtering out")
+                    return False
+                else:
+                    # Default to including if uncertain
+                    return True
+                    
+        except Exception as e:
+            logger.debug(f"Error checking if {company_name} is alive: {e}")
+            # Default to including company if verification fails
+            return True
+        
         return True
     
     async def _get_crunchbase_url(self, company_name: str, website: str = None) -> Optional[str]:
@@ -795,3 +535,354 @@ class ExaCompanyDiscovery(CompanyDiscoveryService):
         except Exception as e:
             logger.error(f"Error getting crunchbase URL for {company_name}: {e}")
             return None  
+          
+    async def _extract_company_data(
+        self, 
+        content: str, 
+        url: str, 
+        title: str,
+        target_year: Optional[int] = None
+    ) -> Optional[Company]:
+        """Extract structured company data using GPT-4o-mini with improved extraction."""
+        year_instruction = ""
+        if target_year:
+            year_instruction = f"""
+IMPORTANT: Pay special attention to the founding year. Only extract companies that were founded in {target_year}. 
+If the company was not founded in {target_year}, return null for the founded_year field.
+"""
+        
+        # Enhanced prompt for better extraction
+        prompt = f"""
+Extract company information from this content. Focus on finding ANY startup mentioned, not just the main subject.
+
+EXTRACTION RULES:
+1. Extract ALL companies mentioned in the article, even if briefly mentioned
+2. For each company, include: name, description, founding year, funding info, founders, location
+3. If multiple companies are mentioned, extract the MOST RELEVANT early-stage startup
+4. IGNORE: Google, Meta, Apple, Microsoft, Amazon, OpenAI, Anthropic, public companies, unicorns >$1B
+5. FOCUS ON: Recently founded companies, seed/Series A/B stage, private startups
+
+IMPORTANT: Return ONLY valid JSON. No explanations.
+
+Content: {content[:2000]}  
+Title: {title}
+{year_instruction}
+
+REQUIRED JSON FORMAT (return exactly this structure):
+{{
+    "name": "exact company name",
+    "description": "detailed description of what the company does",
+    "short_description": "1-sentence summary",
+    "founded_year": "YYYY as integer or null",
+    "funding_amount_millions": "amount in USD millions as number or null",
+    "funding_stage": "pre-seed/seed/series-a/series-b/series-c or null",
+    "founders": ["founder names"],
+    "investors": ["investor/VC names"],
+    "categories": ["AI/ML category tags"],
+    "city": "city name",
+    "region": "state/province",
+    "country": "country name",
+    "ai_focus": "specific AI area (NLP, computer vision, robotics, etc.)",
+    "sector": "detailed searchable sector description (less than 10 words)",
+    "website": "company website URL",
+    "linkedin_url": "LinkedIn company URL"
+}}
+
+If NO suitable early-stage startup found, return: null
+"""
+        
+        result = None  # Initialize result to avoid NoneType errors
+        try:
+            await self.rate_limiter.acquire()
+            
+            # OpenAI API call with timeout and retry
+            try:
+                response = await self.openai.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.1,
+                    timeout=45.0  # Increased timeout for better reliability
+                )
+            except Exception as api_error:
+                logger.debug(f"OpenAI API call failed for {url}: {api_error}")
+                return None
+            
+            if not response or not response.choices:
+                logger.warning(f"Empty response from OpenAI for {url}")
+                return None
+            
+            raw_content = response.choices[0].message.content
+            if not raw_content:
+                logger.warning(f"Empty content from OpenAI for {url}")
+                return None
+                
+            raw_content = raw_content.strip()
+            
+            # Remove markdown code blocks if present
+            if raw_content.startswith("```json"):
+                raw_content = raw_content[7:]
+            if raw_content.startswith("```"):
+                raw_content = raw_content[3:]
+            if raw_content.endswith("```"):
+                raw_content = raw_content[:-3]
+            
+            raw_content = raw_content.strip()
+            
+            # Handle common AI response patterns
+            if raw_content.lower().startswith("based on"):
+                # AI sometimes adds explanatory text before JSON
+                lines = raw_content.split('\n')
+                for i, line in enumerate(lines):
+                    if line.strip().startswith('{') or line.strip().lower() == 'null':
+                        raw_content = '\n'.join(lines[i:])
+                        break
+            
+            # Clean up any remaining text around JSON
+            raw_content = raw_content.strip()
+            if raw_content.startswith("Here's the JSON:") or raw_content.startswith("Here is the JSON:"):
+                raw_content = raw_content.split(":", 1)[1].strip()
+            
+            raw_content = raw_content.strip()
+            
+            # Parse JSON with error handling
+            try:
+                result = json.loads(raw_content)
+            except json.JSONDecodeError as json_error:
+                logger.error(f"JSON parsing failed for {url}: {json_error}")
+                logger.debug(f"Raw content: {raw_content[:500]}...")
+                return None
+            
+            # Handle null response (no company found)
+            if result is None:
+                logger.debug(f"No company found in content for {url}")
+                return None
+            
+            # Handle different JSON structures
+            if not isinstance(result, dict):
+                logger.warning(f"Invalid JSON structure for {url} - Expected dict or null, got {type(result)}")
+                logger.debug(f"Actual result: {result}")
+                
+                # Try to handle common non-dict structures
+                if isinstance(result, list) and len(result) > 0 and isinstance(result[0], dict):
+                    logger.info(f"Converting list to dict for {url}")
+                    result = result[0]
+                elif isinstance(result, str):
+                    # Check if it's a string that contains "null" or similar
+                    if result.lower().strip() in ['null', 'none', 'no company']:
+                        logger.debug(f"AI returned no company indication for {url}")
+                        return None
+                    logger.warning(f"AI returned string instead of JSON for {url}: {result[:200]}...")
+                    return None
+                else:
+                    return None
+            
+            # Validate required fields
+            if not result.get("name") or not isinstance(result.get("name"), str):
+                logger.warning(f"No valid company name found for {url}")
+                return None
+            
+            # Check if company is still alive and operating
+            company_name = result.get('name')
+            website = result.get('website')
+            if not await self._is_company_alive(company_name, website):
+                print(f"     💀 Filtered out inactive company: {company_name}")
+                logger.debug(f"Filtered out inactive company: {company_name} for {url}")
+                return None
+            
+            # Helper function to safely get values from result
+            def safe_get(key, default=None):
+                try:
+                    return result.get(key, default) if result and isinstance(result, dict) else default
+                except Exception:
+                    return default
+            
+            def validate_founding_year(year_value):
+                """Validate and clean founding year."""
+                if not year_value:
+                    return None
+                
+                current_year = datetime.now().year
+                
+                try:
+                    # Handle string years
+                    if isinstance(year_value, str):
+                        # Remove any non-numeric characters and convert
+                        year_clean = re.sub(r'[^\d]', '', year_value)
+                        if not year_clean:
+                            return None
+                        year_value = int(year_clean)
+                    
+                    # Handle float years (round down)
+                    if isinstance(year_value, float):
+                        year_value = int(year_value)
+                    
+                    # Validate year range
+                    if not isinstance(year_value, int):
+                        return None
+                    
+                    if year_value < 1900 or year_value > current_year:
+                        logger.warning(f"Invalid founding year {year_value}, must be between 1900 and {current_year}")
+                        return None
+                    
+                    return year_value
+                    
+                except (ValueError, TypeError):
+                    logger.warning(f"Could not parse founding year: {year_value}")
+                    return None
+            
+            # Map funding stage with error handling
+            funding_stage = None
+            funding_stage_raw = safe_get("funding_stage")
+            if funding_stage_raw and isinstance(funding_stage_raw, str):
+                try:
+                    # Normalize funding stage string
+                    raw_stage = funding_stage_raw.lower().strip()
+                    
+                    # Common funding stage mappings
+                    stage_mappings = {
+                        "early stage vc": FundingStage.SEED,
+                        "early stage": FundingStage.SEED,
+                        "early-stage": FundingStage.SEED,
+                        "pre-seed": FundingStage.PRE_SEED,
+                        "pre seed": FundingStage.PRE_SEED,
+                        "preseed": FundingStage.PRE_SEED,
+                        "seed": FundingStage.SEED,
+                        "series a": FundingStage.SERIES_A,
+                        "series-a": FundingStage.SERIES_A,
+                        "series_a": FundingStage.SERIES_A,
+                        "series b": FundingStage.SERIES_B,
+                        "series-b": FundingStage.SERIES_B,
+                        "series_b": FundingStage.SERIES_B,
+                        "series c": FundingStage.SERIES_C,
+                        "series-c": FundingStage.SERIES_C,
+                        "series_c": FundingStage.SERIES_C,
+                        "growth": FundingStage.GROWTH,
+                        "growth stage": FundingStage.GROWTH,
+                        "ipo": FundingStage.IPO,
+                        "public": FundingStage.IPO,
+                        "acquired": FundingStage.ACQUIRED,
+                        "acquisition": FundingStage.ACQUIRED,
+                        "unknown": FundingStage.UNKNOWN
+                    }
+                    
+                    if raw_stage in stage_mappings:
+                        funding_stage = stage_mappings[raw_stage]
+                    else:
+                        # Try direct enum lookup
+                        funding_stage = FundingStage(funding_stage_raw)
+                except ValueError as stage_error:
+                    logger.warning(f"Invalid funding stage '{funding_stage_raw}' for {safe_get('name', 'unknown')}: {stage_error}")
+                    funding_stage = FundingStage.UNKNOWN
+            
+            # Preprocess website URL
+            website = safe_get("website")
+            if website and isinstance(website, str) and not website.startswith(('http://', 'https://')):
+                website = f'https://{website}'
+            
+            # Process LinkedIn URL
+            linkedin_url = safe_get("linkedin_url")
+            if linkedin_url and isinstance(linkedin_url, str) and not linkedin_url.startswith(('http://', 'https://')):
+                linkedin_url = f'https://{linkedin_url}'
+            
+            # Convert funding from millions to USD
+            funding_millions = safe_get("funding_amount_millions")
+            funding_total_usd = None
+            if funding_millions and isinstance(funding_millions, (int, float)):
+                funding_total_usd = funding_millions * 1_000_000
+            
+            # Create Company object with error handling
+            try:
+                company_name = safe_get("name", "")
+                
+                # Get crunchbase URL using Perplexity
+                crunchbase_url = await self._get_crunchbase_url(company_name, website)
+                
+                # Get centralized sector description
+                sector_description = await sector_description_service.get_sector_description(
+                    company_name=company_name,
+                    company_description=safe_get("description", ""),
+                    website_content=content[:1000] if content else "",
+                    additional_context=f"AI Focus: {safe_get('ai_focus', '')}"
+                )
+                if not sector_description:
+                    sector_description = "AI Software Solutions"
+                
+                company = Company(
+                    uuid=f"comp_{hash(company_name)}", # Generate simple UUID
+                    name=clean_text(company_name),
+                    description=clean_text(safe_get("description", "")),
+                    short_description=clean_text(safe_get("short_description", "")),
+                    founded_year=validate_founding_year(safe_get("founded_year")),
+                    funding_total_usd=funding_total_usd,
+                    funding_stage=funding_stage,
+                    founders=safe_get("founders", []),
+                    investors=safe_get("investors", []),
+                    categories=safe_get("categories", []),
+                    city=clean_text(safe_get("city", "")),
+                    region=clean_text(safe_get("region", "")),
+                    country=clean_text(safe_get("country", "")),
+                    ai_focus=clean_text(safe_get("ai_focus", "")),
+                    sector=sector_description,
+                    website=website,
+                    linkedin_url=linkedin_url,
+                    crunchbase_url=crunchbase_url,
+                    source_url=url,
+                    extraction_date=datetime.utcnow()
+                )
+                
+                # Final validation
+                if not company.name or len(company.name.strip()) < 2:
+                    logger.warning(f"Company name too short or empty for {url}")
+                    return None
+                
+                return company
+                
+            except Exception as company_error:
+                company_name = safe_get('name', 'unknown')
+                logger.error(f"Failed to create Company object for {company_name}: {company_error}")
+                return None
+            
+        except Exception as e:
+            company_name = "unknown"
+            try:
+                if result is not None and isinstance(result, dict):
+                    company_name = result.get('name', 'unknown')
+            except Exception:
+                pass  # Keep default company_name
+            logger.error(f"Error extracting company data from {url} (company: {company_name}): {e}")
+            return None
+    
+    def _deduplicate_companies(self, companies: List[Company]) -> List[Company]:
+        """Enhanced deduplication with fuzzy matching and domain similarity."""
+        if not companies:
+            return []
+        
+        unique_companies = []
+        seen_names = set()
+        seen_domains = set()
+        seen_descriptions = set()
+        
+        for company in companies:
+            # Normalize company name for comparison
+            normalized_name = self._normalize_company_name(company.name)
+            
+            # Skip if name is too similar to existing ones
+            if self._is_similar_name(normalized_name, seen_names):
+                continue
+            
+            # Skip if domain is already seen
+            if company.website and self._extract_domain(company.website) in seen_domains:
+                continue
+            
+            # Skip if description is too similar (for cases where same company has different names)
+            if company.description and self._is_similar_description(company.description, seen_descriptions):
+                continue
+            
+            unique_companies.append(company)
+            seen_names.add(normalized_name)
+            if company.website:
+                seen_domains.add(self._extract_domain(company.website))
+            if company.description:
+                seen_descriptions.add(company.description[:100])  # First 100 chars
+        
+        return unique_companies
