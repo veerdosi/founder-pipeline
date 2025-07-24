@@ -1,4 +1,4 @@
-"""Main pipeline orchestrator with multi-source data fusion and advanced analytics."""
+"""Main pipeline orchestrator with 3-stage company enrichment flow."""
 
 import asyncio
 import time
@@ -7,10 +7,8 @@ from datetime import date
 
 from .config import settings
 from ..models import Company, EnrichedCompany
-from .data.company_discovery import ExaCompanyDiscovery
+from .data.company_enrichment import company_enrichment_service
 from .data.profile_enrichment import LinkedInEnrichmentService
-from .analysis.market_analysis import PerplexityMarketAnalysis
-from .data.data_fusion import DataFusionService, FusedCompanyData
 from .ranking.ranking_service import FounderRankingService
 
 import logging
@@ -24,42 +22,37 @@ console = Console()
 class InitiationPipeline:
     
     def __init__(self, job_id: str):
-        self.company_discovery = ExaCompanyDiscovery()
+        self.company_enrichment = company_enrichment_service
         self.profile_enrichment = LinkedInEnrichmentService()
-        self.market_analysis = PerplexityMarketAnalysis()
-        self.data_fusion = DataFusionService()
         self.ranking_service = FounderRankingService()
         self.job_id = job_id
         self.runner = CheckpointedPipelineRunner(checkpoint_manager)
 
     async def run(
         self,
-        limit: int = 50,
-        categories: Optional[List[str]] = None,
-        regions: Optional[List[str]] = None,
-        founded_after: Optional[date] = None,
-        founded_before: Optional[date] = None,
+        year: int,
+        limit: Optional[int] = None,
         force_restart: bool = False,
     ) -> List[EnrichedCompany]:
-        logger.info(f"🚀 Starting pipeline for job_id: {self.job_id}")
+        logger.info(f"🚀 Starting 3-stage pipeline for job_id: {self.job_id}, year: {year}")
         console.print("=" * 70)
         start_time = time.time()
-        
-        # Extract target year for CSV export fallback
-        self.target_year = founded_after.year if founded_after else None
 
         try:
-            companies = await self._discover_companies_checkpointed(
-                limit, categories, regions, founded_after, founded_before, force_restart
-            )
+            # Automatically determine CSV file path based on year
+            csv_file_path = self._get_csv_file_path(year)
+            console.print(f"📂 Using input file: {csv_file_path}")
+
+            # Stage 1: Company Enrichment (replaces discovery + data fusion)
+            companies = await self._enrich_companies_checkpointed(csv_file_path, limit, force_restart)
             if not companies:
                 console.print("❌ No companies found, aborting pipeline")
                 return []
 
-            enhanced_companies = await self._enhance_companies_checkpointed(companies, force_restart)
+            # Stage 2: Profile Enrichment (unchanged)
+            enriched_companies = await self._enrich_profiles_checkpointed(companies, force_restart)
 
-            enriched_companies = await self._enrich_profiles_checkpointed(enhanced_companies, force_restart)
-
+            # Stage 3: Founder Ranking (unchanged)
             ranked_companies = await self._rank_founders_checkpointed(enriched_companies, force_restart)
 
             execution_time = time.time() - start_time
@@ -73,53 +66,68 @@ class InitiationPipeline:
             logger.error(f"❌ Pipeline error for job_id {self.job_id}: {e}")
             raise
 
-    async def _discover_companies_checkpointed(
-        self, limit, categories, regions, founded_after, founded_before, force_restart
-    ):
-        stage_name = "companies"
-        if not force_restart:
-            cached_data = checkpoint_manager.load_checkpoint(self.job_id, stage_name)
-            if cached_data:
-                return cached_data
-
-        console.print("🔍 Discovering companies...")
-        companies = await self.company_discovery.find_companies(
-            limit=limit,
-            categories=categories,
-            regions=regions,
-            founded_year=founded_after.year if founded_after else None,
+    def _get_csv_file_path(self, year: int) -> str:
+        """Get the CSV file path for a given year."""
+        from pathlib import Path
+        
+        input_dir = Path("./input")
+        
+        # First try the exact year file
+        year_file = input_dir / f"{year}companies.csv"
+        if year_file.exists():
+            return str(year_file)
+        
+        # For 2023, try the split files
+        if year == 2023:
+            file1 = input_dir / "2023companies-1.csv"
+            file2 = input_dir / "2023companies-2.csv"
+            if file1.exists():
+                logger.warning(f"Found split 2023 files, using {file1}")
+                return str(file1)
+        
+        # If no specific file found, raise error
+        available_files = list(input_dir.glob("*companies*.csv"))
+        available_years = []
+        for f in available_files:
+            try:
+                if "companies" in f.name:
+                    year_str = f.name.replace("companies", "").replace(".csv", "").replace("-1", "").replace("-2", "")
+                    available_years.append(year_str)
+            except:
+                pass
+        
+        raise FileNotFoundError(
+            f"No CSV file found for year {year}. "
+            f"Available files: {[f.name for f in available_files]}"
         )
 
-        checkpoint_manager.save_checkpoint(self.job_id, stage_name, companies)
-        return companies
-
-    async def _enhance_companies_checkpointed(self, companies, force_restart):
-        stage_name = "enhanced_companies"
+    async def _enrich_companies_checkpointed(self, csv_file_path: str, limit: Optional[int], force_restart: bool):
+        stage_name = "enriched_companies"
         if not force_restart:
             cached_data = checkpoint_manager.load_checkpoint(self.job_id, stage_name)
             if cached_data:
-                # Export companies CSV when loading from checkpoint (50% complete)
+                # Export companies CSV when loading from checkpoint
                 try:
                     runner = CheckpointedPipelineRunner(checkpoint_manager)
-                    await runner._export_companies_csv(cached_data, self.job_id, self.target_year)
+                    await runner._export_companies_csv(cached_data, self.job_id)
                     logger.info("📊 Companies CSV export completed from checkpoint")
                 except Exception as e:
                     logger.error(f"Failed to export companies CSV from checkpoint: {e}")
                 return cached_data
 
-        console.print("🔄 Enhancing companies with Crunchbase data fusion...")
-        enhanced_companies = await self.data_fusion.batch_fuse_companies(companies, batch_size=min(3, settings.concurrent_requests), target_year=self.target_year)
-        checkpoint_manager.save_checkpoint(self.job_id, stage_name, enhanced_companies)
+        console.print("🔄 Enriching companies from Crunchbase CSV...")
+        companies = await self.company_enrichment.process_crunchbase_csv(csv_file_path, limit)
+        checkpoint_manager.save_checkpoint(self.job_id, stage_name, companies)
         
-        # Export companies CSV after enhancement (50% complete)
+        # Export companies CSV after enrichment
         try:
             runner = CheckpointedPipelineRunner(checkpoint_manager)
-            await runner._export_companies_csv(enhanced_companies, self.job_id, self.target_year)
+            await runner._export_companies_csv(companies, self.job_id)
             logger.info("📊 Companies CSV export completed")
         except Exception as e:
             logger.error(f"Failed to export companies CSV: {e}")
         
-        return enhanced_companies
+        return companies
 
     async def _enrich_profiles_checkpointed(self, companies, force_restart):
         stage_name = "profiles"
@@ -131,50 +139,23 @@ class InitiationPipeline:
         console.print("👤 Finding and enriching LinkedIn profiles...")
         enriched_companies = []
         for i, company in enumerate(companies):
-            # Handle both Company and EnrichedCompany objects
-            if hasattr(company, 'company'):
-                # This is an EnrichedCompany, get the nested company
-                comp = company.company
-                company_name = comp.name
-            else:
-                # This is a regular Company object
-                comp = company
-                company_name = comp.name
                 
-            console.print(f"   👤 [{i+1}/{len(companies)}] Processing {company_name}...")
+            console.print(f"   👤 [{i+1}/{len(companies)}] Processing {company.name}...")
             try:
                 # Step 1: Find LinkedIn URLs
-                profiles = await self.profile_enrichment.find_profiles(comp)
+                profiles = await self.profile_enrichment.find_profiles(company)
                 
                 # Step 2: Enrich profiles with full LinkedIn data
                 if profiles:
                     console.print(f"   🔍 Found {len(profiles)} profiles, enriching with full LinkedIn data...")
                     enriched_profiles = await self.profile_enrichment.enrich_profiles_batch(profiles)
-                    if hasattr(company, 'company'):
-                        # Update existing EnrichedCompany
-                        company.profiles = enriched_profiles
-                        enriched_companies.append(company)
-                    else:
-                        # Create new EnrichedCompany
-                        enriched_companies.append(EnrichedCompany(company=company, profiles=enriched_profiles))
+                    enriched_companies.append(EnrichedCompany(company=company, profiles=enriched_profiles))
                 else:
-                    if hasattr(company, 'company'):
-                        # Update existing EnrichedCompany
-                        company.profiles = []
-                        enriched_companies.append(company)
-                    else:
-                        # Create new EnrichedCompany
-                        enriched_companies.append(EnrichedCompany(company=company, profiles=[]))
+                    enriched_companies.append(EnrichedCompany(company=company, profiles=[]))
                     
             except Exception as e:
-                logger.error(f"Error enriching {company_name}: {e}")
-                if hasattr(company, 'company'):
-                    # Update existing EnrichedCompany
-                    company.profiles = []
-                    enriched_companies.append(company)
-                else:
-                    # Create new EnrichedCompany
-                    enriched_companies.append(EnrichedCompany(company=company, profiles=[]))
+                logger.error(f"Error enriching {company.name}: {e}")
+                enriched_companies.append(EnrichedCompany(company=company, profiles=[]))
         
         checkpoint_manager.save_checkpoint(self.job_id, stage_name, enriched_companies)
         logger.info(f"💾 Saved {len(enriched_companies)} profiles to checkpoint")

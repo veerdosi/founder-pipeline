@@ -223,25 +223,21 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
             # Get numerical metrics in a single API call (for data fusion/CSV)
             metrics_data = await self._get_market_metrics_only(sector, year, company_name)
             
-            # Extract the researched founding year and numerical data
-            researched_founding_year = metrics_data.get('founding_year', year)
+            # Extract numerical data (use input year as-is)
             market_data = metrics_data.get('market_data', {})
             timing_data = metrics_data.get('timing_data', {})
             us_sentiment = metrics_data.get('us_sentiment', 0.0)
             asia_sentiment = metrics_data.get('asia_sentiment', 0.0)
-            competitor_data = metrics_data.get('competitor_data', {})
-            
-            logger.info(f"📅 Researched founding year: {researched_founding_year} (will replace CSV data) for {company_name or sector}")
-            
+            competitor_data = metrics_data.get('competitor_data', {})            
             # For text analysis, only run separate calls when specifically requested
             if include_text_analysis:
                 logger.info(f"📝 Generating detailed text analysis for {sector}")
-                # Run the detailed text analysis tasks using the researched founding year
+                # Run the detailed text analysis tasks using the CSV founding year
                 text_tasks = [
-                    self._get_comprehensive_market_overview(sector, researched_founding_year, company_name),
-                    self._get_investment_and_regulatory_analysis(sector, researched_founding_year, company_name),
-                    self._get_technology_and_trends_analysis(sector, researched_founding_year, company_name),
-                    self._get_risks_and_recommendations(sector, researched_founding_year, company_name)
+                    self._get_comprehensive_market_overview(sector, year, company_name),
+                    self._get_investment_and_regulatory_analysis(sector, year, company_name),
+                    self._get_technology_and_trends_analysis(sector, year, company_name),
+                    self._get_risks_and_recommendations(sector, year, company_name)
                 ]
                 
                 text_results = await asyncio.gather(*text_tasks, return_exceptions=True)
@@ -280,8 +276,7 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
             execution_time = time.time() - start_time
             
             metrics = MarketMetrics(
-                # Company and market context
-                researched_founding_year=researched_founding_year,
+                # Company and market context (no researched year - use CSV data)
                 
                 # Numerical metrics
                 market_size_billion=market_size,
@@ -331,7 +326,6 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
             logger.error(f"Error analyzing market for {sector}: {e}")
             # Return default metrics on failure
             return MarketMetrics(
-                researched_founding_year=year,  # Use fallback year
                 market_size_billion=0,
                 market_size_usd=0,
                 cagr_percent=0,
@@ -366,17 +360,15 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
         company_context = f" for companies like {company_name}" if company_name else ""
         
         prompt = f"""
-        First, research and find the actual founding year of {company_name if company_name else f"companies in the {sector} sector"}. Then analyze the {sector} market globally as it existed in that founding year.
+        Analyze the {sector} market globally as it existed in {year}{company_context}.
         
         IMPORTANT: 
-        1. Search for the real founding year of the company
-        2. Analyze the market conditions, size, growth rate, and competitive landscape as they were specifically in that founding year, not current conditions
-        3. This is for understanding the market opportunity that existed when the company was founded
+        1. Analyze the market conditions, size, growth rate, and competitive landscape as they were specifically in {year}
+        2. This is for understanding the market opportunity that existed in {year}
         
-        Provide the founding year you found and the numerical market metrics in this exact JSON format:
+        Provide the numerical market metrics in this exact JSON format:
         
         {{
-            "founding_year": 2019,
             "market_data": {{
                 "market_size": 15.5,
                 "cagr": 12.5
@@ -394,16 +386,15 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
         }}
         
         Guidelines:
-        - founding_year should be the actual year the company was founded (research this first)
-        - market_size should be in billions USD (total addressable market for that founding year)
-        - cagr should be projected growth percentage from that founding year
-        - timing_score should be 1-5 (5 being optimal timing for that founding year)
-        - us_sentiment and asia_sentiment should be 1-5 (5 being very positive for that year)
-        - competitor_count should be integer (competitors that existed in that founding year)
-        - total_funding should be in billions USD (total funding in sector for that year)
-        - momentum_score should be 1-5 (5 being highest momentum in that founding year)
+        - market_size should be in billions USD (total addressable market for {year})
+        - cagr should be projected growth percentage from {year}
+        - timing_score should be 1-5 (5 being optimal timing for {year})
+        - us_sentiment and asia_sentiment should be 1-5 (5 being very positive for {year})
+        - competitor_count should be integer (competitors that existed in {year})
+        - total_funding should be in billions USD (total funding in sector for {year})
+        - momentum_score should be 1-5 (5 being highest momentum in {year})
         
-        Do not include any text before or after the JSON. Focus only on accurate historical data for the actual founding year.
+        Do not include any text before or after the JSON. Focus only on accurate historical data for {year}.
         """
         
         try:
@@ -420,7 +411,6 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
             
             # Ensure all required keys exist with defaults
             return {
-                'founding_year': result.get('founding_year', year),  # Use researched year or fallback
                 'market_data': result.get('market_data', {}),
                 'timing_data': result.get('timing_data', {}),
                 'us_sentiment': float(result.get('us_sentiment', 0.0) or 0.0),
@@ -432,7 +422,6 @@ class PerplexityMarketAnalysis(MarketAnalysisService):
             logger.error(f"Error getting market metrics: {e}")
             # Return empty structure on failure
             return {
-                'founding_year': year,  # Use fallback year
                 'market_data': {},
                 'timing_data': {},
                 'us_sentiment': 0.0,

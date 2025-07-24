@@ -116,8 +116,8 @@ def safe_get_companies():
             jobs = checkpoint_manager.list_active_jobs()
             for job_progress in jobs:
                 job_id = job_progress['job_id']
-                # Try to load companies from any completed stage (companies, enhanced_companies, profiles, or rankings)
-                for stage in ['rankings', 'profiles', 'enhanced_companies', 'companies']:
+                # Try to load companies from any completed stage (enriched_companies, profiles, or rankings)
+                for stage in ['rankings', 'profiles', 'enriched_companies']:
                     if job_progress['stages'].get(stage, {}).get('completed'):
                         checkpoint_companies = checkpoint_manager.load_checkpoint(job_id, stage)
                         if checkpoint_companies:
@@ -176,7 +176,7 @@ async def get_available_checkpoints(job_type: Optional[str] = None):
                 
                 # Try to extract foundation year from checkpoint data if available
                 try:
-                    checkpoint_data = checkpoint_manager.load_checkpoint(job_id, 'companies')
+                    checkpoint_data = checkpoint_manager.load_checkpoint(job_id, 'enriched_companies')
                     if checkpoint_data and len(checkpoint_data) > 0:
                         # Find the most common foundation year from companies
                         years = [getattr(company, 'founded_year', None) for company in checkpoint_data if hasattr(company, 'founded_year') and getattr(company, 'founded_year')]
@@ -186,7 +186,7 @@ async def get_available_checkpoints(job_type: Optional[str] = None):
                     pass  # Keep default 2025
                 
                 # Create a separate checkpoint entry for each completed stage
-                stage_order = ['companies', 'enhanced_companies', 'profiles', 'rankings']
+                stage_order = ['enriched_companies', 'profiles', 'rankings']
                 for stage in stage_order:
                     if stage in job_progress['stages'] and job_progress['stages'][stage].get('completed'):
                         stage_data = job_progress['stages'][stage]
@@ -232,17 +232,38 @@ async def resume_pipeline_from_checkpoint(
     """Resume pipeline from a specific checkpoint."""
     try:
         # Extract actual job_id from checkpoint_id (format: job_id_stage)
-        if '_companies' in checkpoint_id or '_enhanced_companies' in checkpoint_id or '_profiles' in checkpoint_id or '_rankings' in checkpoint_id:
+        if '_enriched_companies' in checkpoint_id or '_profiles' in checkpoint_id or '_rankings' in checkpoint_id:
             # Remove the stage suffix to get the actual job_id
-            for stage in ['_rankings', '_profiles', '_enhanced_companies', '_companies']:
+            for stage in ['_rankings', '_profiles', '_enriched_companies']:
                 if checkpoint_id.endswith(stage):
                     actual_job_id = checkpoint_id[:-len(stage)]
                     break
         else:
             actual_job_id = checkpoint_id
         
+        # Extract year from checkpoint metadata 
+        try:
+            # Try to get the year from any available checkpoint stage
+            year = 2025  # Default fallback
+            for stage in ['enriched_companies', 'profiles', 'rankings']:
+                checkpoint_data = checkpoint_manager.load_checkpoint(actual_job_id, stage)
+                if checkpoint_data and len(checkpoint_data) > 0:
+                    # Extract year from first company
+                    first_item = checkpoint_data[0]
+                    if hasattr(first_item, 'company'):
+                        company = first_item.company
+                    else:
+                        company = first_item
+                    
+                    if hasattr(company, 'founded_year') and company.founded_year:
+                        year = company.founded_year
+                        break
+        except Exception as e:
+            logger.warning(f"Could not extract year from checkpoint, using default: {e}")
+            year = 2025
+        
         pipeline_service = get_pipeline_service(job_id=actual_job_id)
-        result = await pipeline_service.run(force_restart=False)
+        result = await pipeline_service.run(year=year, force_restart=False)
         
         latest_results["companies"] = result
         latest_results["rankings"] = []
@@ -265,27 +286,19 @@ async def run_complete_pipeline(
     params: YearBasedRequest,
     ranking_service: FounderRankingService = Depends(get_ranking_service),
 ):
-    """Year-based endpoint that runs the complete pipeline including ranking."""
+    """Year-based endpoint that runs the complete 3-stage pipeline."""
     try:
-        discovery_params = params.to_discovery_request()
-        
         pipeline_params = {
-            'limit': discovery_params.limit,
-            'categories': discovery_params.categories,
-            'regions': discovery_params.regions,
-            'founded_after': discovery_params.founded_after,
-            'founded_before': discovery_params.founded_before
+            'year': params.year,
+            'limit': params.limit
         }
         
         job_id = checkpoint_manager.create_job_id(pipeline_params)
         pipeline_service = get_pipeline_service(job_id=job_id)
         
         result = await pipeline_service.run(
-            limit=discovery_params.limit,
-            categories=discovery_params.categories,
-            regions=discovery_params.regions,
-            founded_after=discovery_params.founded_after,
-            founded_before=discovery_params.founded_before,
+            year=params.year,
+            limit=params.limit,  # Will be None to load all companies
             force_restart=False
         )
         
@@ -308,25 +321,22 @@ async def run_complete_pipeline(
 async def discover_companies_only(
     params: CompanyDiscoveryRequest,
 ):
-    """Discover companies only (without ranking) using checkpointed pipeline."""
+    """Run company enrichment stage only using the new 3-stage pipeline."""
     try:
+        # Extract year from founded_after date for new pipeline interface
+        year = params.founded_after.year if params.founded_after else 2024
+        
         pipeline_params = {
-            'limit': params.limit,
-            'categories': params.categories,
-            'regions': params.regions,
-            'founded_after': params.founded_after,
-            'founded_before': params.founded_before
+            'year': year,
+            'limit': params.limit
         }
         
         job_id = checkpoint_manager.create_job_id(pipeline_params)
         pipeline_service = get_pipeline_service(job_id=job_id)
         
         result = await pipeline_service.run(
+            year=year,
             limit=params.limit,
-            categories=params.categories,
-            regions=params.regions,
-            founded_after=params.founded_after,
-            founded_before=params.founded_before,
             force_restart=False
         )
         
@@ -398,33 +408,15 @@ async def discover_accelerator_companies(
         from ..models import EnrichedCompany
         enriched_companies = [EnrichedCompany(company=company, profiles=[]) for company in companies]
         
-        # Save initial companies to checkpoint BEFORE starting data fusion
-        logger.info(f"💾 Saving {len(enriched_companies)} companies to checkpoint before data fusion...")
-        checkpoint_manager.save_checkpoint(job_id, 'companies', enriched_companies)
+        # Save initial companies to checkpoint
+        logger.info(f"💾 Saving {len(enriched_companies)} companies to checkpoint...")
+        checkpoint_manager.save_checkpoint(job_id, 'enriched_companies', enriched_companies)
         logger.info(f"✅ Companies checkpoint saved successfully")
         
-        # Run data fusion
-        logger.info(f"🔄 Starting data fusion for {len(enriched_companies)} companies...")
-        # Extract Company objects for data fusion (it expects Company objects, not EnrichedCompany)
-        company_objects = [ec.company for ec in enriched_companies]
-        
-        # Use data fusion service as async context manager to ensure proper cleanup
-        async with pipeline.data_fusion:
-            enhanced_company_objects = await pipeline.data_fusion.batch_fuse_companies(
-                company_objects, 
-                batch_size=3,  # Reduce batch size to avoid overwhelming Crunchbase API
-                target_year=None
-            )
-        
-        # Convert back to EnrichedCompany objects
-        enhanced_companies = [EnrichedCompany(company=comp, profiles=[]) for comp in enhanced_company_objects]
-        checkpoint_manager.save_checkpoint(job_id, 'enhanced_companies', enhanced_companies)
-        logger.info(f"✅ Data fusion complete: {len(enhanced_companies)} companies enhanced")
-        
-        # Run profile enrichment
-        logger.info(f"🔄 Starting profile enrichment for {len(enhanced_companies)} companies...")
+        # Run profile enrichment (Stage 2 of new pipeline)
+        logger.info(f"🔄 Starting profile enrichment for {len(enriched_companies)} companies...")
         profiled_companies = []
-        for company in enhanced_companies:
+        for company in enriched_companies:
             try:
                 # Find profiles for each company
                 profiles = await pipeline.profile_enrichment.find_profiles(company.company)
@@ -701,12 +693,18 @@ async def get_companies_list():
         # Extract company names and info for dropdown
         company_list = []
         for ec in companies:
+            # Handle both EnrichedCompany (with .company attribute) and Company objects directly
+            if hasattr(ec, 'company'):
+                company = ec.company
+            else:
+                company = ec
+                
             company_info = {
-                "id": ec.company.name,
-                "name": ec.company.name,
-                "sector": ec.company.sector or "Unknown",
-                "founded_year": ec.company.founded_year or "Unknown",
-                "ai_focus": ec.company.ai_focus or "AI"
+                "id": company.name,
+                "name": company.name,
+                "sector": getattr(company, 'sector', None) or "Unknown",
+                "founded_year": getattr(company, 'founded_year', None) or "Unknown",
+                "ai_focus": getattr(company, 'ai_focus', None) or "AI"
             }
             company_list.append(company_info)
         
@@ -726,15 +724,25 @@ async def generate_market_analysis(company_name: str):
         target_company = None
         
         for ec in companies:
-            if ec.company.name == company_name:
-                target_company = ec.company
+            # Handle both EnrichedCompany (with .company attribute) and Company objects directly
+            if hasattr(ec, 'company'):
+                company = ec.company
+            else:
+                company = ec
+                
+            if company.name == company_name:
+                target_company = company
                 break
         
         if not target_company:
             raise HTTPException(status_code=404, detail=f"Company '{company_name}' not found in latest results")
         
+        # Get company sector and founded year (needed for both pre-computed and generated analysis)
+        sector = getattr(target_company, 'ai_focus', None) or getattr(target_company, 'sector', None) or "artificial intelligence"
+        founded_year = getattr(target_company, 'founded_year', None) or 2023
+        
         # Check if company already has pre-computed market metrics from data fusion
-        if target_company.market_metrics:
+        if hasattr(target_company, 'market_metrics') and target_company.market_metrics:
             metrics = target_company.market_metrics
             logger.info(f"📊 Using pre-computed market metrics for {company_name}")
         else:
@@ -743,10 +751,6 @@ async def generate_market_analysis(company_name: str):
             
             # Initialize market analysis service
             market_analysis = PerplexityMarketAnalysis()
-            
-            # Get company sector and founded year
-            sector = target_company.ai_focus or target_company.sector or "artificial intelligence"
-            founded_year = target_company.founded_year or 2023
             
             # Generate market analysis with full text analysis for reports
             async with market_analysis:

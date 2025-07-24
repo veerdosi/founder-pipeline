@@ -40,7 +40,7 @@ class Company(BaseModel):
     ai_focus: Optional[str] = None
     sector: Optional[str] = None
     funding_total_usd: Optional[float] = None
-    funding_stage: Optional[FundingStage] = None
+    funding_stage: Optional[str] = None  # Changed from FundingStage to str for AI-detected stages
     city: Optional[str] = None
     region: Optional[str] = None
     country: Optional[str] = None
@@ -52,7 +52,7 @@ class Company(BaseModel):
     employee_count: Optional[int] = None
     revenue_millions: Optional[float] = None
     valuation_millions: Optional[float] = None
-    last_funding_date: Optional[date] = None
+    last_funding_date: Optional[str] = None  # Changed to str to handle various date formats
     tech_stack: Optional[List[str]] = Field(default_factory=list)
     competitors: Optional[List[str]] = Field(default_factory=list)
     source_url: Optional[str] = None
@@ -60,6 +60,10 @@ class Company(BaseModel):
     confidence_score: float = Field(default=0.0, ge=0.0, le=1.0)
     data_quality_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     market_metrics: Optional["MarketMetrics"] = None
+    
+    # Additional fields for Crunchbase CSV processing
+    number_of_funding_rounds: Optional[int] = None
+    last_funding_amount_usd: Optional[float] = None
     
     class Config:
         json_encoders = {
@@ -160,8 +164,6 @@ class LinkedInProfile(BaseModel):
 
 class MarketMetrics(BaseModel):
     """Market analysis metrics."""
-    # Store researched founding year temporarily to update company data
-    researched_founding_year: Optional[int] = None
     
     # Numerical metrics
     market_size_usd: Optional[float] = None

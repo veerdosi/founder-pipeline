@@ -1,7 +1,6 @@
 """FastAPI dependencies for service injection."""
 
 from ..core.ranking import FounderRankingService
-from ..core.data import ExaCompanyDiscovery
 from ..core.pipeline import InitiationPipeline
 from ..core.data import LinkedInEnrichmentService
 
@@ -11,15 +10,10 @@ def get_ranking_service() -> FounderRankingService:
     return FounderRankingService()
 
 
-def get_discovery_service() -> ExaCompanyDiscovery:
-    """Get company discovery service instance."""
-    return ExaCompanyDiscovery()
-
-
 def get_enrichment_service() -> LinkedInEnrichmentService:
     """Get founder enrichment service instance.""" 
     return LinkedInEnrichmentService()
 
 def get_pipeline_service(job_id: str = None) -> InitiationPipeline:
-    """Get complete pipeline service instance."""
+    """Get complete 3-stage pipeline service instance."""
     return InitiationPipeline(job_id=job_id)

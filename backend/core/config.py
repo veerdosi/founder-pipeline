@@ -12,15 +12,11 @@ class Settings(BaseSettings):
     """Application settings with environment variable support."""
     
     # Core API Keys
-    exa_api_key: str = Field(..., env="EXA_API_KEY")
     openai_api_key: str = Field(..., env="OPENAI_API_KEY")
     apify_api_key: str = Field(..., env="APIFY_API_KEY")
     serpapi_key: str = Field(..., env="SERPAPI_KEY")
     perplexity_api_key: str = Field(..., env="PERPLEXITY_API_KEY")
     anthropic_api_key: str = Field(..., env="ANTHROPIC_API_KEY") 
-    
-    # Data Source APIs
-    crunchbase_api_key: str = Field(..., env="CRUNCHBASE_API_KEY")
     
     # Logging
     log_level: str = Field("INFO", env="LOG_LEVEL")
@@ -36,43 +32,6 @@ class Settings(BaseSettings):
         env="DEFAULT_OUTPUT_DIR"
     )
     checkpoint_enabled: bool = Field(True, env="CHECKPOINT_ENABLED")
-    
-    # Company Discovery - Global Early Stage Focus
-    default_company_limit: int = Field(50, env="DEFAULT_COMPANY_LIMIT")
-    ai_categories: List[str] = Field(
-        default=[
-            "artificial intelligence",
-            "machine learning", 
-            "computer vision",
-            "natural language processing",
-            "robotics",
-            "autonomous vehicles",
-            "generative ai",
-            "deep learning",
-            "neural networks",
-            "quantum computing",
-            "edge ai"
-        ],
-        env="AI_CATEGORIES"
-    )
-    
-    # Global Geographic Focus - US Market Only
-    target_regions: List[str] = Field(
-        default=[
-            "United States", "US", "USA", "Silicon Valley", "San Francisco", 
-            "New York", "Boston", "Seattle", "Austin", "Los Angeles", "Chicago"
-        ],
-        env="TARGET_REGIONS"
-    )
-    
-    # Early Stage Funding Filters
-    funding_stages: List[str] = Field(
-        default=["pre-seed", "seed", "series-a"],
-        env="FUNDING_STAGES"
-    )
-    min_funding_usd: int = Field(100000, env="MIN_FUNDING_USD")
-    max_funding_usd: int = Field(20000000, env="MAX_FUNDING_USD") # Max $20M for Series A focus
-    founded_after_year: int = Field(2020, env="FOUNDED_AFTER_YEAR")
     
     # LinkedIn Scraping
     linkedin_actor_id: str = Field(env="LINKEDIN_ACTOR_ID")

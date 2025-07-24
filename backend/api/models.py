@@ -29,7 +29,7 @@ class AcceleratorDiscoveryRequest(BaseModel):
 class YearBasedRequest(BaseModel):
     """Request model for year-based company discovery."""
     year: int
-    limit: int = 100
+    limit: Optional[int] = None  # Changed to None to load all companies by default
     
     @validator('year')
     def validate_year(cls, v):
@@ -44,7 +44,7 @@ class YearBasedRequest(BaseModel):
         end_date = date(self.year, 12, 31)
         
         return CompanyDiscoveryRequest(
-            limit=self.limit,
+            limit=self.limit or 10000,  # Use large number if None
             categories=[],
             regions=[],
             sources=["techcrunch", "crunchbase", "ycombinator"],

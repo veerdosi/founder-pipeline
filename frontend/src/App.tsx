@@ -2,13 +2,12 @@ import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import Tabs from './components/Tabs';
 import Pipeline from './components/Pipeline';
-import AcceleratorPipeline from './components/AcceleratorPipeline';
 import MarketAnalysis from './components/MarketAnalysis';
 import { PipelineStatus, PipelineResults, Company, MarketAnalysisData, CheckpointInfo } from './interfaces';
 import './App.css';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'pipeline' | 'accelerators' | 'market-analysis'>('pipeline');
+  const [activeTab, setActiveTab] = useState<'pipeline' | 'market-analysis'>('pipeline');
   const [year, setYear] = useState('2025');
   const [isRunning, setIsRunning] = useState(false);
   const [steps, setSteps] = useState<PipelineStatus[]>([]);
@@ -19,8 +18,6 @@ export default function App() {
   const [checkpoints, setCheckpoints] = useState<CheckpointInfo[]>([]);
   const [selectedCheckpoint, setSelectedCheckpoint] = useState<string>('');
 
-  // Accelerator Pipeline State
-  const [selectedAccelerators, setSelectedAccelerators] = useState<string[]>(['yc', 'techstars', '500co']);
 
   // Market Analysis State
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -43,9 +40,7 @@ export default function App() {
 
   const loadCheckpoints = async () => {
     try {
-      // Load checkpoints based on active tab
-      const jobType = activeTab === 'accelerators' ? 'accelerator' : 'main_pipeline';
-      const response = await fetch(`/api/checkpoints?job_type=${jobType}`);
+      const response = await fetch(`/api/checkpoints?job_type=main_pipeline`);
       if (response.ok) {
         const checkpointList = await response.json();
         setCheckpoints(checkpointList);
@@ -418,111 +413,6 @@ export default function App() {
     printWindow.print();
   };
 
-  const runAcceleratorPipeline = async () => {
-    if (startMode === 'fresh' && selectedAccelerators.length === 0) {
-      setError('Please select at least one accelerator');
-      return;
-    }
-
-    if (startMode === 'resume' && !selectedCheckpoint) {
-      setError('Please select a checkpoint to resume from');
-      return;
-    }
-
-    setIsRunning(true);
-    setError(null);
-    setResults(null);
-    setSteps([]);
-
-    try {
-      if (startMode === 'resume') {
-        updateStep('Resuming Pipeline', 'running', `Resuming from checkpoint: ${selectedCheckpoint}`);
-        
-        const resumeResponse = await fetch(`/api/pipeline/resume/${selectedCheckpoint}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-
-        if (!resumeResponse.ok) {
-          throw new Error(`Resume failed: ${resumeResponse.statusText}`);
-        }
-
-        const resumeResult = await resumeResponse.json();
-        updateStep('Resuming Pipeline', 'completed', resumeResult.message);
-
-        updateStep('Loading Results', 'running');
-        const [companiesData, foundersData] = await Promise.all([
-          fetch('/api/companies').then(r => r.json()),
-          fetch('/api/founders/rankings').then(r => r.json()).catch(() => [])
-        ]);
-
-        setResults({
-          companies: companiesData,
-          founders: foundersData,
-          jobId: resumeResult.jobId
-        });
-
-        updateStep('Loading Results', 'completed', 'Pipeline resumed successfully');
-        
-      } else {
-        updateStep('Accelerator Discovery', 'running', `Searching ${selectedAccelerators.join(', ')} for AI/ML companies...`);
-        
-        const acceleratorResponse = await fetch('/api/accelerators/discover', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            accelerators: selectedAccelerators
-          })
-        });
-
-        if (!acceleratorResponse.ok) {
-          throw new Error(`Accelerator pipeline failed: ${acceleratorResponse.statusText}`);
-        }
-
-        const acceleratorResult = await acceleratorResponse.json();
-        updateStep('Accelerator Discovery', 'completed', `Found ${acceleratorResult.companiesFound} AI/ML companies`);
-
-        updateStep('Data Fusion', 'completed', `Enhanced company data with Crunchbase`);
-        updateStep('Profile Enrichment', 'completed', `Found ${acceleratorResult.foundersFound} founder profiles`);
-        updateStep('Founder Ranking', 'completed', `Ranked ${acceleratorResult.foundersFound} founders`);
-
-        updateStep('Loading Results', 'running');
-        const [companiesData, foundersData] = await Promise.all([
-          fetch('/api/companies').then(r => r.json()),
-          fetch('/api/founders/rankings').then(r => r.json()).catch(() => [])
-        ]);
-
-        setResults({
-          companies: companiesData,
-          founders: foundersData,
-          jobId: acceleratorResult.jobId
-        });
-
-        updateStep('Loading Results', 'completed', 'Accelerator pipeline completed successfully');
-        
-        updateStep('Saving Results', 'running', 'Saving CSV files...');
-        try {
-          await downloadCSV('companies');
-          if (foundersData.length > 0) {
-            await downloadCSV('founders');
-          }
-          updateStep('Saving Results', 'completed', 'CSV files saved to output folder');
-        } catch (exportError) {
-          updateStep('Saving Results', 'error', 'Failed to save CSV files');
-          console.error('Auto-export failed:', exportError);
-        }
-      }
-
-      await loadCheckpoints();
-
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error occurred';
-      setError(message);
-      updateStep('Accelerator Pipeline', 'error', message);
-    } finally {
-      setIsRunning(false);
-    }
-  };
 
   const runPipeline = async () => {
     if (startMode === 'fresh' && !year) {
@@ -577,8 +467,7 @@ export default function App() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            year: parseInt(year),
-            limit: 100
+            year: parseInt(year)
           })
         });
 
@@ -728,25 +617,6 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'accelerators' && (
-          <AcceleratorPipeline
-            selectedAccelerators={selectedAccelerators}
-            setSelectedAccelerators={setSelectedAccelerators}
-            isRunning={isRunning}
-            steps={steps}
-            results={results}
-            error={error}
-            success={success}
-            startMode={startMode}
-            setStartMode={setStartMode}
-            checkpoints={checkpoints}
-            selectedCheckpoint={selectedCheckpoint}
-            setSelectedCheckpoint={setSelectedCheckpoint}
-            runAcceleratorPipeline={runAcceleratorPipeline}
-            downloadCSV={downloadCSV}
-            clearError={clearError}
-          />
-        )}
 
         {activeTab === 'market-analysis' && (
           <MarketAnalysis

@@ -296,6 +296,12 @@ Known founder names: {', '.join(known_names)}
 Below are search results. Extract only LinkedIn profiles that:
 - Match the known names provided
 - Are likely to belong to this company
+- Have ACTUAL LinkedIn URLs found in the search results (DO NOT create placeholder URLs)
+- If no valid LinkedIn URL is found in the search results, skip that person
+
+IMPORTANT: Only extract profiles where you can find an actual LinkedIn URL in the search results. 
+DO NOT generate placeholder URLs, assumptions, or comments in the JSON response.
+If you cannot find a real LinkedIn URL for a person, do not include them.
 
 Search Results:
 {combined}
@@ -303,9 +309,11 @@ Search Results:
 Return a JSON object with this structure:
 {{
     "linkedin": [
-        {{"name": "Person Name", "url": "https://linkedin.com/in/profile"}}
+        {{"name": "Person Name", "url": "https://linkedin.com/in/actual-profile-from-search-results"}}
     ]
 }}
+
+Remember: Only return profiles with real URLs found in the search results above. No placeholders, no assumptions.
 """
         
         try:
@@ -400,10 +408,14 @@ Return a JSON object with this structure:
         Company Description: {company.description or "N/A"}
 
         Below are search results. Extract only LinkedIn profiles that:
-        - Match the known names provided
         - Are likely to belong to this company
-        - Have a valid LinkedIn URL (skip if it's missing or uncertain)
+        - Have ACTUAL LinkedIn URLs found in the search results (DO NOT create placeholder URLs)
         - Are not duplicates (remove repeated entries by name or URL)
+        - If no valid LinkedIn URL is found in the search results, skip that person
+
+        IMPORTANT: Only extract profiles where you can find an actual LinkedIn URL in the search results. 
+        DO NOT generate placeholder URLs, assumptions, or comments in the JSON response.
+        If you cannot find a real LinkedIn URL for a person, do not include them.
 
         Search Results:
         {combined}
@@ -411,9 +423,11 @@ Return a JSON object with this structure:
         Return a JSON object with this structure:
         {{
             "linkedin": [
-                {{"name": "Person Name", "url": "https://linkedin.com/in/profile"}}
+                {{"name": "Person Name", "url": "https://linkedin.com/in/actual-profile-from-search-results"}}
             ]
         }}
+
+        Remember: Only return profiles with real URLs found in the search results above. No placeholders, no assumptions.
         """
         
         try:

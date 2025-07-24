@@ -1,12 +1,9 @@
-"""Core data module for data fusion and enrichment."""
+"""Core data module for company enrichment and profile processing."""
 
-from .data_fusion import DataFusionService, FusedCompanyData
+from .company_enrichment import company_enrichment_service
 from .profile_enrichment import LinkedInEnrichmentService
-from .company_discovery import ExaCompanyDiscovery
 
 __all__ = [
-    "DataFusionService",
-    "FusedCompanyData", 
-    "LinkedInEnrichmentService",
-    "ExaCompanyDiscovery"
+    "company_enrichment_service",
+    "LinkedInEnrichmentService"
 ]

@@ -101,7 +101,7 @@ class PipelineCheckpointManager:
     
     def get_job_progress(self, job_id: str) -> Dict[str, Any]:
         """Get progress information for a job."""
-        stages = ['companies', 'enhanced_companies', 'profiles', 'rankings']
+        stages = ['enriched_companies', 'profiles', 'rankings']
         progress = {
             'job_id': job_id,
             'stages': {},
@@ -143,7 +143,7 @@ class PipelineCheckpointManager:
         latest_stage = None
         latest_data = None
         
-        for stage in ['rankings', 'profiles', 'enhanced_companies', 'companies']:
+        for stage in ['rankings', 'profiles', 'enriched_companies']:
             if progress['stages'].get(stage, {}).get('completed'):
                 latest_stage = stage
                 latest_data = self.load_checkpoint(job_id, stage)
@@ -186,11 +186,11 @@ class PipelineCheckpointManager:
             try:
                 # Extract job_id from filename
                 # Expected format: job_YYYYMMDD_HHMM_hash_stage
-                # Stage can be: companies, enhanced_companies, profiles, rankings
+                # Stage can be: enriched_companies, profiles, rankings
                 filename = checkpoint_file.stem
                 
                 # Find the stage suffix and extract job_id accordingly
-                known_stages = ['rankings', 'profiles', 'enhanced_companies', 'companies']
+                known_stages = ['rankings', 'profiles', 'enriched_companies']
                 job_id = None
                 
                 for stage in known_stages:
@@ -264,7 +264,7 @@ class CheckpointedPipelineRunner:
         self.checkpoint_manager = checkpoint_manager
     
     async def _export_companies_csv(self, companies: List, job_id: str, target_year: Optional[int] = None):
-        """Export companies to CSV immediately after discovery."""
+        """Export companies to CSV with exact column specification."""
         import csv
         from pathlib import Path
         
@@ -280,15 +280,14 @@ class CheckpointedPipelineRunner:
                 logger.warning("No companies to export")
                 return
             
-            # Define CSV columns for companies
+            # Define CSV columns exactly as specified by user
             columns = [
-                'name', 'description', 'founded_year',
-                'funding_total_usd', 'funding_stage', 'founders', 'investors',
-                'categories', 'city', 'region', 'country', 'sector',
-                'website', 'linkedin_url', 'crunchbase_url', 'source_url', 'extraction_date',
-                # Market analysis metrics
-                'market_size_billion', 'cagr_percent', 'timing_score', 'competitor_count',
-                'market_stage', 'confidence_score_market', 'us_sentiment', 'sea_sentiment',
+                'Name', 'Description', 'founded year', 'total funding amount (in usd)', 
+                'number of funding rounds', 'last funding date', 'last funding amount (in usd)', 
+                'city', 'region', 'country', 'investor names', 'founder names', 
+                'number of employees', 'sector', 'website', 'linkedin url', 
+                'market_size_billion', 'cagr_percent', 'timing_score', 'competitor_count', 
+                'market_stage', 'confidence_score_market', 'us_sentiment', 'sea_sentiment', 
                 'total_funding_billion', 'momentum_score'
             ]
             
@@ -314,26 +313,22 @@ class CheckpointedPipelineRunner:
                     market_metrics = getattr(comp, 'market_metrics', None)
                     
                     row = {
-                        'name': getattr(comp, 'name', ''),
-                        'description': getattr(comp, 'description', ''),
-                        'short_description': getattr(comp, 'short_description', ''),
-                        'founded_year': founded_year if founded_year is not None else '',
-                        'funding_total_usd': getattr(comp, 'funding_total_usd', ''),
-                        'funding_stage': getattr(comp, 'funding_stage', ''),
-                        'founders': '|'.join(getattr(comp, 'founders', [])),
-                        'investors': '|'.join(getattr(comp, 'investors', [])),
-                        'categories': '|'.join(getattr(comp, 'categories', [])),
+                        'Name': getattr(comp, 'name', ''),
+                        'Description': getattr(comp, 'description', ''),
+                        'founded year': founded_year if founded_year is not None else '',
+                        'total funding amount (in usd)': getattr(comp, 'funding_total_usd', ''),
+                        'number of funding rounds': getattr(comp, 'number_of_funding_rounds', ''),
+                        'last funding date': getattr(comp, 'last_funding_date', ''),
+                        'last funding amount (in usd)': getattr(comp, 'last_funding_amount_usd', ''),
                         'city': getattr(comp, 'city', ''),
                         'region': getattr(comp, 'region', ''),
                         'country': getattr(comp, 'country', ''),
-                        'ai_focus': getattr(comp, 'ai_focus', ''),
+                        'investor names': '|'.join(getattr(comp, 'investors', [])),
+                        'founder names': '|'.join(getattr(comp, 'founders', [])),
+                        'number of employees': getattr(comp, 'employee_count', ''),
                         'sector': getattr(comp, 'sector', ''),
                         'website': getattr(comp, 'website', ''),
-                        'linkedin_url': getattr(comp, 'linkedin_url', ''),
-                        'crunchbase_url': getattr(comp, 'crunchbase_url', ''),
-                        'source_url': getattr(comp, 'source_url', ''),
-                        'extraction_date': getattr(comp, 'extraction_date', ''),
-                        # Market analysis metrics
+                        'linkedin url': getattr(comp, 'linkedin_url', ''),
                         'market_size_billion': getattr(market_metrics, 'market_size_billion', '') if market_metrics else '',
                         'cagr_percent': getattr(market_metrics, 'cagr_percent', '') if market_metrics else '',
                         'timing_score': getattr(market_metrics, 'timing_score', '') if market_metrics else '',

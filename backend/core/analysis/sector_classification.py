@@ -3,7 +3,7 @@
 import json
 from typing import Optional
 from openai import AsyncOpenAI
-from ...core import settings
+from ..config import settings
 from ...utils.rate_limiter import RateLimiter
 import logging
 
