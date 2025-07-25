@@ -155,6 +155,115 @@ async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
+@app.get("/api/pipeline/progress/{job_id}")
+async def get_pipeline_progress(job_id: str):
+    """Get real-time progress information for a running or completed pipeline job."""
+    try:
+        # Get progress from checkpoint manager
+        progress = checkpoint_manager.get_job_progress(job_id)
+        
+        if not progress:
+            raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+        
+        # Define stage display names and descriptions
+        stage_info = {
+            'enriched_companies': {
+                'name': 'Company Enrichment',
+                'description': 'Enriching company data with funding, sector, and details'
+            },
+            'profiles': {
+                'name': 'Profile Enrichment', 
+                'description': 'Finding and enriching founder LinkedIn profiles'
+            },
+            'rankings': {
+                'name': 'Founder Ranking',
+                'description': 'Ranking founders based on AI analysis'
+            }
+        }
+        
+        # Build detailed step information
+        steps = []
+        stage_order = ['enriched_companies', 'profiles', 'rankings']
+        
+        for i, stage in enumerate(stage_order):
+            stage_data = progress['stages'].get(stage, {})
+            is_completed = stage_data.get('completed', False)
+            
+            # Determine status based on completion and current stage
+            if is_completed:
+                status = 'completed'
+                message = '✅ Completed'
+            elif progress.get('current_stage') == stage:
+                status = 'running'
+                message = f"🔄 {stage_info[stage]['description']}..."
+            else:
+                status = 'pending'
+                message = stage_info[stage]['description']
+            
+            steps.append({
+                'step': stage_info[stage]['name'],
+                'status': status,
+                'message': message,
+                'stage_key': stage
+            })
+        
+        # Check for incremental progress on current running stage
+        current_stage = progress.get('current_stage')
+        if current_stage and current_stage in stage_order:
+            try:
+                # Check for incremental checkpoint with detailed progress
+                incremental_data = checkpoint_manager.load_incremental_checkpoint(job_id, current_stage)
+                if incremental_data and 'progress_info' in incremental_data:
+                    progress_info = incremental_data['progress_info']
+                    completed_count = len(progress_info.get('completed_companies', []))
+                    total_count = progress_info.get('total_companies', 0)
+                    
+                    if total_count > 0:
+                        # Update the running stage with incremental progress
+                        stage_index = stage_order.index(current_stage)
+                        if stage_index < len(steps):
+                            percentage = round((completed_count / total_count) * 100, 1)
+                            steps[stage_index]['message'] = f"🔄 Processing {completed_count}/{total_count} items ({percentage}%)"
+                            steps[stage_index]['incremental_progress'] = {
+                                'completed': completed_count,
+                                'total': total_count,
+                                'percentage': percentage
+                            }
+            except Exception as e:
+                logger.warning(f"Could not load incremental progress for {job_id}: {e}")
+        
+        # Calculate overall completion percentage
+        completed_stages = len([s for s in steps if s['status'] == 'completed'])
+        running_stages = len([s for s in steps if s['status'] == 'running'])
+        total_stages = len(steps)
+        
+        # Give partial credit for running stages based on incremental progress
+        overall_percentage = (completed_stages / total_stages) * 100
+        if running_stages > 0:
+            for step in steps:
+                if step['status'] == 'running' and 'incremental_progress' in step:
+                    # Add partial progress for running stage
+                    stage_weight = 100 / total_stages
+                    incremental_percentage = step['incremental_progress']['percentage']
+                    overall_percentage += (stage_weight * incremental_percentage / 100)
+        
+        overall_percentage = min(round(overall_percentage, 1), 100)
+        
+        return {
+            'job_id': job_id,
+            'overall_completion_percentage': overall_percentage,
+            'current_stage': current_stage,
+            'steps': steps,
+            'is_complete': progress['completion_percentage'] == 100,
+            'is_running': any(s['status'] == 'running' for s in steps)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting pipeline progress for {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get progress: {str(e)}")
+
 @app.get("/api/checkpoints")
 async def get_available_checkpoints(job_type: Optional[str] = None):
     """Get list of available checkpoints."""

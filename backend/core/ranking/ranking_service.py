@@ -100,7 +100,6 @@ class ClaudeSonnet4RankingService:
         
         for i in range(0, len(founders_data), batch_size):
             batch = founders_data[i:i + batch_size]
-            logger.info(f"Processing founder batch {i//batch_size + 1}/{(len(founders_data) + batch_size - 1)//batch_size}")
             
             # Process batch sequentially to avoid rate limits
             for founder_data in batch:

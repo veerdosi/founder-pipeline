@@ -64,6 +64,7 @@ class Company(BaseModel):
     # Additional fields for Crunchbase CSV processing
     number_of_funding_rounds: Optional[int] = None
     last_funding_amount_usd: Optional[float] = None
+    operating_status: Optional[str] = None
     
     class Config:
         json_encoders = {

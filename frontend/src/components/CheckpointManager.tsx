@@ -57,17 +57,57 @@ const CheckpointManager: React.FC<CheckpointManagerProps> = ({
                 disabled={isRunning}
               >
                 <option value="">-- Select a checkpoint --</option>
-                {checkpoints.map(cp => (
-                  <option key={cp.id} value={cp.id}>
-                    {new Date(cp.created_at).toLocaleString()} - {cp.foundation_year} ({cp.latest_stage.replace('enriched_companies', 'companies')}, {cp.completion_percentage.toFixed(0)}%)
-                  </option>
-                ))}
+                {checkpoints.map(cp => {
+                  const stageDisplay = {
+                    'enriched_companies': 'Company Enrichment',
+                    'profiles': 'Profile Enrichment',
+                    'rankings': 'Founder Ranking'
+                  }[cp.latest_stage] || cp.latest_stage;
+                  
+                  return (
+                    <option key={cp.id} value={cp.id}>
+                      {new Date(cp.created_at).toLocaleString()} - Year {cp.foundation_year} - {stageDisplay} ({cp.completion_percentage.toFixed(0)}% complete)
+                    </option>
+                  );
+                })}
               </select>
-              {selectedCheckpoint && (
-                <p className="checkpoint-tip">
-                  💡 This will resume the pipeline from the selected stage.
-                </p>
-              )}
+              {selectedCheckpoint && (() => {
+                const selected = checkpoints.find(cp => cp.id === selectedCheckpoint);
+                if (!selected) return null;
+                
+                const stageDisplay = {
+                  'enriched_companies': 'Company Enrichment',
+                  'profiles': 'Profile Enrichment',
+                  'rankings': 'Founder Ranking'
+                }[selected.latest_stage] || selected.latest_stage;
+                
+                const nextStages = {
+                  'enriched_companies': ['Profile Enrichment', 'Founder Ranking'],
+                  'profiles': ['Founder Ranking'],
+                  'rankings': []
+                }[selected.latest_stage] || [];
+                
+                return (
+                  <div className="checkpoint-info">
+                    <p className="checkpoint-detail">
+                      <strong>📊 Progress:</strong> {selected.completion_percentage.toFixed(0)}% complete
+                    </p>
+                    <p className="checkpoint-detail">
+                      <strong>✅ Latest completed stage:</strong> {stageDisplay}
+                    </p>
+                    {nextStages.length > 0 && (
+                      <p className="checkpoint-detail">
+                        <strong>🔄 Will resume with:</strong> {nextStages.join(', ')}
+                      </p>
+                    )}
+                    {nextStages.length === 0 && (
+                      <p className="checkpoint-detail checkpoint-complete">
+                        ✨ This pipeline is already complete!
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           ) : (
             <p className="checkpoint-tip">No checkpoints available. Run a fresh pipeline to create one.</p>

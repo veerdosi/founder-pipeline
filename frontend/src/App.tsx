@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Header from './components/Header';
 import Tabs from './components/Tabs';
 import Pipeline from './components/Pipeline';
@@ -17,7 +17,8 @@ export default function App() {
   const [startMode, setStartMode] = useState<'fresh' | 'resume'>('fresh');
   const [checkpoints, setCheckpoints] = useState<CheckpointInfo[]>([]);
   const [selectedCheckpoint, setSelectedCheckpoint] = useState<string>('');
-
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [isPollingProgress, setIsPollingProgress] = useState(false);
 
   // Market Analysis State
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -37,6 +38,35 @@ export default function App() {
       return [...prev, { step: stepName, status, message }];
     });
   };
+
+  const initializePipelineSteps = (mode: 'fresh' | 'resume', checkpointData?: CheckpointInfo) => {
+    const baseSteps = [
+      { step: 'Company Enrichment', status: 'pending' as const, message: 'Enriching company data with funding, sector, and details' },
+      { step: 'Profile Enrichment', status: 'pending' as const, message: 'Enriching founder profiles and LinkedIn data' },
+      { step: 'Founder Ranking', status: 'pending' as const, message: 'Ranking founders based on AI analysis' }
+    ];
+
+    if (mode === 'resume' && checkpointData) {
+      const stageMap: { [key: string]: number } = {
+        'enriched_companies': 0,
+        'profiles': 1,
+        'rankings': 2
+      };
+      
+      const completedStageIndex = stageMap[checkpointData.latest_stage] || -1;
+      
+      return baseSteps.map((step, index) => ({
+        ...step,
+        status: index <= completedStageIndex ? 'completed' as const : 'pending' as const,
+        message: index <= completedStageIndex 
+          ? `✅ Completed (from checkpoint)` 
+          : step.message
+      }));
+    }
+    
+    return baseSteps;
+  };
+
 
   const loadCheckpoints = async () => {
     try {
@@ -428,11 +458,26 @@ export default function App() {
     setIsRunning(true);
     setError(null);
     setResults(null);
-    setSteps([]);
+    
+    const checkpointData = checkpoints.find(cp => cp.id === selectedCheckpoint);
+    const initialSteps = initializePipelineSteps(startMode, checkpointData);
+    setSteps(initialSteps);
+    
 
     try {
       if (startMode === 'resume') {
-        updateStep('Resuming Pipeline', 'running', `Resuming from checkpoint: ${selectedCheckpoint}`);
+        const stageMap: { [key: string]: string } = {
+          'enriched_companies': 'Company Enrichment',
+          'profiles': 'Profile Enrichment', 
+          'rankings': 'Founder Ranking'
+        };
+        
+        const checkpointInfo = checkpoints.find(cp => cp.id === selectedCheckpoint);
+        const nextStage = checkpointInfo ? stageMap[checkpointInfo.latest_stage] : null;
+        
+        if (nextStage) {
+          updateStep(nextStage, 'running', `🔄 Resuming from ${checkpointInfo?.latest_stage}...`);
+        }
         
         const resumeResponse = await fetch(`/api/pipeline/resume/${selectedCheckpoint}`, {
           method: 'POST',
@@ -444,24 +489,13 @@ export default function App() {
         }
 
         const resumeResult = await resumeResponse.json();
-        updateStep('Resuming Pipeline', 'completed', resumeResult.message);
-
-        updateStep('Loading Results', 'running');
-        const [companiesData, foundersData] = await Promise.all([
-          fetch('/api/companies').then(r => r.json()),
-          fetch('/api/founders/rankings').then(r => r.json()).catch(() => [])
-        ]);
-
-        setResults({
-          companies: companiesData,
-          founders: foundersData,
-          jobId: resumeResult.jobId
-        });
-
-        updateStep('Loading Results', 'completed', 'Pipeline resumed successfully');
+        
+        // Start polling for real-time progress  
+        setCurrentJobId(resumeResult.jobId);
+        setIsPollingProgress(true);
         
       } else {
-        updateStep('Company Discovery', 'running', 'Searching for companies...');
+        updateStep('Company Enrichment', 'running', '🔄 Enriching company data...');
         
         const pipelineResponse = await fetch('/api/pipeline/run', {
           method: 'POST',
@@ -476,82 +510,10 @@ export default function App() {
         }
 
         const pipelineResult = await pipelineResponse.json();
-        updateStep('Company Discovery', 'completed', `Found ${pipelineResult.companiesFound} companies`);
-
-        updateStep('Loading Company Data', 'running');
-        const companiesResponse = await fetch('/api/companies');
-        const companies = await companiesResponse.json();
-        updateStep('Loading Company Data', 'completed', `Loaded ${companies.length} companies`);
-
-        const totalFounders = pipelineResult.foundersFound;
-        if (totalFounders > 0) {
-          updateStep('Founder Analysis', 'running', `Analyzing ${totalFounders} founders...`);
-          
-          const founderProfiles = companies.flatMap(company => 
-            company.founders.map(founderName => ({
-              name: founderName,
-              company_name: company.name,
-              linkedin_url: '',
-              bio: company.description || ''
-            }))
-          );
-
-          if (founderProfiles.length > 0) {
-            const csvContent = [
-              'name,company_name,linkedin_url,bio',
-              ...founderProfiles.map(p => 
-                `"${p.name}","${p.company_name}","${p.linkedin_url}","${p.bio.replace(/"/g, '""')}"`
-              )
-            ].join('\n');
-
-            const formData = new FormData();
-            const blob = new Blob([csvContent], { type: 'text/csv' });
-            formData.append('file', blob, 'founders.csv');
-
-            const rankingResponse = await fetch('/api/founders/rank', {
-              method: 'POST',
-              body: formData
-            });
-
-            if (rankingResponse.ok) {
-              const rankingResult = await rankingResponse.json();
-              updateStep('Founder Analysis', 'completed', `Ranked ${rankingResult.foundersFound} founders`);
-            } else {
-              updateStep('Founder Analysis', 'error', 'Ranking failed');
-              throw new Error('Founder ranking failed');
-            }
-          } else {
-            updateStep('Founder Analysis', 'completed', 'No founders to analyze');
-          }
-        } else {
-          updateStep('Founder Analysis', 'completed', 'No founders found');
-        }
-
-        updateStep('Preparing Results', 'running');
-        const [companiesData, foundersData] = await Promise.all([
-          fetch('/api/companies').then(r => r.json()),
-          fetch('/api/founders/rankings').then(r => r.json()).catch(() => [])
-        ]);
-
-        setResults({
-          companies: companiesData,
-          founders: foundersData,
-          jobId: pipelineResult.jobId
-        });
-
-        updateStep('Preparing Results', 'completed', 'Pipeline completed successfully');
         
-        updateStep('Saving Results', 'running', 'Saving CSV files...');
-        try {
-          await downloadCSV('companies');
-          if (foundersData.length > 0) {
-            await downloadCSV('founders');
-          }
-          updateStep('Saving Results', 'completed', 'CSV files saved to output folder');
-        } catch (exportError) {
-          updateStep('Saving Results', 'error', 'Failed to save CSV files');
-          console.error('Auto-export failed:', exportError);
-        }
+        // Start polling for real-time progress
+        setCurrentJobId(pipelineResult.jobId);
+        setIsPollingProgress(true);
       }
 
       await loadCheckpoints();
@@ -559,7 +521,16 @@ export default function App() {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error occurred';
       setError(message);
-      updateStep('Pipeline', 'error', message);
+      
+      // Stop polling on error
+      setIsPollingProgress(false);
+      setCurrentJobId(null);
+      
+      setSteps(prev => prev.map(step => 
+        step.status === 'running' 
+          ? { ...step, status: 'error' as const, message: `❌ ${message}` }
+          : step
+      ));
     } finally {
       setIsRunning(false);
     }
@@ -586,6 +557,90 @@ export default function App() {
       setError(`Export failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
+
+  const pollProgress = async (jobId: string) => {
+    if (!jobId || !isPollingProgress) return;
+
+    try {
+      const response = await fetch(`/api/pipeline/progress/${jobId}`);
+      if (response.ok) {
+        const progressData = await response.json();
+        
+        // Update steps with real-time progress
+        const newSteps = progressData.steps.map((step: any) => ({
+          step: step.step,
+          status: step.status,
+          message: step.message || ''
+        }));
+        
+        setSteps(newSteps);
+        
+        // Stop polling if pipeline is complete
+        if (progressData.is_complete || !progressData.is_running) {
+          setIsPollingProgress(false);
+          setIsRunning(false);
+          setCurrentJobId(null);
+          
+          // Fetch final results if complete
+          if (progressData.is_complete) {
+            const [companiesData, foundersData] = await Promise.all([
+              fetch('/api/companies').then(r => r.json()),
+              fetch('/api/founders/rankings').then(r => r.json()).catch(() => [])
+            ]);
+
+            setResults({
+              companies: companiesData,
+              founders: foundersData,
+              jobId: jobId
+            });
+            
+            try {
+              await downloadCSV('companies');
+              if (foundersData.length > 0) {
+                await downloadCSV('founders');
+              }
+            } catch (exportError) {
+              console.error('Auto-export failed:', exportError);
+            }
+          }
+        }
+      } else if (response.status === 404) {
+        // Job not found, stop polling
+        setIsPollingProgress(false);
+        setIsRunning(false);
+        setCurrentJobId(null);
+        setError('Pipeline job not found or has expired');
+      } else {
+        // Other error, show error and stop polling
+        const errorText = await response.text();
+        setError(`Progress tracking error: ${errorText}`);
+        setIsPollingProgress(false);
+        setIsRunning(false);
+        setCurrentJobId(null);
+      }
+    } catch (err) {
+      console.error('Progress polling error:', err);
+      // Don't stop polling for network errors, just log them
+      // The polling will continue and may recover
+    }
+  };
+
+  // Progress polling effect
+  useEffect(() => {
+    let intervalId: number;
+    
+    if (isPollingProgress && currentJobId) {
+      intervalId = setInterval(() => {
+        pollProgress(currentJobId);
+      }, 2000); // Poll every 2 seconds
+    }
+    
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [isPollingProgress, currentJobId]);
 
   const clearError = () => setError(null);
   const clearAnalysisError = () => setAnalysisError(null);
