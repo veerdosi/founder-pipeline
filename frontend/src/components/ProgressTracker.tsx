@@ -20,9 +20,32 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ steps }) => {
     }
   };
 
+  const getProgressPercentage = () => {
+    const totalSteps = steps.length;
+    if (totalSteps === 0) return 0;
+    
+    const completedSteps = steps.filter(step => step.status === 'completed').length;
+    const runningSteps = steps.filter(step => step.status === 'running').length;
+    
+    return Math.round((completedSteps / totalSteps) * 100) + (runningSteps > 0 ? Math.round((runningSteps / totalSteps) * 50) : 0);
+  };
+
   return (
     <div className="card progress-tracker-container animate-fade-in">
-      <h2>Pipeline Progress</h2>
+      <div className="progress-header">
+        <h2>Pipeline Progress</h2>
+        <div className="progress-percentage">
+          {getProgressPercentage()}% Complete
+        </div>
+      </div>
+      <div className="progress-bar-container">
+        <div className="progress-bar">
+          <div 
+            className="progress-bar-fill" 
+            style={{ width: `${getProgressPercentage()}%` }}
+          ></div>
+        </div>
+      </div>
       <div>
         {steps.map((step, index) => (
           <div key={index} className={`progress-step ${step.status}`}>

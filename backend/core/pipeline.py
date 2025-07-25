@@ -163,6 +163,8 @@ class InitiationPipeline:
 
     async def _rank_founders_checkpointed(self, enriched_companies, force_restart):
         stage_name = "rankings"
+        
+        # Check for complete stage checkpoint first
         if not force_restart:
             cached_data = checkpoint_manager.load_checkpoint(self.job_id, stage_name)
             if cached_data:
@@ -174,30 +176,117 @@ class InitiationPipeline:
                 except Exception as e:
                     logger.error(f"Failed to export founders CSV from checkpoint: {e}")
                 return cached_data
+        
+        # Check for incremental checkpoint and resume if possible
+        incremental_data = None
+        completed_companies = set()
+        
+        if not force_restart:
+            incremental_data = checkpoint_manager.load_incremental_checkpoint(self.job_id, stage_name)
+            if incremental_data:
+                # Extract which companies are already completed
+                completed_companies = set(incremental_data['progress_info'].get('completed_companies', []))
+                logger.info(f"🔄 Resuming ranking from incremental checkpoint: {len(completed_companies)} companies already ranked")
+                console.print(f"🔄 Resuming ranking: {len(completed_companies)}/{len(enriched_companies)} companies already completed")
 
         console.print("🏆 Ranking founders...")
-        for i, enriched in enumerate(enriched_companies):
+        failure_count = 0
+        max_consecutive_failures = 3
+        
+        # Start with incremental data if available, otherwise use original data
+        if incremental_data and incremental_data['data']:
+            working_companies = incremental_data['data']
+        else:
+            working_companies = enriched_companies
+        
+        for i, enriched in enumerate(working_companies):
+            company_id = f"{enriched.company.name}_{enriched.company.website or 'no_website'}"
+            
+            # Skip if company already completed
+            if company_id in completed_companies:
+                console.print(f"   ✅ [{i+1}/{len(working_companies)}] Skipping already ranked {enriched.company.name}")
+                continue
+            
             if enriched.profiles:
-                console.print(f"   🏆 [{i+1}/{len(enriched_companies)}] Ranking founders for {enriched.company.name}")
+                console.print(f"   🏆 [{i+1}/{len(working_companies)}] Ranking founders for {enriched.company.name}")
                 try:
                     ranked_profiles = await self.ranking_service.rank_founders_batch(enriched.profiles)
                     enriched.profiles = ranked_profiles
+                    
+                    # Mark this company as completed
+                    completed_companies.add(company_id)
+                    failure_count = 0  # Reset failure count on success
+                    
+                    # Save incremental checkpoint after each successful company
+                    progress_info = {
+                        'completed_companies': list(completed_companies),
+                        'total_companies': len(working_companies),
+                        'progress_percentage': round((len(completed_companies) / len(working_companies)) * 100, 1)
+                    }
+                    
+                    checkpoint_success = checkpoint_manager.save_incremental_checkpoint(
+                        self.job_id, 
+                        stage_name, 
+                        working_companies, 
+                        progress_info
+                    )
+                    
+                    if checkpoint_success:
+                        logger.info(f"💾 Incremental checkpoint saved: {len(completed_companies)}/{len(working_companies)} companies ranked")
+                    
                 except Exception as e:
+                    failure_count += 1
                     logger.error(f"Ranking failed for {enriched.company.name}: {e}")
+                    
+                    # Check if we've hit the consecutive failure limit
+                    if failure_count >= max_consecutive_failures:
+                        logger.error(f"❌ {max_consecutive_failures} consecutive ranking failures - stopping ranking process")
+                        console.print(f"❌ Stopping due to {max_consecutive_failures} consecutive API failures")
+                        
+                        # Save current progress before stopping
+                        progress_info = {
+                            'completed_companies': list(completed_companies),
+                            'total_companies': len(working_companies),
+                            'progress_percentage': round((len(completed_companies) / len(working_companies)) * 100, 1),
+                            'stopped_due_to_failures': True,
+                            'last_error': str(e)
+                        }
+                        
+                        checkpoint_manager.save_incremental_checkpoint(
+                            self.job_id, 
+                            stage_name, 
+                            working_companies, 
+                            progress_info
+                        )
+                        
+                        logger.info(f"💾 Progress saved before stopping: {len(completed_companies)}/{len(working_companies)} companies completed")
+                        console.print(f"💾 Progress saved: {len(completed_companies)}/{len(working_companies)} companies ranked")
+                        console.print("🔄 You can resume ranking later by running the pipeline again")
+                        
+                        # Don't save the final checkpoint or export CSV yet
+                        return working_companies
 
-        checkpoint_manager.save_checkpoint(self.job_id, stage_name, enriched_companies)
+        # All companies completed successfully - save final checkpoint
+        checkpoint_manager.save_checkpoint(self.job_id, stage_name, working_companies)
+        logger.info(f"✅ All founders ranked successfully - final checkpoint saved")
+        
+        # Clean up incremental checkpoint since we're done
+        incremental_file = checkpoint_manager.checkpoint_dir / f"{self.job_id}_{stage_name}_incremental.pkl"
+        if incremental_file.exists():
+            incremental_file.unlink()
+            logger.info("🗑️ Cleaned up incremental checkpoint file")
         
         # Export founders CSV with ranking data (100% complete)
         try:
             runner = CheckpointedPipelineRunner(checkpoint_manager)
-            await runner._export_founders_csv(enriched_companies, self.job_id)
+            await runner._export_founders_csv(working_companies, self.job_id)
             logger.info("📊 Founders CSV export completed")
         except Exception as e:
             logger.error(f"Failed to export founders CSV: {e}")
             import traceback
             traceback.print_exc()
         
-        return enriched_companies
+        return working_companies
 
 
     def _generate_stats_from_enriched(

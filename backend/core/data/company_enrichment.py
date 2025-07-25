@@ -74,12 +74,7 @@ class CompanyEnrichmentService:
                 reader = csv.DictReader(csvfile)
                 
                 for row_num, row in enumerate(reader, 1):
-                    # Skip closed companies
-                    operating_status = row.get('Operating Status', '').strip()
-                    if operating_status.lower() == 'closed':
-                        continue
-                    
-                    # Parse company data from CSV
+                    # Parse company data from CSV (no longer filtering out closed companies)
                     company = self._parse_company_from_row(row)
                     if company:
                         companies.append(company)
@@ -92,7 +87,7 @@ class CompanyEnrichmentService:
             logger.error(f"Error reading CSV file {csv_file_path}: {e}")
             raise
         
-        logger.info(f"📂 Loaded {len(companies)} active companies from {file_path.name}")
+        logger.info(f"📂 Loaded {len(companies)} companies from {file_path.name}")
         return companies
     
     def _parse_company_from_row(self, row: Dict[str, str]) -> Optional[Company]:
@@ -152,6 +147,9 @@ class CompanyEnrichmentService:
             industries = row.get('Industries', '').strip()
             categories = [cat.strip() for cat in industries.split(',') if cat.strip()] if industries else []
             
+            # Parse operating status
+            operating_status = row.get('Operating Status', '').strip()
+            
             return Company(
                 name=name,
                 description=final_description,
@@ -177,6 +175,7 @@ class CompanyEnrichmentService:
                 last_funding_amount_usd=last_funding_amount_usd,
                 number_of_funding_rounds=number_of_funding_rounds,
                 last_funding_date=last_funding_date,
+                operating_status=operating_status,
                 market_metrics=None  # Will be enriched later
             )
             

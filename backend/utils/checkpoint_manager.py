@@ -222,6 +222,80 @@ class PipelineCheckpointManager:
         
         return deleted_count
     
+    def save_incremental_checkpoint(self, job_id: str, stage: str, data: Any, progress_info: Dict[str, Any] = None) -> bool:
+        """Save incremental checkpoint with progress tracking (for per-company/item progress)."""
+        try:
+            checkpoint_file = self.checkpoint_dir / f"{job_id}_{stage}_incremental.pkl"
+            temp_file = checkpoint_file.with_suffix('.tmp')
+            
+            # Atomic write: write to temp file first, then rename
+            checkpoint_data = {
+                'data': data,
+                'timestamp': datetime.now(),
+                'stage': stage,
+                'job_id': job_id,
+                'progress_info': progress_info or {}
+            }
+            
+            with open(temp_file, 'wb') as f:
+                pickle.dump(checkpoint_data, f, protocol=pickle.HIGHEST_PROTOCOL)
+            
+            # Atomic move
+            shutil.move(str(temp_file), str(checkpoint_file))
+            
+            logger.info(f"✅ Incremental checkpoint saved: {job_id}_{stage}")
+            self._update_job_metadata(job_id, f"{stage}_incremental", len(data) if hasattr(data, '__len__') else 1)
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to save incremental checkpoint {job_id}_{stage}: {e}")
+            # Clean up temp file if it exists
+            if temp_file.exists():
+                temp_file.unlink()
+            return False
+    
+    def load_incremental_checkpoint(self, job_id: str, stage: str) -> Optional[Dict[str, Any]]:
+        """Load incremental checkpoint data with progress info."""
+        try:
+            checkpoint_file = self.checkpoint_dir / f"{job_id}_{stage}_incremental.pkl"
+            
+            if not checkpoint_file.exists():
+                return None
+            
+            with open(checkpoint_file, 'rb') as f:
+                checkpoint = pickle.load(f)
+            
+            # Validate checkpoint structure
+            if not isinstance(checkpoint, dict):
+                logger.warning(f"⚠️ Invalid incremental checkpoint structure: {checkpoint_file}")
+                return None
+                
+            # Validate checkpoint metadata
+            if checkpoint.get('job_id') != job_id or checkpoint.get('stage') != stage:
+                logger.warning(f"⚠️ Invalid incremental checkpoint metadata: {checkpoint_file}")
+                return None
+            
+            # Check if checkpoint is too old (15 days)
+            checkpoint_timestamp = checkpoint.get('timestamp')
+            if checkpoint_timestamp:
+                age = datetime.now() - checkpoint_timestamp
+                if age > timedelta(hours=360):
+                    logger.warning(f"⚠️ Incremental checkpoint expired (age: {age}): {checkpoint_file}")
+                    return None
+            
+            return {
+                'data': checkpoint.get('data'),
+                'progress_info': checkpoint.get('progress_info', {}),
+                'timestamp': checkpoint_timestamp
+            }
+            
+        except (pickle.UnpicklingError, ModuleNotFoundError, ImportError) as e:
+            logger.warning(f"⚠️ Could not load incremental checkpoint {checkpoint_file}: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"❌ Failed to load incremental checkpoint {job_id}_{stage}: {e}")
+            return None
+
     def _update_job_metadata(self, job_id: str, stage: str, data_count: int):
         """Update job metadata for tracking."""
         self.active_jobs[job_id] = {
@@ -286,7 +360,7 @@ class CheckpointedPipelineRunner:
                 'number of funding rounds', 'last funding date', 'last funding amount (in usd)', 
                 'city', 'region', 'country', 'investor names', 'founder names', 
                 'number of employees', 'sector', 'website', 'linkedin url', 
-                'market_size_billion', 'cagr_percent', 'timing_score', 'competitor_count', 
+                'operating status', 'market_size_billion', 'cagr_percent', 'timing_score', 'competitor_count', 
                 'market_stage', 'confidence_score_market', 'us_sentiment', 'sea_sentiment', 
                 'total_funding_billion', 'momentum_score'
             ]
@@ -329,6 +403,7 @@ class CheckpointedPipelineRunner:
                         'sector': getattr(comp, 'sector', ''),
                         'website': getattr(comp, 'website', ''),
                         'linkedin url': getattr(comp, 'linkedin_url', ''),
+                        'operating status': getattr(comp, 'operating_status', ''),
                         'market_size_billion': getattr(market_metrics, 'market_size_billion', '') if market_metrics else '',
                         'cagr_percent': getattr(market_metrics, 'cagr_percent', '') if market_metrics else '',
                         'timing_score': getattr(market_metrics, 'timing_score', '') if market_metrics else '',
@@ -375,6 +450,7 @@ class CheckpointedPipelineRunner:
                     # Extract separate experience, education, and skills columns
                     record = {
                         'company_name': company_name,
+                        'operating_status': getattr(ec.company, 'operating_status', ''),
                         'name': getattr(profile, 'person_name', ''),
                         'title': getattr(profile, 'title', ''),
                         'linkedin_url': getattr(profile, 'linkedin_url', ''),
@@ -457,15 +533,11 @@ class CheckpointedPipelineRunner:
                         ])
                         
                         record['notable_achievements'] = '; '.join(getattr(financial_profile, 'notable_achievements', []) or [])
-                        record['estimated_net_worth'] = getattr(financial_profile, 'estimated_net_worth', '')
-                        record['confidence_level'] = getattr(financial_profile, 'confidence_level', '')
                     else:
                         record['companies_founded'] = ''
                         record['investment_activities'] = ''
                         record['board_positions'] = ''
                         record['notable_achievements'] = ''
-                        record['estimated_net_worth'] = ''
-                        record['confidence_level'] = ''
                     
                     founder_records.append(record)
             
@@ -475,14 +547,14 @@ class CheckpointedPipelineRunner:
             
             # Define CSV columns for founders including ranking and enhancement columns
             columns = [
-                'company_name', 'name', 'title', 'linkedin_url', 'location', 'about',
+                'company_name', 'operating_status', 'name', 'title', 'linkedin_url', 'location', 'about',
                 'estimated_age', 'extraction_date',
                 'experience_1_title', 'experience_1_company', 'experience_2_title', 'experience_2_company',
                 'experience_3_title', 'experience_3_company', 'education_1_school', 'education_1_degree',
                 'education_2_school', 'education_2_degree', 'skill_1', 'skill_2', 'skill_3', 'skill_4', 'skill_5',
                 'media_mentions_count', 'awards_and_recognitions', 'speaking_engagements', 'social_media_followers',
                 'thought_leadership_score', 'overall_sentiment', 'companies_founded', 'investment_activities',
-                'board_positions', 'notable_achievements', 'estimated_net_worth', 'confidence_level',
+                'board_positions', 'notable_achievements',
                 'l_level', 'reasoning', 'confidence_score'
             ]
             

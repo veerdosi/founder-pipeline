@@ -30,3 +30,26 @@
   color: var(--text-tertiary);
   margin-top: 8px;
 }
+
+.checkpoint-info {
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 12px;
+  margin-top: 12px;
+}
+
+.checkpoint-detail {
+  margin: 6px 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.checkpoint-detail strong {
+  color: var(--text-primary);
+}
+
+.checkpoint-complete {
+  color: #059669;
+  font-weight: 500;
+}
