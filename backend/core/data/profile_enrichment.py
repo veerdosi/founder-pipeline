@@ -343,7 +343,6 @@ Remember: Only return profiles with real URLs found in the search results above.
                 content = content[:-3]  # Remove ```
             content = content.strip()
             
-            import json
             result = json.loads(content)
             
             profiles = []
@@ -458,7 +457,6 @@ Remember: Only return profiles with real URLs found in the search results above.
                 content = content[:-3]  # Remove ```
             content = content.strip()
             
-            import json
             result = json.loads(content)
             
             profiles = []
