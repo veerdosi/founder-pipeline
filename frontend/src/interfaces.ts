@@ -69,4 +69,10 @@ export interface CheckpointInfo {
   latest_stage: string
   completion_percentage: number
   stages_completed: number
+  incremental_info?: {
+    completed_companies: number
+    total_companies: number
+    next_company_index: number
+    stage_progress: number
+  }
 }

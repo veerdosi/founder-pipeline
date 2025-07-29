@@ -209,6 +209,47 @@ async def get_available_checkpoints(job_type: Optional[str] = None):
                             "stages_completed": stage_index + 1,
                             "job_type": classified_job_type
                         })
+            
+            # Check for incremental checkpoints (partial progress on current stage)
+            current_stage = job_progress.get('current_stage')
+            if current_stage == 'rankings':
+                # Check for incremental ranking checkpoint
+                incremental_data = checkpoint_manager.load_incremental_checkpoint(job_id, 'rankings')
+                if incremental_data and 'progress_info' in incremental_data:
+                    progress_info = incremental_data['progress_info']
+                    completed_count = len(progress_info.get('completed_companies', []))
+                    total_count = progress_info.get('total_companies', 1)
+                    
+                    # Calculate partial progress within the rankings stage
+                    rankings_stage_percentage = (completed_count / total_count) * 100 if total_count > 0 else 0
+                    
+                    # Overall completion: profiles stage (66.7%) + partial rankings stage
+                    overall_completion = 66.7 + (rankings_stage_percentage * 33.3 / 100)
+                    
+                    # Determine job type
+                    if job_id.startswith(("yc_job", "techstars_job", "500co_job")):
+                        classified_job_type = "accelerator"
+                    else:
+                        classified_job_type = "main_pipeline"
+                    
+                    # Create incremental checkpoint entry
+                    checkpoints.append({
+                        "id": f"{job_id}_rankings_incremental",
+                        "job_id": job_id,
+                        "stage": "rankings_incremental",
+                        "created_at": incremental_data['timestamp'].isoformat() if hasattr(incremental_data['timestamp'], 'isoformat') else str(incremental_data['timestamp']),
+                        "foundation_year": foundation_year,
+                        "latest_stage": "rankings_partial",
+                        "completion_percentage": round(overall_completion, 1),
+                        "stages_completed": 2,
+                        "job_type": classified_job_type,
+                        "incremental_info": {
+                            "completed_companies": completed_count,
+                            "total_companies": total_count,
+                            "next_company_index": completed_count + 1,
+                            "stage_progress": round(rankings_stage_percentage, 1)
+                        }
+                    })
         
         # Filter by job type if specified
         if job_type:
@@ -233,11 +274,15 @@ async def resume_pipeline_from_checkpoint(
     try:
         # Extract actual job_id from checkpoint_id (format: job_id_stage)
         if '_enriched_companies' in checkpoint_id or '_profiles' in checkpoint_id or '_rankings' in checkpoint_id:
-            # Remove the stage suffix to get the actual job_id
-            for stage in ['_rankings', '_profiles', '_enriched_companies']:
-                if checkpoint_id.endswith(stage):
-                    actual_job_id = checkpoint_id[:-len(stage)]
-                    break
+            # Handle incremental checkpoints
+            if checkpoint_id.endswith('_rankings_incremental'):
+                actual_job_id = checkpoint_id[:-len('_rankings_incremental')]
+            else:
+                # Remove the stage suffix to get the actual job_id
+                for stage in ['_rankings', '_profiles', '_enriched_companies']:
+                    if checkpoint_id.endswith(stage):
+                        actual_job_id = checkpoint_id[:-len(stage)]
+                        break
         else:
             actual_job_id = checkpoint_id
         
