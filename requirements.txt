@@ -5,7 +5,7 @@ pydantic-settings
 httpx
 aiohttp
 aiofiles
-pandas
+pandas>=2.3.0
 tenacity
 python-dotenv
 openai
@@ -17,3 +17,15 @@ fastapi
 uvicorn[standard]
 python-multipart
 langchain
+
+# ML Pipeline Dependencies
+xgboost>=3.0.3
+scikit-learn>=1.7.1
+matplotlib>=3.10.5
+seaborn>=0.13.2
+numpy>=2.3.1
+scipy>=1.16.1
+joblib>=1.5.1
+
+# Optional ML Dependencies
+# shap>=0.45.0  # Uncomment for model interpretability
